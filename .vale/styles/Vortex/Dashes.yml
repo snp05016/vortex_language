@@ -1,0 +1,9 @@
+# Em dash (U+2014) and en dash (U+2013). Use a comma, colon, parentheses or a
+# new sentence instead; use a plain hyphen for ranges such as "pp. 41-51".
+extends: existence
+message: "Don't use a dash ('%s') in prose. Use a comma, colon, parentheses or a new sentence; use a hyphen for ranges."
+level: error
+nonword: true
+tokens:
+  - "—"
+  - "–"

@@ -1,0 +1,9 @@
+# Hand-written AArch64 inside a C++ harness: built and run on arm64 only.
+platforms = ["macos-arm64", "linux-arm64"]
+follows = [
+  "https://developer.arm.com/documentation/100076/0100/A64-Instruction-Set-Reference/Condition-Codes/Condition-code-suffixes-and-related-flags",
+  "https://developer.arm.com/documentation/100076/0100/A64-Instruction-Set-Reference/Condition-Codes/Carry-flag",
+  "https://developer.arm.com/documentation/102374/0103/Program-flow---generating-condition-code",
+  "https://developer.arm.com/documentation/ddi0602/2026-06/Base-Instructions/SXTW--Sign-extend-word--an-alias-of-SBFM-",
+  "https://github.com/ARM-software/abi-aa/blob/main/aapcs64/aapcs64.rst",
+]

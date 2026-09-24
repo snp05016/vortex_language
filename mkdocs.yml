@@ -1,5 +1,5 @@
-site_name: Vortex Language Specification
-site_description: The normative Vortex v0.1 language specification and compiler implementation guide.
+site_name: Vortex
+site_description: A small, statically typed language for numerical kernels, its specification, and a guide to building its compiler.
 site_author: Saumya Patel
 site_url: https://snp05016.github.io/vortex_language/
 repo_name: snp05016/vortex_language
@@ -7,82 +7,275 @@ repo_url: https://github.com/snp05016/vortex_language
 edit_uri: edit/main/docs/
 docs_dir: docs
 site_dir: site
-strict: true
-exclude_docs: |
-  /README.md
+copyright: Vortex is an evolving language specification. Specified behavior is not necessarily implemented behavior.
 
+# Built with Zensical (classic variant = Material for MkDocs look). The same
+# file stays buildable with Material for MkDocs 9.7 as a fallback.
 theme:
-  name: readthedocs
-  locale: en
-  highlightjs: true
-  hljs_languages:
-    - cpp
-    - ebnf
-  include_homepage_in_sidebar: true
-  navigation_depth: 4
-  collapse_navigation: false
-  titles_only: false
-  sticky_navigation: true
+  name: material
+  variant: classic
+  language: en
+  font: false
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: custom
+      accent: custom
+      toggle:
+        icon: lucide/moon
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: custom
+      accent: custom
+      toggle:
+        icon: lucide/sun
+        name: Switch to light mode
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.indexes
+    - navigation.instant
+    - navigation.instant.progress
+    - navigation.tracking
+    - navigation.top
+    - navigation.footer
+    - search.suggest
+    - search.highlight
+    - toc.follow
+    - content.code.copy
+    - content.code.annotate
+    - content.tabs.link
+    - content.tooltips
+    - content.footnote.tooltips
+    - content.action.edit
 
 nav:
-  - Vortex: index.md
-  - Language Specification:
-      - Specification status: specification/index.md
-      - 1. Conformance and terminology: specification/conformance.md
-      - 2. Lexical structure: specification/lexical-structure.md
-      - 3. Programs and declarations: specification/declarations.md
-      - 4. Types and values: specification/types-and-values.md
-      - 5. Expressions: specification/expressions.md
-      - 6. Statements and control flow: specification/statements.md
-      - 7. Arrays and shapes: specification/arrays.md
-      - 8. Structs: specification/structs.md
-      - 9. References and mutability: specification/references.md
-      - 10. Diagnostics: specification/diagnostics.md
-      - 11. Formal grammar: specification/grammar.md
-      - 12. Glossary: specification/glossary.md
-  - Language Guide:
+  - Home: index.md
+  - Learn:
       - Start the tour: language-tour/README.md
-      - Syntax philosophy: language-tour/01-syntax-philosophy.md
-      - Basic source rules: language-tour/02-basic-source-rules.md
-      - Hello world and main: language-tour/03-hello-world.md
-      - Variables and types: language-tour/04-variables-and-types.md
-      - Expressions: language-tour/08-expressions.md
-      - Statements: language-tour/09-statements.md
-      - Declarations: language-tour/10-declarations.md
-      - Runtime and numerical rules: language-tour/06-runtime-and-numerical-rules.md
-      - Planned types: language-tour/05-types-planned-for-later.md
-      - Planned kernels and parallelism: language-tour/07-kernels-and-parallel-execution.md
-  - Compiler Implementation:
-      - Architecture: compiler/architecture.md
-      - Parser design: compiler/parser-design.md
-      - AST learning guide: compiler/ast-guide.md
-      - Implementation roadmap: roadmap.md
+      - 1. Syntax philosophy: language-tour/01-syntax-philosophy.md
+      - 2. Basic source rules: language-tour/02-basic-source-rules.md
+      - 3. Hello world and main: language-tour/03-hello-world.md
+      - 4. Variables and types: language-tour/04-variables-and-types.md
+      - 5. Expressions: language-tour/08-expressions.md
+      - 6. Statements: language-tour/09-statements.md
+      - 7. Declarations: language-tour/10-declarations.md
+      - 8. Runtime and numerical rules: language-tour/06-runtime-and-numerical-rules.md
+      - 9. Planned types: language-tour/05-types-planned-for-later.md
+      - 10. Planned kernels and parallelism: language-tour/07-kernels-and-parallel-execution.md
   - Reference:
-      - Language and compiler cheat sheet: language-and-compiler-cheatsheet.md
+      - Specification:
+          - Specification status: specification/index.md
+          - 1. Conformance and terminology: specification/conformance.md
+          - 2. Lexical structure: specification/lexical-structure.md
+          - 3. Programs and declarations: specification/declarations.md
+          - 4. Types and values: specification/types-and-values.md
+          - 5. Expressions: specification/expressions.md
+          - 6. Statements and control flow: specification/statements.md
+          - 7. Arrays and shapes: specification/arrays.md
+          - 8. Structs: specification/structs.md
+          - 9. References and mutability: specification/references.md
+          - 10. Diagnostics: specification/diagnostics.md
+          - 11. Formal grammar: specification/grammar.md
+          - 12. Glossary: specification/glossary.md
+      - Language decisions:
+          - Overview: decisions/index.md
+          - Lexical structure and source text: decisions/lexical.md
+          - Names and scopes: decisions/names.md
+          - Numbers, literals and casts: decisions/numbers.md
+          - Operators, structs and void: decisions/operators.md
+          - Arrays and shapes: decisions/arrays.md
+          - Statements and control flow: decisions/statements.md
+          - References and mutability: decisions/references.md
+          - Diagnostics and runtime checks: decisions/diagnostics.md
+          - Programs, output and the driver: decisions/program.md
+          - How the documents work: decisions/documentation.md
+          - Implementation choices: decisions/implementation.md
+      - Cheat sheet: language-and-compiler-cheatsheet.md
       - Language philosophy: philosophy.md
+  - Build v0.1:
+      - Overview: compiler/guide/index.md
+      - 0. The workbench: compiler/guide/stage-0-workbench.md
+      - 1. Source text and error messages: compiler/guide/stage-1-source-and-diagnostics.md
+      - 2. The lexer: compiler/guide/stage-2-lexer.md
+      - 3. The parser and the syntax tree: compiler/guide/stage-3-parser-and-tree.md
+      - 4. Names and scopes: compiler/guide/stage-4-names-and-scopes.md
+      - 5. Types and language rules: compiler/guide/stage-5-types-and-rules.md
+      - 6. The first machine code: compiler/guide/stage-6-first-machine-code.md
+      - 7. Functions and control flow: compiler/guide/stage-7-functions-and-control-flow.md
+      - 8. Data in memory: compiler/guide/stage-8-data-in-memory.md
+      - 9. Runtime safety: compiler/guide/stage-9-runtime-safety.md
+      - 10. Matrix multiplication: compiler/guide/stage-10-matrix-multiplication.md
+      - 11. Release: compiler/guide/stage-11-release.md
+      - Word list: compiler/guide/words.md
+      - Reading list: compiler/guide/reading-list.md
+  - Back end:
+      - Overview: backend/index.md
+      - A. The machine:
+          - "A1. The machine model": backend/a1-machine-model.md
+          - "A2. Reading and writing AArch64 assembly": backend/a2-aarch64-assembly.md
+          - "A3. Floats and vectors in registers": backend/a3-floats-and-vectors.md
+          - "A4. Calling conventions and ABIs": backend/a4-calling-conventions.md
+          - "A5. Stack frames": backend/a5-stack-frames.md
+      - B. A first native back end:
+          - "B1. The simplest back end that works": backend/b1-simplest-backend.md
+          - "B2. A second target: x86-64": backend/b2-x86-64.md
+          - "B3. Object files and assemblers": backend/b3-object-files.md
+          - "B4. Linking and loading": backend/b4-linking-and-loading.md
+      - C. The classical pipeline:
+          - "C1. Instruction selection": backend/c1-instruction-selection.md
+          - "C2. Liveness": backend/c2-liveness.md
+          - "C3. Register allocation I: linear scan": backend/c3-linear-scan.md
+          - "C4. Register allocation II: graphs and SSA": backend/c4-graph-coloring.md
+          - "C5. Spilling, splitting and rematerialization": backend/c5-spilling.md
+          - "C6. Instruction scheduling": backend/c6-scheduling.md
+          - "C7. Peephole optimization": backend/c7-peephole.md
+      - D. Around the code:
+          - "D1. Debug information": backend/d1-debug-info.md
+          - "D2. JIT compilation": backend/d2-jit.md
+          - "D3. Reading real back ends": backend/d3-real-backends.md
+      - E. How LLVM does it:
+          - "E1. The LLVM code generator pipeline": backend/e1-llvm-codegen-pipeline.md
+          - "E2. Describing a target": backend/e2-describing-a-target.md
+          - "E3. LLVM's allocator, scheduler and MC layer": backend/e3-llvm-allocator-scheduler-mc.md
+          - "E4. Testing back ends": backend/e4-testing-backends.md
+  - Optimize:
+      - Overview: optimize/index.md
+      - The middle end:
+          - "O1. The optimizer's contract": optimize/o1-optimizer-contract.md
+          - "O2. Control-flow graphs and dominance": optimize/o2-cfg-and-dominance.md
+          - "O3. SSA form: construction and destruction": optimize/o3-ssa.md
+          - "O4. Dataflow analysis": optimize/o4-dataflow.md
+          - "O5. Constants and dead code": optimize/o5-constants-and-dead-code.md
+          - "O6. Redundancy: CSE, GVN, PRE and LICM": optimize/o6-redundancy.md
+          - "O7. Calls and aggregates: inlining and SROA": optimize/o7-inlining-and-sroa.md
+          - "O8. Loops: structure, induction variables and bounds checks": optimize/o8-loops.md
+          - "O9. Memory: alias analysis and MemorySSA": optimize/o9-alias-analysis.md
+          - "O10. Pass managers and pipelines": optimize/o10-pass-pipelines.md
+          - "O11. Undefined behavior, poison and correct optimization": optimize/o11-undefined-behavior.md
+          - "O12. Testing an optimizer": optimize/o12-testing-optimizers.md
+      - CPU performance:
+          - "P1. Measure first": optimize/p1-measure-first.md
+          - "P2. The memory hierarchy": optimize/p2-memory-hierarchy.md
+          - "P3. The roofline model": optimize/p3-roofline.md
+          - "P4. Seeing inside the CPU: counters and tools": optimize/p4-counters-and-tools.md
+          - "P5. The microarchitecture shelf": optimize/p5-microarchitecture.md
+          - "P6. Dependence analysis": optimize/p6-dependence-analysis.md
+          - "P7. Loop transformations": optimize/p7-loop-transformations.md
+          - "P8. Cache blocking": optimize/p8-cache-blocking.md
+          - "P9. The polyhedral model": optimize/p9-polyhedral-model.md
+          - "P10. Vectorization": optimize/p10-vectorization.md
+          - "P11. Floating point under optimization": optimize/p11-floating-point.md
+          - "P12. Anatomy of a fast GEMM": optimize/p12-fast-gemm.md
+          - "P13. Multithreading": optimize/p13-multithreading.md
+          - "P14. Algorithms and schedules": optimize/p14-algorithms-and-schedules.md
+          - "P15. Choosing parameters: models or search": optimize/p15-choosing-parameters.md
+          - "P16. Capstone: the ladder, measured": optimize/p16-capstone.md
+  - GPU:
+      - Overview: gpu/index.md
+      - A. The machine:
+          - "G1. Throughput machines": gpu/g1-throughput-machines.md
+          - "G2. The SIMT execution model": gpu/g2-simt.md
+          - "G3. The GPU memory hierarchy": gpu/g3-memory-hierarchy.md
+      - B. Performance:
+          - "G4. Memory performance: coalescing and bank conflicts": gpu/g4-memory-performance.md
+          - "G5. Occupancy and latency hiding": gpu/g5-occupancy.md
+          - "G6. Synchronization, atomics and reductions": gpu/g6-synchronization.md
+      - C. Software stack:
+          - "G7. Programming models tour": gpu/g7-programming-models.md
+          - "G8. ISAs and IRs": gpu/g8-isas-and-irs.md
+          - "G9. GPU compilers inside LLVM": gpu/g9-gpu-compilers-in-llvm.md
+      - D. Matmul and friends:
+          - "G10. The GPU matmul ladder": gpu/g10-matmul-ladder.md
+          - "G11. Matrix units": gpu/g11-matrix-units.md
+          - "G12. Fusion case study: FlashAttention": gpu/g12-flashattention.md
+          - "G13. Tile languages": gpu/g13-tile-languages.md
+      - E. Measurement and beyond:
+          - "G14. Measuring GPU code": gpu/g14-measuring-gpu-code.md
+          - "G15. Beyond GPUs: systolic arrays and accelerators": gpu/g15-systolic-arrays.md
+  - MLIR:
+      - Overview: mlir/index.md
+      - "M1. Why MLIR": mlir/m1-why-mlir.md
+      - "M2. Reading MLIR": mlir/m2-reading-mlir.md
+      - "M3. Passes and pattern rewriting": mlir/m3-passes-and-rewriting.md
+      - "M4. Dialect conversion and lowering to LLVM": mlir/m4-dialect-conversion.md
+      - "M5. Structured ops: linalg, tensor and memref": mlir/m5-structured-ops.md
+      - "M6. Loops: affine and scf": mlir/m6-affine-and-scf.md
+      - "M7. Bufferization": mlir/m7-bufferization.md
+      - "M8. Vectorization in MLIR": mlir/m8-vectorization.md
+      - "M9. Schedules as IR: the transform dialect": mlir/m9-transform-dialect.md
+      - "M10. MLIR for GPUs": mlir/m10-mlir-for-gpus.md
+      - "M11. End-to-end ML compilers": mlir/m11-ml-compilers.md
+      - "M12. Designing Vortex's GPU path": mlir/m12-vortex-gpu-path.md
+  - Project:
+      - For reviewers: project/index.md
+      - Implementation roadmap: roadmap.md
+      - How Vortex is tested: project/testing.md
+      - How performance is measured: project/measuring.md
+      - Case studies:
+          - Overview: project/case-studies/index.md
+          - A1. CPU matmul ladder: project/case-studies/cpu-matmul-ladder.md
+          - A2. Benchmark harness: project/case-studies/benchmark-harness.md
+          - A3. Differential testing: project/case-studies/differential-testing.md
+          - A4. LLVM IR back end: project/case-studies/llvm-backend.md
+          - A5. Upstream contributions: project/case-studies/upstream-contributions.md
+          - A6. Native AArch64 back end: project/case-studies/native-aarch64-backend.md
+          - A7. MLIR lowering path: project/case-studies/mlir-lowering-path.md
+          - A8. GPU matmul ladder: project/case-studies/gpu-matmul-ladder.md
+          - A9. Cost model and autotuner: project/case-studies/cost-model-autotuner.md
+          - A10. ML framework bridge: project/case-studies/ml-framework-bridge.md
+      - Compiler internals:
+          - Architecture: compiler/architecture.md
+          - Parser design: compiler/parser-design.md
+          - AST learning guide: compiler/ast-guide.md
+      - What is new: project/changelog.md
       - Authorship and methodology: authorship.md
 
 markdown_extensions:
+  - abbr
   - admonition
   - attr_list
   - def_list
-  - fenced_code
   - footnotes
   - md_in_html
   - tables
   - toc:
       permalink: true
-      toc_depth: 4
+      toc_depth: 3
+  - pymdownx.details
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets:
+      base_path: ["."]
+      check_paths: true
+      auto_append:
+        - includes/abbreviations.md
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.arithmatex:
+      generic: true
 
-plugins:
-  - search:
-      lang: en
-      separator: '[\s\-\.::]+'
+validation:
+  omitted_files: warn
+  absolute_links: warn
+  unrecognized_links: warn
+  anchors: warn
 
 extra_css:
   - stylesheets/extra.css
+  - https://cdn.jsdelivr.net/npm/katex@0.18.9/dist/katex.min.css
 
 extra_javascript:
   - javascripts/theme.js
-
-copyright: Vortex is an evolving language specification. Specified behavior is not necessarily implemented behavior.
+  - javascripts/katex.js
+  - https://cdn.jsdelivr.net/npm/katex@0.18.9/dist/katex.min.js
+  - https://cdn.jsdelivr.net/npm/katex@0.18.9/dist/contrib/auto-render.min.js

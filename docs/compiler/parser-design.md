@@ -1,17 +1,19 @@
-# Vortex v0.1 Parser Design and Implementation Assignment
+# Vortex v0.1 parser design and implementation assignment
 
 This document is the working reference for implementing the Vortex parser. It
 explains what the parser must recognize, what AST node it should build, what it
 must reject immediately, and what must be left for semantic analysis.
 
-The grammar is authoritative for source syntax. See
-[Vortex v0.1 Grammar](../specification/grammar.md). The AST declarations are
-authoritative for the C++ node shapes. See
+The source syntax is defined by the
+[Vortex v0.1 Grammar](../specification/grammar.md), and
+[document authority](../specification/conformance.md#11-document-authority)
+says which page decides when two disagree. This page is informative. The C++
+node shapes of the actual compiler are those in
 [`ast.h`](https://github.com/snp05016/vortex_language/blob/main/src/frontend/ast.h).
 
 > **Implementation status:** `parser.cpp` is currently a scaffold. The designs
-> and function shapes below are implementation requirements, not claims that
-> every parser function already exists.
+> and function shapes below describe one implementation strategy, not the
+> owner's code, and do not claim that every parser function already exists.
 
 ## Contents
 
@@ -54,6 +56,7 @@ Token stream -> Parser -> AST
 For example:
 
 ```vortex
+// fragment
 let result: i32 = left + right * 2;
 ```
 
@@ -89,12 +92,13 @@ This boundary is essential. The parser checks **form**. Later stages check
 | Is an assignment target mutable? | No | Semantic checking |
 | Is `break;` inside a loop? | No | Semantic checking |
 | Does `return` match the function return type? | No | Type checking |
-| Is an array dimension a compile-time integer? | No | Constant/type checking |
-| Does `main` have the required signature? | No | Semantic checking |
+| Is an array dimension an integer constant expression of at least 1? | No | Type checking, while resolving the array type |
+| Does `main` have the required signature? | No | Name resolution |
 
 ### The parser can accept
 
 ```vortex
+// fragment
 let value: MissingType = unknown_name + true;
 ```
 
@@ -104,6 +108,7 @@ errors later.
 ### The parser must reject
 
 ```vortex
+// statements: syntax error
 let value i32 = 10;
 ```
 
@@ -209,6 +214,7 @@ parser for expressions. Do not implement two competing expression parsers.
 At the top level, v0.1 permits function and struct declarations.
 
 ```vortex
+// program: valid
 struct Point {
     x: f32,
     y: f32,
@@ -243,8 +249,10 @@ parse_program
 - standalone blocks
 - type aliases, enums, classes, or imports
 
-The parser only records declarations. A later semantic pass checks that there
-is exactly one valid `main` function.
+The parser only records declarations. Name resolution later checks that there
+is exactly one valid `main` function
+([Programs and declarations 3.3](../specification/declarations.md#33-entry-point),
+[decision](../decisions/program.md#d6)).
 
 ## 7. Parsing declarations
 
@@ -253,6 +261,7 @@ is exactly one valid `main` function.
 Required shape:
 
 ```vortex
+// items: valid
 fn add(left: i32, right: i32) -> i32 {
     return left + right;
 }
@@ -273,6 +282,7 @@ Parse in this order:
 Valid:
 
 ```vortex
+// items: valid
 fn run() {}
 fn identity(value: i32) -> i32 { return value; }
 fn combine(a: i32, b: i32) -> i32 { return a + b; }
@@ -281,6 +291,7 @@ fn combine(a: i32, b: i32) -> i32 { return a + b; }
 Invalid syntax:
 
 ```vortex
+// items: syntax error
 fn () {}                       // missing function name
 fn add(left i32) {}            // missing ':'
 fn add(left: i32 right: i32) {} // missing comma
@@ -295,6 +306,7 @@ and scope rule for semantic analysis.
 A parameter contains a name and a type, but no runtime value:
 
 ```vortex
+// fragment
 left: i32
 ```
 
@@ -314,6 +326,7 @@ child with `std::unique_ptr<Type>`.
 Required shape:
 
 ```vortex
+// items: valid
 struct Point {
     x: f32,
     y: f32,
@@ -321,23 +334,27 @@ struct Point {
 ```
 
 The parser records the struct name and each field declaration in source order.
-The final comma is optional. Duplicate field names are syntactically valid but
-must be rejected by semantic analysis.
+A struct needs at least one field
+([why](../decisions/operators.md#d26)), and the final comma is optional.
+Duplicate field names are syntactically valid but must be rejected by semantic
+analysis.
 
 Valid:
 
 ```vortex
-struct Empty {}
+// items: valid
 struct Pair { left: i32, right: i32 }
-struct Pair { left: i32, right: i32, }
+struct Span { left: i32, right: i32, }
 ```
 
 Invalid syntax:
 
 ```vortex
-struct { x: i32 }          // missing struct name
-struct Point { x i32 }     // missing ':'
+// items: syntax error
+struct { x: i32 }              // missing struct name
+struct Point { x i32 }         // missing ':'
 struct Point { x: i32 y: i32 } // missing comma
+struct Empty {}                // at least one field is required
 ```
 
 ## 8. Parsing types
@@ -354,6 +371,7 @@ Every type parser call returns one concrete `Type` child.
 ### 8.1 Primitive type
 
 ```vortex
+// fragment
 void  bool  char  i32  u32  usize  f32  f64  String
 ```
 
@@ -363,6 +381,7 @@ it is not the same as a literal's stored value.
 ### 8.2 Named type
 
 ```vortex
+// fragment
 Point
 ```
 
@@ -372,17 +391,22 @@ was declared or whether it names a struct.
 ### 8.3 Reference type
 
 ```vortex
+// fragment
 &i32
 &mut [f32; 4]
 ```
 
 After `&`, consume optional `mut`, then recursively parse another type. The
-parser records mutability; borrowing and lifetime rules belong to semantic
-analysis.
+parser records mutability and accepts a reference type in every type position,
+including a return type, a field type, an array element type and `& &i32`.
+Where references may appear, and the borrow rules, belong to semantic analysis,
+which reports a misplaced reference type as a type error
+([decision](../decisions/references.md#d41)).
 
 ### 8.4 Array type
 
 ```vortex
+// fragment
 [f32; 16]
 [f32; 2 + 2, 8 / 2]
 ```
@@ -401,22 +425,24 @@ source structure.
 Valid syntax:
 
 ```vortex
+// fragment
 [i32; 4]
 [f32; 2 + 2]
 [[i32; 4]; 3]
 [f32; rows, columns]
 ```
 
-The last example is syntactically valid. For fixed-size v0.1 arrays, semantic
-analysis must still prove that every dimension is a compile-time integer that
-is valid as an array extent. A runtime variable or function call therefore
-fails later unless the language gives it a compile-time meaning. The current
-grammar does not decide whether a zero extent is legal; that policy belongs in
-the semantic specification rather than in the parser.
+The last example is syntactically valid. For fixed-size v0.1 arrays, the type
+checker must still check that every dimension is an integer constant
+expression with a value of at least 1. A name or a function call therefore
+always fails later, with a constant-evaluation error
+([decision](../decisions/arrays.md#d11)). A zero extent is rejected by the
+semantic rules, not by the parser ([decision](../decisions/arrays.md#d10)).
 
 Invalid syntax:
 
 ```vortex
+// fragment
 [i32]       // missing dimensions
 [i32;]      // missing first dimension expression
 [i32; 4,]   // trailing dimension comma is not in the v0.1 grammar
@@ -443,6 +469,7 @@ Invalid syntax:
 ### 9.1 Variable declaration
 
 ```vortex
+// statements: valid
 let count = 10;
 let mut total: i32 = 0;
 ```
@@ -457,13 +484,15 @@ The node must preserve:
 Valid:
 
 ```vortex
+// fragment
 let value = calculate();
-let mut value: i32 = 10;
+let mut limit: i32 = 10;
 ```
 
 Invalid syntax:
 
 ```vortex
+// statements: syntax error
 let = 10;          // missing name
 let value;         // initializer is required in v0.1
 let value: = 10;   // missing type
@@ -473,6 +502,7 @@ let value = 10     // missing semicolon
 ### 9.2 Assignment statement
 
 ```vortex
+// fragment
 value = 10;
 point.x += 1.0;
 matrix[row, column] = 0.0;
@@ -485,6 +515,7 @@ target is mutable and whether the value type is compatible are later checks.
 Not assignment expressions:
 
 ```vortex
+// statements: syntax error
 let result = (value = 10); // invalid: assignment is a statement
 call(value = 10);          // invalid for the same reason
 ```
@@ -492,6 +523,7 @@ call(value = 10);          // invalid for the same reason
 ### 9.3 Return statement
 
 ```vortex
+// fragment
 return;
 return value;
 ```
@@ -502,6 +534,7 @@ current function return type.
 ### 9.4 If statement
 
 ```vortex
+// fragment
 if condition {
     run();
 } else if other {
@@ -518,6 +551,7 @@ later requires `bool`.
 ### 9.5 While statement
 
 ```vortex
+// fragment
 while index < limit {
     index += 1;
 }
@@ -528,6 +562,7 @@ The AST stores the condition expression and body block.
 ### 9.6 For statement
 
 ```vortex
+// statements: valid
 for index in 0..10 {
     print(index);
 }
@@ -535,12 +570,18 @@ for index in 0..10 {
 
 Vortex uses `for name in expression`, not a C-style initializer-condition-step
 loop. The AST must preserve the loop variable name, iterable expression, and
-body. Do not require the iterable to be a `RangeExpr` in the parser; that would
-unnecessarily prevent other iterable values from being added or recognized.
+body. The parser accepts any expression as the iterable. Type checking then
+requires a range, possibly in parentheses, whose endpoints have the same
+integer type, and reports anything else as a type error
+([decision 13](../decisions/statements.md#d13),
+[decision 36](../decisions/statements.md#d36)). Leaving the check to type
+checking gives a precise message and lets planned iterables, such as arrays,
+arrive without a grammar change.
 
 ### 9.7 Break and continue
 
 ```vortex
+// fragment
 break;
 continue;
 ```
@@ -551,6 +592,7 @@ a loop is checked later.
 ### 9.8 Block
 
 ```vortex
+// statements: valid
 {
     let value = 10;
     print(value);
@@ -571,14 +613,17 @@ Expressions must preserve precedence. From tightest binding to loosest:
 | Multiplicative | `*`, `/`, `%` | left-associative |
 | Additive | `+`, `-` | left-associative |
 | Shift | `<<`, `>>` | left-associative |
-| Comparison | `<`, `<=`, `>`, `>=` | as defined by grammar |
-| Equality | `==`, `!=` | as defined by grammar |
+| Comparison | `<`, `<=`, `>`, `>=` | non-associative: a second comparison or equality operator without parentheses is a syntax error |
+| Equality | `==`, `!=` | non-associative: a second comparison or equality operator without parentheses is a syntax error |
 | Bitwise AND | `&` | left-associative |
 | Bitwise XOR | `^` | left-associative |
 | Bitwise OR | `\|` | left-associative |
 | Logical AND | `&&` | left-associative |
 | Logical OR | `\|\|` | left-associative |
 | Range | `..`, `..=` | at most one range operator |
+
+So `a < b < c` and `a < b == c` are syntax errors, while `(a < b) == c` parses
+([why](../decisions/operators.md#d37)).
 
 ### 10.1 Primary expressions
 
@@ -588,25 +633,30 @@ The first token determines the primary form:
 | --- | --- |
 | integer, float, boolean, char, or string literal | literal expression |
 | identifier | identifier or struct construction |
+| `i32`, `u32`, `usize`, `f32` or `f64` followed by `(` | cast expression |
 | `[` | array or repeat-array expression |
 | `(` | grouped expression |
 
 Valid:
 
 ```vortex
+// fragment
 42
 name
 (left + right)
 [1, 2, 3]
 Point { x: 1.0, y: 2.0 }
+f32(count)
 ```
 
 Invalid:
 
 ```vortex
-()        // no unit/empty-tuple expression in v0.1
-[]        // empty arrays have no inferred element type in v0.1
-(1 + 2   // missing ')'
+// fragment
+()           // no unit/empty-tuple expression in v0.1
+[]           // not an expression: an array has at least one element
+(1 + 2       // missing ')'
+bool(flag)   // only numeric types can begin a cast
 ```
 
 ### 10.2 Postfix expressions
@@ -614,6 +664,7 @@ Invalid:
 Start with one primary, then repeatedly apply suffixes:
 
 ```vortex
+// fragment
 factory().points[row, column].x
 ```
 
@@ -623,6 +674,7 @@ built so far.
 ### 10.3 Unary expressions
 
 ```vortex
+// fragment
 -value
 !ready
 ~bits
@@ -631,7 +683,10 @@ built so far.
 ```
 
 The operand is another expression node, not a numeric value field. That allows
-nested forms such as `-(left + right)` and `!!ready`.
+nested forms such as `-(left + right)` and `!!ready`. There is no dereference
+operator. A name of reference type is an ordinary identifier expression; the
+type checker, not the parser, decides that it reads or writes the referent
+([decision](../decisions/references.md#d40)).
 
 ### 10.4 Binary expressions
 
@@ -639,6 +694,7 @@ Build one `BinaryExpr` per operator. Do not use lexer token kinds as the final
 semantic operator representation; map them to the AST's `BinOp` enum.
 
 ```vortex
+// fragment
 1 + 2 * 3
 ```
 
@@ -657,22 +713,33 @@ Multiply(Add(1, 2), 3)
 ### 10.5 Ranges
 
 ```vortex
+// fragment
 0..10
 0..=10
 ```
 
 The AST must preserve whether the end is exclusive (`..`) or inclusive (`..=`).
-The parser should not erase that distinction.
+The parser should not erase that distinction. The parser accepts a range
+wherever an expression may appear, including `let span = 0..10;`. Type
+checking allows a range only as the iterable of a `for` statement and reports
+it anywhere else as a type error
+([decision 36](../decisions/statements.md#d36)).
 
 ### 10.6 Calls and casts
 
 ```vortex
+// fragment
 add(left, right)
 f32(count)
 ```
 
-Both use the same syntax. The parser builds the same call-shaped node. Name and
-type resolution later decide whether the callee is a function or a type cast.
+The two look alike but start differently. A cast begins with one of the
+keywords `i32`, `u32`, `usize`, `f32` or `f64`, so the parser knows it has a
+cast before it reads the `(`. It builds a cast node that holds the target type
+and exactly one operand, never a call node, and name resolution never looks up
+the type name. A call begins with any other primary expression, usually a
+name. See the [cast grammar](../specification/grammar.md#expressions-and-precedence)
+and the [decision record](../decisions/numbers.md#d1).
 
 ## 11. Arrays and expression dimensions
 
@@ -687,6 +754,7 @@ Vortex has three related but distinct constructs:
 ### 11.1 Element-list arrays
 
 ```vortex
+// fragment
 [first(), second(), third()]
 ```
 
@@ -696,6 +764,7 @@ type checking requires compatible element types.
 ### 11.2 Repeat arrays
 
 ```vortex
+// fragment
 [0.0; 4]
 [0.0; 2 + 2, 8 / 2]
 ```
@@ -716,6 +785,7 @@ RepeatArrayExpr
 ### 11.3 Array types
 
 ```vortex
+// fragment
 [f32; 2 + 2, 8 / 2]
 ```
 
@@ -734,21 +804,20 @@ ArrayType
 Syntactically, dimensions are expressions. Therefore, the parser can build
 nodes for literals, arithmetic, identifiers, grouping, and calls.
 
-For fixed-size v0.1 arrays, the semantic checker must then require each result
-to be:
-
-- an integer;
-- known at compile time;
-- representable as a supported array extent.
+For fixed-size v0.1 arrays, the type checker then requires each dimension to
+be an integer constant expression (integer literals with `+`, `-`, `*`, `/`,
+`%` and parentheses) whose value, computed with checked `usize` arithmetic, is
+at least 1.
 
 | Example | Parser result | Semantic result for fixed-size arrays |
 | --- | --- | --- |
 | `[i32; 4]` | Accepted | Accepted |
-| `[i32; 2 + 2]` | Accepted | Accepted after constant evaluation |
-| `[i32; (8 / 2)]` | Accepted | Accepted if result is exactly `4` |
+| `[i32; 2 + 2]` | Accepted | Accepted: evaluates to `4` |
+| `[i32; (8 / 2)]` | Accepted | Accepted: evaluates to `4` |
 | `[i32; 3.5]` | Accepted syntax | Rejected: not an integer extent |
-| `[i32; 0]` | Accepted syntax | Depends on the language's zero-extent policy; the parser must not decide |
-| `[i32; runtime_size()]` | Accepted syntax | Rejected unless proven compile-time |
+| `[i32; 0]` | Accepted syntax | Rejected: every extent must be at least 1 (constant-evaluation error) |
+| `[i32; rows]` | Accepted syntax | Rejected: a name is never a constant expression |
+| `[i32; runtime_size()]` | Accepted syntax | Rejected: a call is never a constant expression |
 
 This phase split is the reason the AST stores `Expr` children instead of raw
 integer values.
@@ -772,6 +841,7 @@ begins an array type; `parse_primary()` knows that `[` begins an array value.
 An identifier may begin either an expression statement or an assignment:
 
 ```vortex
+// fragment
 calculate(value);
 value = calculate();
 point.x += 1.0;
@@ -788,6 +858,7 @@ The grammar currently restricts targets to identifier, indexing, and field
 access chains. Reject targets such as:
 
 ```vortex
+// statements: syntax error
 (left + right) = 10;
 call() = 10;
 42 = value;
@@ -853,6 +924,8 @@ without tracking nesting. It may discard the rest of a valid function.
 - missing type after `:` or `->`;
 - missing expression after a unary or binary operator;
 - empty array literal;
+- a struct with no fields;
+- a chained comparison such as `a < b < c` or `a < b == c`;
 - missing repeat-array dimension; and
 - invalid top-level token.
 
@@ -914,6 +987,7 @@ Tests should inspect AST shape, not merely whether parsing returned.
 Input:
 
 ```vortex
+// fragment
 1 + 2 * 3
 ```
 
@@ -924,6 +998,7 @@ Required assertion: the root is addition and its right child is multiplication.
 Input:
 
 ```vortex
+// fragment
 factory().items[row, column].value
 ```
 
@@ -934,6 +1009,7 @@ Required assertion: suffix nodes are nested in source order.
 Input:
 
 ```vortex
+// fragment
 [f32; 2 + 2, 8 / 2]
 ```
 
@@ -945,6 +1021,7 @@ first is addition and the second is division.
 Input:
 
 ```vortex
+// fragment
 [0.0; 2 + 2, 4]
 ```
 
@@ -955,6 +1032,7 @@ Required assertion: the repeated value is separate from both dimension nodes.
 Input:
 
 ```vortex
+// items: valid
 fn add(left: i32, right: i32) -> i32 {
     return left + right;
 }
@@ -968,14 +1046,22 @@ statement, and binary return expression are all preserved.
 At minimum, add focused cases for:
 
 ```vortex
+// statements: syntax error
 let value = ;
-fn add(left i32) {}
-[i32;]
-[0;]
+let sizes: [i32;] = [1];
+let zeros = [0;];
+let ready = true;
 if ready print(ready);
 ```
 
-Each test should assert a meaningful failure location and message category.
+```vortex
+// items: syntax error
+fn add(left i32) {}
+```
+
+Each line with a mistake is a separate test case
+([example labels](../decisions/documentation.md#d28)). Each test should assert
+a meaningful failure location and message category.
 
 ## 18. Completion checklist
 

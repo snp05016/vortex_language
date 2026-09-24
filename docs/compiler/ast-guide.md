@@ -15,6 +15,7 @@ together and creates objects that preserve the *meaningful structure* of the
 source. Those objects form a tree.
 
 ```vortex
+// statements: valid
 let result = 2 + 3 * 4;
 ```
 
@@ -170,11 +171,15 @@ which child pointers may be empty and what an empty pointer means.
 
 ## 7. Locations belong to complete constructs
 
-`SourceLocation` currently stores a start offset and length. A literal node's
-span covers its literal text. For `2 + 3`, the binary node's span should cover
-the complete expression, while its two children keep their own smaller spans.
-This lets a diagnostic point at either the whole operation or a particular
-operand. The token for `+` alone is not the complete binary-expression span.
+`SourceLocation` currently stores a start offset and length. The
+specification measures both in bytes, and a diagnostic turns the offset into a
+line and column
+([Conformance 1.7](../specification/conformance.md#17-source-locations)). A
+literal node's span covers its literal text. For `2 + 3`, the binary node's
+span should cover the complete expression, while its two children keep their
+own smaller spans. This lets a diagnostic point at either the whole operation
+or a particular operand. The token for `+` alone is not the complete
+binary-expression span.
 
 The parser chooses the span when it has recognized the full construct. The
 base `Node` constructor stores it. The `location()` accessor later lets

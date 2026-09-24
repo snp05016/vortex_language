@@ -1,6 +1,4 @@
-# Syntax Philosophy
-
-[Tour index](README.md) | Next: [Basic source rules](02-basic-source-rules.md)
+# Syntax philosophy
 
 ## Learning goals
 
@@ -25,7 +23,9 @@ numerical and CPU/GPU features.
 
 - Top-level function and struct declarations.
 - Explicit parameter types and optional local-variable type annotations.
-- Fixed-size arrays whose dimensions are compile-time integer expressions.
+- Fixed-size arrays whose dimensions are positive whole numbers written with
+  literals and arithmetic, such as `[f32; 4, 4]` or `[f32; 2 * 8]`
+  ([decision](../decisions/arrays.md#d11)).
 - Straightforward statement-based control flow.
 - Shared and mutable references.
 
@@ -39,6 +39,7 @@ numerical and CPU/GPU features.
 ## Valid example
 
 ```vortex
+// program: valid
 fn square(value: f32) -> f32 {
     return value * value;
 }
@@ -53,24 +54,35 @@ This example is valid because every value has a statically known type, the
 parameter and non-`void` return type are explicit, and statements use the
 v0.1 syntax.
 
+When it runs, it prints `16.0`: `result` is an `f32`, and a floating-point
+value always prints with a decimal point
+([how `print` writes values](../specification/declarations.md#39-built-in-functions)).
+
 ## Invalid example
 
 ```vortex
+// program: type error
 fn main() {
-    let value = 10;
-    value = "ten";
+    let mut value = 10;
+    value = "ten";      // type error: value is an i32, not a String
 }
 ```
 
-This fails for two reasons: `value` is immutable because it lacks `mut`, and a
-variable inferred as `i32` cannot later contain a `String`.
+This fails because a variable inferred as `i32` cannot later contain a
+`String`. `mut` lets a variable take a new value, never a value of another
+type.
 
 ## Compiler handling
 
-The parser recognizes declarations, blocks, and statements. Name resolution
+<details markdown="1">
+<summary>Which compiler stage enforces each rule (optional reading)</summary>
+
+The parser (the [compiler stage](../compiler/guide/index.md) that checks how tokens fit together and builds the program's structure) recognizes declarations, blocks, and statements. Name resolution
 connects `square` and `value` to their declarations. Type checking assigns or
 verifies every value's type and rejects incompatible operations before code
 generation.
+
+</details>
 
 ## Self-check
 

@@ -1,0 +1,85 @@
+# Sentence case for headings: capitalize the first word and proper nouns only.
+# Numbered headings ("3.1 Scopes", "10. Diagnostics") are handled by Vale: the
+# word after a leading number is treated as the first word.
+extends: capitalization
+message: "Use sentence case for headings: '%s'."
+# A warning, not an error: after a colon Vale expects a capital, while these
+# docs use both "Milestone 2: Lexer" and "Your turn: column sums".
+level: warning
+scope: heading
+match: $sentence
+# A capital is also fine right after a colon ("Milestone 2: Lexer") and after
+# a chapter id ("O6. Redundancy", "A. The machine").
+indicators:
+  - ":"
+  - "."
+# Proper nouns and acronyms used in docs/. Entries are regular expressions.
+exceptions:
+  - AArch64
+  - AI
+  - ABI
+  - API
+  - Apple
+  - ARM
+  - ASCII
+  - ASTs?
+  # "C", "C++" and "I" are anchored: Vale also accepts any capitalized word
+  # that merely contains an exception, so a bare "C" would let "Compiler" pass.
+  - ^C(?:\+\+)?$
+  - CFG
+  - CSE
+  - Clang
+  - CMake
+  - CPUs?
+  - CUDA
+  - EBNF
+  - FileCheck
+  - FLOP/s
+  - GB/s
+  - GCC
+  - GVN
+  - GPUs?
+  - HIR
+  - HTML
+  - ^I$
+  - IDE
+  - IEEE
+  - IRs?
+  - ISAs?
+  - JIT
+  - Kaleidoscope
+  - Linux
+  - LL # as in "LL(1)"
+  - LLMs?
+  - LLVM
+  - LICM
+  - macOS
+  - Metal
+  - MIR
+  - MLIR
+  - ML
+  - NaN
+  - NVIDIA
+  - Nystrom
+  - Pratt
+  - PRE
+  - PTX
+  - Python
+  - README
+  - RISC-V
+  - Rust
+  - SIMD
+  - SME
+  - SPIR-V
+  - SROA
+  - SSA
+  - SVG
+  - Unicode
+  - UTF-8
+  - Vortex
+  - Windows
+  - x86-64
+  # Version strings. Only "v0" of "v0.1" is matched on purpose: a full "v0.1"
+  # looks like a numbered heading ("3.1 Title") to Vale, which would then
+  # expect the next word to be capitalized.
+  - v\d+

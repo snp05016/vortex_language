@@ -1,0 +1,5 @@
+flags = ["-ffp-contract=off"]
+follows = [
+  "https://github.com/llvm/llvm-project/blob/release/18.x/llvm/lib/Transforms/Scalar/LoopInterchange.cpp",
+  "https://suif.stanford.edu/papers/wolf91a.pdf",
+]

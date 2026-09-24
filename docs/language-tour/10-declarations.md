@@ -1,7 +1,5 @@
 # Declarations
 
-[Previous: Statements](09-statements.md) | [Tour index](README.md)
-
 ## Learning goals
 
 After this chapter, you should be able to distinguish top-level declarations
@@ -13,7 +11,7 @@ use. Vortex has declarations for functions, structs, local variables,
 parameters, and struct fields.
 
 Declarations are checked by the compiler. The compiler records each name, its
-scope, and its type before it generates code.
+[scope](../specification/glossary.md) (the region of code where the name is visible), and its type before it generates code.
 
 ## Declaration quick reference
 
@@ -25,7 +23,7 @@ scope, and its type before it generates code.
 | Field declaration | Inside a struct body | No; child of its struct |
 | Variable declaration | Inside a block | No; it is a statement |
 
-V0.1 has no standalone type-alias declaration. A struct declaration introduces
+Vortex v0.1 has no standalone type-alias declaration. A struct declaration introduces
 a named user-defined type. Modules, generics, traits, classes, global variables,
 and compile-time constant declarations are outside v0.1.
 
@@ -35,6 +33,7 @@ A function declaration gives a function a name, parameters, an optional return
 type, and a body:
 
 ```vortex
+// items: valid
 fn add(left: i32, right: i32) -> i32 {
     return left + right;
 }
@@ -53,20 +52,27 @@ A function with no return value can omit the return type. Vortex treats the
 missing type as `void`:
 
 ```vortex
+// items: valid
 fn show_message(message: String) {
     print(message);
 }
 ```
 
-Functions are declared at the top level. A program can call a function after
-its declaration has been recorded by the compiler.
+Functions are declared at the top level. A program can call a function from
+anywhere in the file, even above the function's declaration, and a function can
+call itself ([decision record](../decisions/names.md#d3)).
 
 Every executable program must contain exactly one `main` function. In v0.1,
 `main` takes no parameters and returns `void`:
 
 ```vortex
+// program: valid
 fn main() {
     show_message("ready");
+}
+
+fn show_message(message: String) {
+    print(message);
 }
 ```
 
@@ -84,6 +90,7 @@ code calls it, or when the runtime starts the `main` function.
   of v0.1.
 
 ```vortex
+// items: syntax error
 fn add(left, right: i32) -> i32 { // invalid: left has no type
     return left + right;
 }
@@ -91,7 +98,7 @@ fn add(left, right: i32) -> i32 { // invalid: left has no type
 fn declared_only(value: i32) -> i32; // invalid: body is missing
 ```
 
-The parser builds a function declaration with its name, ordered parameter
+The parser (the [compiler stage](../compiler/guide/index.md) that checks how tokens fit together and builds the program's structure) builds a function declaration with its name, ordered parameter
 children, optional written return type, and body. Name resolution enters the
 function in top-level scope and its parameters in function scope. Type and
 control-flow checking validate calls and returns.
@@ -101,6 +108,7 @@ control-flow checking validate calls and returns.
 A struct declaration creates a user-defined type with named fields:
 
 ```vortex
+// items: valid
 struct Point {
     x: f32,
     y: f32,
@@ -114,10 +122,18 @@ A struct declaration defines a type. It does not create a value by itself. Use
 a struct expression to create a value:
 
 ```vortex
-let origin = Point {
-    x: 0.0,
-    y: 0.0,
-};
+// program: valid
+struct Point {
+    x: f32,
+    y: f32,
+}
+
+fn main() {
+    let origin = Point {
+        x: 0.0,
+        y: 0.0,
+    };
+}
 ```
 
 A struct expression must provide the fields required by the struct. The
@@ -129,18 +145,31 @@ not part of the language.
 
 ### Allowed and not allowed
 
-- A struct contains zero or more comma-separated field declarations.
+- A struct contains one or more comma-separated field declarations; an empty
+  struct such as `struct Marker {}` is a syntax error
+  ([why](../decisions/operators.md#d26)).
 - Each field has a unique name and an explicit type.
+- A struct's name must differ from every function name, every other struct name
+  and `print`, because all top-level names share one namespace (a set of names
+  in which each name has one meaning)
+  ([decision record](../decisions/names.md#d5)).
+- A struct cannot contain itself, directly or through an array or another
+  struct: `struct Node { next: Node }` is invalid, because such a value would
+  need infinite storage ([why](../decisions/operators.md#d45)).
 - A trailing comma is allowed.
 - Field initializers, methods, visibility modifiers, inheritance, and generic
   fields are not part of v0.1 struct declarations.
 
 ```vortex
+// items: name error
 struct Invalid {
     value: i32,
     value: f32, // invalid: duplicate field name
 }
+```
 
+```vortex
+// items: syntax error
 struct AlsoInvalid {
     count = 0, // invalid: a field declaration uses name: type
 }
@@ -155,6 +184,7 @@ type and later checks struct construction.
 Use `let` to declare a local variable:
 
 ```vortex
+// program: valid
 fn main() {
     let width = 128;
     let mut total: f32 = f32(width);
@@ -166,6 +196,7 @@ fn main() {
 A variable declaration can include an optional type annotation:
 
 ```vortex
+// statements: valid
 let count: i32 = 10;
 let name: String = "vortex";
 ```
@@ -173,6 +204,7 @@ let name: String = "vortex";
 When the type is omitted, the compiler infers it from the initializer:
 
 ```vortex
+// statements: valid
 let count = 10;       // i32
 let temperature = 21.5; // f32
 ```
@@ -181,12 +213,14 @@ A local variable must have an initializer in v0.1. The compiler cannot infer a
 type from a declaration without a starting value:
 
 ```vortex
-let missing_value; // compile-time error
+// statements: syntax error
+let missing_value; // syntax error: no initializer
 ```
 
 Variables are immutable by default. Add `mut` when the variable must change:
 
 ```vortex
+// statements: valid
 let mut counter = 0;
 counter += 1;
 ```
@@ -194,14 +228,15 @@ counter += 1;
 A declaration with no `mut` cannot be the target of an assignment:
 
 ```vortex
+// statements: semantic error
 let limit = 10;
-limit = 20; // compile-time error
+limit = 20; // semantic error: limit was not declared mut
 ```
 
 A local variable declaration is also a statement because it appears inside a
 block and affects program execution by creating a value.
 
-Local declarations cannot appear directly at the top level. V0.1 also does not
+Local declarations cannot appear directly at the top level. Vortex v0.1 also does not
 support uninitialized locals, global variables, destructuring declarations, or
 changing a variable's type after its declaration.
 
@@ -210,6 +245,7 @@ changing a variable's type after its declaration.
 A parameter declaration names one input to a function and gives it a type:
 
 ```vortex
+// items: valid
 fn scale(value: f32, factor: f32) -> f32 {
     return value * factor;
 }
@@ -222,35 +258,50 @@ A parameter is available inside the function body. A call supplies an argument
 for each parameter:
 
 ```vortex
+// fragment
 let result = scale(2.0, 3.0);
 ```
 
 The compiler checks the number and types of arguments against the parameter
-list. Parameters are local to their function and cannot be used outside it.
+list. A parameter that is not a reference receives a copy of its argument, even
+when the argument is a whole array or struct. Only a `&mut` reference parameter
+lets a function change the caller's value
+([decision](../decisions/references.md#d25)). Parameters are local to their
+function and cannot be used outside it.
 
-A parameter declaration is an owned child record of its `FunctionDecl`; it is
-not an independent top-level declaration and does not need to behave like one.
-Conceptually, a function contains an ordered `std::vector<ParamDecl>`. Each
-parameter record stores its own source location, name, and type so diagnostics
-can point to the exact parameter.
+Each parameter keeps its own name, type and source position, so an error
+message can point at the exact parameter.
+[Parser design](../compiler/parser-design.md#72-parameter-declaration) explains
+how the compiler stores parameters.
 
-Default values and `mut` parameter syntax are not part of v0.1:
+Parameters are immutable: a function cannot assign to a parameter. Default
+values and `mut` parameter syntax are not part of v0.1:
 
 ```vortex
+// items: syntax error
 fn invalid(value: i32 = 10) { }
 // invalid: default parameters are unsupported
 ```
+
+To change a value inside a function, copy it into a local first, as in
+`let mut result = value;`, or use a `&mut` reference parameter when the
+caller's value should change ([decision](../decisions/references.md#d23)).
 
 Parameters can use references when a function must read or change an existing
 value without copying it:
 
 ```vortex
+// items: valid
 fn scale_values(values: &mut [f32; 4], factor: f32) {
     for index in 0..4 {
         values[index] *= factor;
     }
 }
 ```
+
+A reference can be a parameter type but not a return type or a field type, so
+a function never keeps a reference after it returns
+([decision](../decisions/references.md#d41)).
 
 The rules for shared and mutable references are described in
 [Variables and types](04-variables-and-types.md).
@@ -260,6 +311,7 @@ The rules for shared and mutable references are described in
 A field declaration gives a name and type to one value stored in a struct:
 
 ```vortex
+// items: valid
 struct Size {
     width: usize,
     height: usize,
@@ -272,6 +324,7 @@ it is not a local variable and cannot be used as a standalone name.
 Read a field with the field-access operator:
 
 ```vortex
+// fragment
 let area = size.width * size.height;
 ```
 
@@ -279,8 +332,9 @@ Field access uses the type of the value on the left side of the dot. The
 compiler rejects a field name that does not exist for that type.
 
 Like a parameter, a field declaration exists only as a child record of its
-owning declaration. A `StructDecl` contains ordered field records; a field is
-not placed in local or top-level value scope. A field declaration stores a
+owning declaration. A struct declaration contains its fields in order; a field
+is not placed in a local scope or in the program scope, so a field may share
+its name with a function, a struct or a variable. A field declaration stores a
 source location, field name, and type, but no runtime value. A struct expression
 supplies the value later.
 
@@ -288,14 +342,17 @@ supplies the value later.
 
 A declaration makes a name visible in a scope. Vortex uses these scopes:
 
-- top-level declarations are visible in the program's global declaration scope;
+- top-level functions and structs are visible in the whole file, even above
+  their declarations;
 - parameters are visible inside their function body;
-- local variables are visible from their declaration to the end of their block;
+- local variables are visible from the end of their declaration to the end of
+  their block;
 - fields are visible through values of their struct type.
 
 A nested block creates a nested scope:
 
 ```vortex
+// program: name error
 fn main() {
     let outside = 1;
 
@@ -306,25 +363,35 @@ fn main() {
     }
 
     print(outside);
-    print(inside); // compile-time error: outside the scope of inside
+    print(inside); // name error: outside the scope of inside
 }
 ```
 
 Names are case-sensitive. A name cannot start with a number, and names can
-contain letters, numbers, and `_`:
+contain ASCII letters, numbers, and `_`:
 
 ```vortex
+// statements: valid
 let item_count = 4;
 let ItemCount = 8;
 ```
 
 These are different names. The compiler rejects duplicate declarations in the
-same scope. Shadowing rules for nested scopes are part of the name-resolution
-checks and should remain explicit in compiler diagnostics.
+same scope. Vortex also has no shadowing: a declaration cannot reuse a name
+that is already visible, even inside an inner block, and a local, parameter or
+loop variable cannot take the name of a top-level function or struct, or
+`print` ([decision record](../decisions/names.md#d2)).
 
-Until those shadowing rules are finalized, do not rely on redeclaring an outer
-name inside an inner block. Duplicate names in the same scope are always
-invalid.
+```vortex
+// statements: name error
+let total = 5;
+{
+    let total = 6; // name error: total is already visible
+}
+```
+
+Blocks that are never open at the same time can reuse a name, so two loops one
+after the other may both use `index`.
 
 ## Declaration grammar
 
@@ -342,7 +409,7 @@ function ::=
 
 struct_definition ::=
     "struct", identifier, "{",
-    [ struct_field, { ",", struct_field }, [ "," ] ],
+    struct_field, { ",", struct_field }, [ "," ],
     "}" ;
 
 struct_field ::=
@@ -358,7 +425,7 @@ variable_declaration ::=
     "=", expression, ";" ;
 ```
 
-See the complete grammar in [Vortex v0.1 Grammar](../specification/grammar.md).
+See the complete grammar in [Vortex v0.1 grammar](../specification/grammar.md).
 
 ## Declarations planned for later
 
@@ -367,14 +434,19 @@ The first version keeps declarations small. These features are outside v0.1:
 - modules and packages;
 - generic declarations;
 - traits or interfaces;
-- compile-time constants;
+- compile-time constants (`const`), planned as the first addition after v0.1;
+  until then an array dimension uses integer literals only
+  ([decision](../decisions/arrays.md#d11));
 - methods declared inside structs;
 - class and inheritance declarations.
 
 These features can be added later when their effect on name resolution, types,
-and numerical code is defined clearly.
+and numerical code is defined.
 
 ## Compiler handling summary
+
+<details markdown="1">
+<summary>Which compiler stage enforces each rule (optional reading)</summary>
 
 1. The parser builds top-level function and struct declarations.
 2. Parameter and field records are constructed only inside their owners.
@@ -384,11 +456,14 @@ and numerical code is defined clearly.
 5. Code generation lays out structs, creates function symbols, and allocates
    storage for parameters and local variables.
 
+</details>
+
 ## Practice and self-check
 
 For each item, name its owner and scope:
 
 ```vortex
+// items: valid
 struct Point {
     x: f32,
 }
@@ -405,5 +480,5 @@ Answers:
 - `x` is a field child owned by `Point`; it is selected through a `Point` value.
 - `point` and `amount` are parameter children owned by `move_x` and visible in
   its function body.
-- `result` is a local variable-declaration statement visible from its
-  declaration to the end of the function block.
+- `result` is a local variable-declaration statement visible from the end of
+  its declaration to the end of the function block.

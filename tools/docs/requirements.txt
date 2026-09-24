@@ -1,0 +1,6 @@
+# Documentation build (pinned; Zensical is pre-1.0).
+zensical==0.0.64
+railroad-diagrams==3.0.1
+PyYAML==6.0.3
+# Local Pygments lexer for ```vortex fences.
+./tools/docs/pygments_vortex

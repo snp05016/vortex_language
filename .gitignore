@@ -1,3 +1,6 @@
 /build/
 /Testing/
 /site/
+__pycache__/
+.lycheecache
+*.egg-info/

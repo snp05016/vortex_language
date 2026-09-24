@@ -1,0 +1,9 @@
+# Hand-written AArch64 inside a C++ harness: built and run on arm64 only.
+platforms = ["macos-arm64", "linux-arm64"]
+follows = [
+  "https://developer.arm.com/documentation/ddi0602/2026-06/Base-Instructions/ADRP--Form-PC-relative-address-to-4KB-page-",
+  "https://github.com/ARM-software/abi-aa/blob/main/aaelf64/aaelf64.rst",
+  "https://sourceware.org/binutils/docs/as/AArch64_002dRelocations.html",
+  "https://github.com/below/HelloSilicon",
+  "https://developer.apple.com/library/archive/documentation/DeveloperTools/Reference/Assembler/040-Assembler_Directives/asm_directives.html",
+]

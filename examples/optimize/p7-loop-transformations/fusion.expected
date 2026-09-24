@@ -1,0 +1,4 @@
+fuse, reads b[i]:     same results
+fuse, reads b[i + 1]: different results
+split, independent:   same results
+split, cycle:         different results

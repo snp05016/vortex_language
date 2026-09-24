@@ -1,0 +1,10 @@
+# An exclamation mark used as punctuation: right after a word, number or
+# closing quote/bracket, and followed by space, closing punctuation or the end.
+# Operators in prose ("!=", "!ready") and admonition markers ("!!!") do not
+# match because they are not attached to the end of a word.
+extends: existence
+message: "Don't use exclamation marks in prose."
+level: error
+nonword: true
+tokens:
+  - '(?<=[\p{L}\p{N})\]"''’”])!+(?=[\s)\]"''’”]|$)'

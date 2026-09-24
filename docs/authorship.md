@@ -20,8 +20,9 @@ examples, and identify inconsistencies introduced during drafting or transfer.
 
 The normative requirements are the requirements written in this specification,
 regardless of whether a passage began as human-written or LLM-assisted text.
-Where pages conflict, the precedence rules in the
-[specification status](specification/index.md) apply.
+Where pages conflict,
+[Document authority](specification/conformance.md#11-document-authority)
+decides which is right ([record 49](decisions/documentation.md#d49)).
 
 ## Consistency and corrections
 

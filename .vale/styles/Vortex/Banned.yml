@@ -1,0 +1,32 @@
+# Filler and hype words that make prose sound generated or like marketing.
+# Tokens are regular expressions; inflected forms are matched on purpose.
+extends: existence
+message: "Avoid '%s'. Say the plain, specific thing instead (for example 'use', 'important', 'reliable', 'look at')."
+level: error
+ignorecase: true
+tokens:
+  - delv(?:e|es|ed|ing)
+  - crucial(?:ly)?
+  - robust(?:ly)?
+  - seamless(?:ly)?
+  - leverag(?:e|es|ed|ing)
+  - landscapes?
+  - journeys?
+  - tapestr(?:y|ies)
+  - realms?
+  - it(?:'|’|\s+i)s\s+worth\s+noting
+  - in\s+essence
+  - at\s+its\s+core
+  - dive\s+in(?:to)?
+  - game[- ]chang(?:er|ers|ing)
+  - in\s+conclusion
+  - not\s+just
+  - powerful(?:ly)?
+  - elegan(?:t|tly|ce)
+  - cutting[- ]edge
+  - unlock(?:s|ed|ing)?
+  - embark(?:s|ed|ing)?
+  - testaments?
+# Titles of cited works are quoted as published, so they are exempt.
+exceptions:
+  - Simple but Powerful Pratt Parsing

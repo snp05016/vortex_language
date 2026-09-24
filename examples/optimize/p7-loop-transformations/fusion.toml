@@ -1,0 +1,5 @@
+follows = [
+  "https://github.com/llvm/llvm-project/blob/release/18.x/llvm/lib/Transforms/Scalar/LoopFuse.cpp",
+  "https://clang.llvm.org/docs/LanguageExtensions.html#loop-distribution",
+  "https://doi.org/10.1145/197320.197366",
+]

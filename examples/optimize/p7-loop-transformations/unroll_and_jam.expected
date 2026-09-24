@@ -1,0 +1,3 @@
+plain:          384 loads for 192 multiply-adds
+unroll-and-jam: 192 loads for 192 multiply-adds
+same bits:      true

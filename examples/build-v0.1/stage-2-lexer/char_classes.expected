@@ -1,0 +1,6 @@
+text:        "area = width * 12 + pad_2;  // cm"
+letters:     14
+digits:      3
+spaces:      9
+punctuation: 7
+other:       0

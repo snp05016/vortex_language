@@ -1,0 +1,70 @@
+# Compiles and runs every example program in examples/ (see examples/README.md)
+# on each platform the docs target.
+name: Check examples
+
+on:
+  push:
+    paths:
+      - examples/**
+      - tools/docs/check_examples.py
+      - .github/workflows/examples.yml
+  pull_request:
+    paths:
+      - examples/**
+      - tools/docs/check_examples.py
+      - .github/workflows/examples.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: examples-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  examples:
+    name: ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        # macos-latest runs on Apple silicon (arm64); the Ubuntu runners cover
+        # arm64 and x86-64 Linux.
+        os: [macos-latest, ubuntu-24.04-arm, ubuntu-24.04]
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      # Ubuntu 24.04's default g++ is 13, which has neither -std=c++26 nor
+      # <print>, so C++ examples use g++-14. llc, opt and mlir-opt come from
+      # the Ubuntu archive's LLVM 18, the version the .ll and .mlir examples
+      # (and their .expected output) are written against.
+      - name: Install g++-14 and LLVM 18 tools
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends g++-14 llvm-18 mlir-18-tools
+          echo "/usr/lib/llvm-18/bin" >> "$GITHUB_PATH"
+          echo "CXX=g++-14" >> "$GITHUB_ENV"
+
+      # macOS builds with Xcode's Apple clang. LLVM tools are used only if the
+      # runner image already has Homebrew's llvm@18; otherwise the .ll and .mlir
+      # examples are skipped here and checked on Linux.
+      - name: Use Homebrew LLVM 18 if the image has it
+        if: runner.os == 'macOS'
+        run: |
+          prefix="$(brew --prefix llvm@18 2>/dev/null || true)"
+          if [ -x "$prefix/bin/opt" ]; then echo "$prefix/bin" >> "$GITHUB_PATH"; fi
+
+      - name: Compile and run the examples
+        run: python tools/docs/check_examples.py
+
+      - name: Check the runner and examples/manifest.json
+        if: matrix.os == 'ubuntu-24.04'
+        run: |
+          python tools/docs/check_examples.py --self-test
+          python tools/docs/check_examples.py --check

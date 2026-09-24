@@ -1,6 +1,4 @@
-# Types Planned for Later
-
-[Previous: Variables and types](04-variables-and-types.md) | [Tour index](README.md) | [Next: Runtime and numerical rules](06-runtime-and-numerical-rules.md)
+# Types planned for later
 
 ## Learning goals
 
@@ -17,6 +15,7 @@ matrix aliases, and additional numerical types are planned for later.
 ### What you can do in v0.1
 
 ```vortex
+// statements: valid
 let values: [f32; 4] = [1.0, 2.0, 3.0, 4.0];
 let matrix: [f32; 2, 2] = [0.0; 2, 2];
 ```
@@ -24,6 +23,7 @@ let matrix: [f32; 2, 2] = [0.0; 2, 2];
 ### What you cannot do in v0.1
 
 ```vortex
+// statements: planned
 let values: Vector<f32> = Vector::new();
 let view: &[f32] = &values;
 let matrix: Tensor<f32, [128, 256]>;
@@ -52,6 +52,7 @@ A future `Vector<T>` would own contiguous memory whose length can grow or
 shrink while the program runs:
 
 ```vortex
+// statements: planned
 // proposed syntax, not valid v0.1
 let values: Vector<f32> = Vector::new();
 values.push(1.0);
@@ -59,7 +60,7 @@ values.push(2.0);
 ```
 
 Unlike a fixed-size array, a vector would not require a compile-time length.
-V0.1 has no generics, namespace operator `::`, methods, or vector allocation,
+Vortex v0.1 has no generics, namespace operator `::`, methods, or vector allocation,
 so every part of this example remains future work.
 
 ## Tensors and matrices
@@ -68,6 +69,7 @@ Vortex will eventually need a multidimensional tensor type for its main
 numerical workloads. One possible design is:
 
 ```vortex
+// statements: planned
 // design sketch, not valid v0.1
 let vector: Tensor<f32, [128]>;
 let matrix: Tensor<f32, [128, 256]>;
@@ -84,23 +86,34 @@ The exact tensor syntax has not been decided. Fixed-size multidimensional
 arrays are the supported v0.1 replacement:
 
 ```vortex
+// statements: valid
 let matrix: [f32; 4, 4] = [0.0; 4, 4];
 ```
 
 ## Additional primitive types
 
 Types such as `i8`, `i16`, `i64`, `u8`, `u16`, `u64`, `f16`, and `bf16` may be
-added later. They are not aliases for current types, and the compiler should
-reject them as unknown type names in v0.1 unless a struct with that exact name
-has been declared.
+added later. They are not aliases for current types. Their names are already
+reserved: the lexer rejects them anywhere outside comments and literals in a
+v0.1 program, even as the name of a struct or a variable, so adding these types
+later cannot break an existing program. `const` is reserved the same way
+([Keywords](../specification/lexical-structure.md#24-keywords),
+[decision 29](../decisions/lexical.md#d29)).
 
 ## Compiler handling
 
-The parser may parse an unknown identifier in a type position as a named type.
-Name resolution then rejects it when no matching struct exists. Syntax such as
+<details markdown="1">
+<summary>Which compiler stage enforces each rule (optional reading)</summary>
+
+The parser (the [compiler stage](../compiler/guide/index.md) that checks how tokens fit together and builds the program's structure) may parse an unknown identifier in a type position as a named type.
+Name resolution then rejects it when no matching struct exists. The reserved
+names from the previous section, such as `i64` and `bf16`, never reach the
+parser: the lexer rejects them first. Syntax such as
 `Vector<f32>` fails earlier because generic type arguments are absent from the
 v0.1 grammar. Clear diagnostics should say whether the failure is grammatical
 or an unresolved type name.
+
+</details>
 
 ## Practice and self-check
 

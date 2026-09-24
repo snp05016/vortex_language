@@ -1,0 +1,6 @@
+# Plain C++: read its assembly with -S, or through the Compiler Explorer link.
+follows = [
+  "https://developer.arm.com/documentation/ddi0602/2026-06/Base-Instructions/LDR--register---Load-register--register--",
+  "https://developer.arm.com/documentation/ddi0602/2026-06/Base-Instructions/MADD--Multiply-add-",
+  "https://godbolt.org/",
+]

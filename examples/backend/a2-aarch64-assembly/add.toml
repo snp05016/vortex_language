@@ -1,0 +1,8 @@
+# AArch64 assembly: assembled on arm64 machines, skipped elsewhere.
+platforms = ["macos-arm64", "linux-arm64"]
+follows = [
+  "https://github.com/ARM-software/abi-aa/blob/main/aapcs64/aapcs64.rst",
+  "https://github.com/below/HelloSilicon",
+  "https://sourceware.org/binutils/docs/as/AArch64_002dChars.html",
+  "https://sourceware.org/binutils/docs/as/P2align.html",
+]

@@ -40,8 +40,12 @@ The words **may** and **implementation-defined** permit an implementation
 choice. The word **should** states guidance rather than a conformance
 requirement.
 
-Code blocks labeled `vortex` are examples. A block introduced as invalid or
-rejected is intentionally not a valid program.
+Every `vortex` code block is an example. Its first line is a label, such as
+`// statements: type error`, that names what the block contains and what a
+conforming implementation must do with it;
+[Specification examples](conformance.md#18-specification-examples) defines the
+labels. A block labelled with an error is intentionally not a valid program.
+The reasons are in [record 28](../decisions/documentation.md#d28).
 
 ## v0.1 language boundary
 
@@ -78,14 +82,20 @@ accepted v0.1 syntax unless this specification is revised.
 | Lexing | Recognize tokens and reject malformed token text |
 | Parsing | Validate grammatical structure and build a source-located AST |
 | Name resolution | Connect names to declarations and enforce scope |
-| Type checking | Determine types and validate operations, calls, and assignments |
+| Type checking | Determine types, evaluate array dimensions while resolving array types, and validate operations, calls, and assignments |
 | Semantic checking | Enforce contextual rules such as mutability and loop-only statements |
-| Constant evaluation | Resolve fixed array extents and other required compile-time values |
-| Lowering and runtime | Execute valid programs and enforce checks not proven statically |
+| Constant evaluation | Check every checked operation whose deciding operands are integer constant expressions, and report those that fail |
+| Lowering and runtime | Execute valid programs and perform every other required check at run time |
+
+Array dimensions are evaluated during type checking because type equality
+needs their values; a failing dimension is still a constant-evaluation error
+([decision 52](../decisions/arrays.md#d52)).
 
 A parser may accept a syntactically correct program that later phases reject.
-For example, `[f32; rows + 1]` is a valid array-type shape, but the constant
-checker must reject it when `rows + 1` is not known at compile time.
+For example, `[f32; rows + 1]` is a valid array-type shape, but the type
+checker must reject it with a constant-evaluation error, because `rows` is a
+name and a dimension must be an integer constant expression
+([decision 11](../decisions/arrays.md#d11)).
 
 ## Reading order
 

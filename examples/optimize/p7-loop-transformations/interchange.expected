@@ -1,0 +1,3 @@
+matmul, ijk vs ikj:     same bits
+grid sum, ij vs ji:     67.59365 vs 67.59366
+shifted copy, ij vs ji: different values

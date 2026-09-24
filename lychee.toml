@@ -1,0 +1,41 @@
+# lychee link checker (https://lychee.cli.rs), 0.24.x.
+#
+# Internal links and #fragments in the built site, no network (CI gate):
+#   lychee --offline site
+# External links in the built site, with a cache (weekly CI job):
+#   lychee --cache site
+
+# Check that #fragments exist in the target page (heading permalinks).
+include_fragments = "anchor-only"
+# Pretty URLs: "grammar/" means "grammar/index.html".
+index_files = ["index.html"]
+no_progress = true
+# The 404 page links with absolute /vortex_language/ URLs so it works at any
+# depth; every other page has the same nav with relative links.
+exclude_path = ["(^|/)404\\.html$"]
+
+# External runs only.
+max_cache_age = "7d"
+# Don't cache server errors or rate limits; retry them next run.
+cache_exclude_status = "429, 500.."
+max_retries = 3
+timeout = 30
+# 429 = rate-limited, not broken.
+accept = ["200..=299", "429"]
+
+exclude = [
+  # The site itself: canonical and sitemap URLs. The offline run covers these,
+  # and pages on a branch are not deployed yet.
+  '^https://snp05016\.github\.io/vortex_language/',
+  # Local servers.
+  '^https?://(localhost|127\.0\.0\.1|0\.0\.0\.0)',
+  # Compiler Explorer state links are huge, and the site answers bots with errors.
+  '^https?://(www\.)?godbolt\.org/(z/|#|clientstate/)',
+  # The site's own edit/view-source buttons point at files that exist only
+  # after a merge.
+  '^https://github\.com/snp05016/vortex_language/(edit|raw|blob)/',
+  # The ACM Digital Library (DOI prefix 10.1145) answers bots with 403.
+  '^https://(doi\.org/10\.1145/|dl\.acm\.org/)',
+  # Font preconnect hints, not pages.
+  '^https://fonts\.(googleapis|gstatic)\.com/?$',
+]

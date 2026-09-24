@@ -1,0 +1,113 @@
+name: Docs quality
+
+# Prose lint, spelling and links for the documentation site. Each check is its
+# own job, so one failure never hides another. External links are checked
+# weekly instead of per change, because other sites break on their own time.
+
+on:
+  pull_request:
+    paths:
+      - docs/**
+      - includes/**
+      - examples/**
+      - mkdocs.yml
+      - tools/docs/**
+      - .vale.ini
+      - .vale/**
+      - .codespellrc
+      - lychee.toml
+      - .github/workflows/docs-quality.yml
+  push:
+    branches:
+      - main
+    paths:
+      - docs/**
+      - includes/**
+      - examples/**
+      - mkdocs.yml
+      - tools/docs/**
+      - .vale.ini
+      - .vale/**
+      - .codespellrc
+      - lychee.toml
+      - .github/workflows/docs-quality.yml
+  schedule:
+    - cron: "23 5 * * 1" # Mondays 05:23 UTC: external links only
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: docs-quality-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  vale:
+    if: github.event_name != 'schedule'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: vale-cli/vale-action@v3 # formerly errata-ai/vale-action
+        with:
+          version: 3.22.0
+          files: docs
+          sync: false # .vale.ini uses no packages
+          filter_mode: nofilter # every line, not only the lines a PR touched
+          fail_level: error
+
+  codespell:
+    if: github.event_name != 'schedule'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Check spelling
+        run: pipx run --spec codespell==2.4.3 codespell docs includes examples tools/docs mkdocs.yml
+
+  links:
+    if: github.event_name != 'schedule'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+          cache: pip
+          cache-dependency-path: tools/docs/requirements.txt
+      - name: Build site
+        run: |
+          python -m pip install --requirement tools/docs/requirements.txt
+          python tools/docs/prebuild.py
+          zensical build --strict
+      - name: Check internal links and anchors
+        uses: lycheeverse/lychee-action@v2
+        with:
+          lycheeVersion: v0.24.2
+          args: --config lychee.toml --offline site
+
+  external-links:
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+          cache: pip
+          cache-dependency-path: tools/docs/requirements.txt
+      - name: Build site
+        run: |
+          python -m pip install --requirement tools/docs/requirements.txt
+          python tools/docs/prebuild.py
+          zensical build --strict
+      # Results of good links are reused for a week (max_cache_age).
+      - uses: actions/cache@v6
+        with:
+          path: .lycheecache
+          key: lychee-${{ github.run_id }}
+          restore-keys: lychee-
+      - name: Check external links
+        uses: lycheeverse/lychee-action@v2
+        with:
+          lycheeVersion: v0.24.2
+          args: --config lychee.toml --cache site

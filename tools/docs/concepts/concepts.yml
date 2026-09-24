@@ -1,0 +1,3953 @@
+# Single source of truth for the docs memory system: tooltips, "Before you
+# start, remember" boxes, "You will use this again in" lists, concept maps and
+# review question banks. The schema is documented in README.md next to this
+# file. After editing, run: python tools/docs/concepts.py
+#
+# Paths are relative to docs/ and must appear in the mkdocs.yml nav.
+
+# Review question banks (includes/review/<name>.md). All pages of a group must
+# live in one directory; include the bank from a page in that same directory.
+review_groups:
+  - name: tour-1-4
+    title: Language tour, chapters 1 to 4
+    pages:
+      - language-tour/README.md
+      - language-tour/01-syntax-philosophy.md
+      - language-tour/02-basic-source-rules.md
+      - language-tour/03-hello-world.md
+      - language-tour/04-variables-and-types.md
+  - name: tour-5-7
+    title: Language tour, chapters 5 to 7
+    pages:
+      - language-tour/08-expressions.md
+      - language-tour/09-statements.md
+      - language-tour/10-declarations.md
+  - name: tour-8-10
+    title: Language tour, chapters 8 to 10
+    pages:
+      - language-tour/06-runtime-and-numerical-rules.md
+      - language-tour/05-types-planned-for-later.md
+      - language-tour/07-kernels-and-parallel-execution.md
+  - name: guide-0-3
+    title: Compiler guide, stages 0 to 3
+    pages:
+      - compiler/guide/index.md
+      - compiler/guide/stage-0-workbench.md
+      - compiler/guide/stage-1-source-and-diagnostics.md
+      - compiler/guide/stage-2-lexer.md
+      - compiler/guide/stage-3-parser-and-tree.md
+  - name: guide-4-6
+    title: Compiler guide, stages 4 to 6
+    pages:
+      - compiler/guide/stage-4-names-and-scopes.md
+      - compiler/guide/stage-5-types-and-rules.md
+      - compiler/guide/stage-6-first-machine-code.md
+  - name: guide-7-9
+    title: Compiler guide, stages 7 to 9
+    pages:
+      - compiler/guide/stage-7-functions-and-control-flow.md
+      - compiler/guide/stage-8-data-in-memory.md
+      - compiler/guide/stage-9-runtime-safety.md
+  - name: guide-10-11
+    title: Compiler guide, stages 10 and 11
+    pages:
+      - compiler/guide/stage-10-matrix-multiplication.md
+      - compiler/guide/stage-11-release.md
+
+concepts:
+
+  # ---- Language tour 1. Syntax philosophy ---------------------------------
+
+  - id: static-typing
+    term: static typing
+    aliases: [statically typed]
+    short: Every value has a type that is known and checked before the program runs.
+    definition: >-
+      A language is statically typed when every value has a known type before
+      the program runs. Vortex is statically typed; type inference only saves
+      writing an obvious type, and the compiler still fixes and checks it.
+    introduced_in: language-tour/01-syntax-philosophy.md
+    requires: []
+    used_in:
+      - language-tour/04-variables-and-types.md
+      - specification/index.md
+      - philosophy.md
+    recall_question: What do we call a language in which every value has a type known before the program runs?
+    recall_answer: Statically typed. Vortex is statically typed, even when a local variable's type is inferred.
+
+  # ---- Language tour 2. Basic source rules --------------------------------
+
+  - id: comment
+    term: comment
+    short: Text for human readers that the compiler skips; in v0.1 it runs from // to the end of the line.
+    definition: >-
+      Text for human readers that the compiler skips. In v0.1 a comment starts
+      with `//` and runs to the end of the line; block comments such as
+      `/* ... */` are not part of v0.1.
+    spec_ref: specification/lexical-structure.md#22-comments
+    introduced_in: language-tour/02-basic-source-rules.md
+    requires: []
+    used_in:
+      - specification/lexical-structure.md
+      - compiler/guide/stage-2-lexer.md
+    recall_question: What is text for human readers that the compiler skips called, and how is it written in v0.1?
+    recall_answer: A comment. It starts with `//` and runs to the end of the line; block comments are not part of v0.1.
+
+  - id: identifier
+    term: identifier
+    short: A name the programmer chose, such as width or Point; it is case-sensitive.
+    definition: >-
+      A programmer-defined name, such as `width`, `item_count` or `Point`. It
+      starts with a letter or `_`, continues with letters, digits or `_`, and is
+      case-sensitive. The compiler guide also calls it a name.
+    spec: >-
+      A programmer-defined, case-sensitive name with the spelling rules in
+      [Lexical structure](lexical-structure.md).
+    spec_ref: specification/lexical-structure.md#23-identifiers
+    introduced_in: language-tour/02-basic-source-rules.md
+    requires: []
+    used_in:
+      - specification/lexical-structure.md
+      - specification/types-and-values.md
+      - specification/expressions.md
+      - specification/statements.md
+      - specification/grammar.md
+      - compiler/guide/stage-2-lexer.md
+      - compiler/guide/stage-7-functions-and-control-flow.md
+      - compiler/parser-design.md
+    recall_question: What do we call a name the programmer chose, such as `width` or `Point`?
+    recall_answer: An identifier. It starts with a letter or `_`, continues with letters, digits or `_`, and is case-sensitive.
+
+  - id: escape-sequence
+    term: escape sequence
+    short: A backslash and a character inside a literal that stand for something hard to type, such as \n.
+    definition: >-
+      A backslash followed by a character, used inside a character or string
+      literal to write something that is hard to type directly. v0.1 supports
+      `\n`, `\t`, `\\`, `\"` and `\'`.
+    spec_ref: specification/lexical-structure.md#character-and-string-literals
+    introduced_in: language-tour/02-basic-source-rules.md
+    requires: []
+    used_in:
+      - compiler/guide/stage-2-lexer.md
+      - compiler/guide/stage-8-data-in-memory.md
+      - roadmap.md
+    recall_question: Inside a string or character literal, what do we call `\n` or `\t`?
+    recall_answer: An escape sequence, a backslash and a character that stand for something hard to type. v0.1 supports `\n`, `\t`, `\\`, `\"` and `\'`.
+
+  # ---- Language tour 3. Hello world and main -------------------------------
+
+  - id: entry-point
+    term: entry point
+    short: The function a program starts running from; in Vortex, main.
+    definition: >-
+      The function a program starts running from. In Vortex it is `main`,
+      which in v0.1 takes no parameters and returns `void`; an executable
+      program must contain exactly one.
+    spec_ref: specification/declarations.md#33-entry-point
+    introduced_in: language-tour/03-hello-world.md
+    requires: []
+    used_in:
+      - specification/conformance.md
+      - specification/declarations.md
+      - specification/grammar.md
+      - compiler/guide/stage-4-names-and-scopes.md
+      - compiler/guide/stage-6-first-machine-code.md
+      - compiler/parser-design.md
+    recall_question: Which function does every executable Vortex program start running from, and what must it look like in v0.1?
+    recall_answer: The entry point, `main`. In v0.1 it takes no parameters, returns `void`, and there must be exactly one.
+
+  # ---- Language tour 4. Variables and types --------------------------------
+
+  - id: type
+    term: type
+    short: A label that says what kind of value something is and what can be done with it.
+    definition: >-
+      A label that says what kind of value something is, and therefore what can
+      be done with it. Every Vortex expression has exactly one type, known
+      before the program runs.
+    spec_ref: specification/types-and-values.md
+    introduced_in: language-tour/04-variables-and-types.md
+    requires: []
+    used_in:
+      - language-tour/10-declarations.md
+      - specification/types-and-values.md
+      - specification/grammar.md
+      - compiler/guide/stage-3-parser-and-tree.md
+      - compiler/guide/stage-4-names-and-scopes.md
+      - compiler/guide/stage-5-types-and-rules.md
+      - compiler/guide/stage-8-data-in-memory.md
+      - compiler/parser-design.md
+    recall_question: What tells the compiler what kind of value something is and what can be done with it?
+    recall_answer: Its type. Every Vortex expression has exactly one type, known before the program runs.
+
+  - id: primitive-type
+    term: primitive type
+    short: A type built into the language and named by a keyword, such as i32, f32 or bool.
+    definition: >-
+      A type built into the language and named by a keyword. The v0.1
+      primitive types are `void`, `bool`, `char`, `i32`, `u32`, `usize`, `f32`,
+      `f64` and `String`.
+    spec: One built-in type named directly by the language, such as `i32`, `f32`, or `bool`.
+    spec_ref: specification/types-and-values.md#42-primitive-types
+    introduced_in: language-tour/04-variables-and-types.md
+    requires: [type]
+    used_in:
+      - language-tour/08-expressions.md
+      - language-tour/05-types-planned-for-later.md
+      - specification/types-and-values.md
+      - specification/grammar.md
+      - compiler/guide/stage-3-parser-and-tree.md
+      - compiler/guide/stage-5-types-and-rules.md
+      - compiler/parser-design.md
+    recall_question: What kind of type is built into the language and named by a keyword, such as `i32` or `bool`?
+    recall_answer: A primitive type. v0.1 has `void`, `bool`, `char`, `i32`, `u32`, `usize`, `f32`, `f64` and `String`.
+
+  - id: type-annotation
+    term: type annotation
+    short: A type written after a name and a colon in a declaration; optional for a local when it can be inferred.
+    definition: >-
+      A type written out after a name and a colon, as in `let height: usize =
+      64;`. It is optional for a local variable when the compiler can infer the
+      type from the initializer, and required for parameters and fields.
+    introduced_in: language-tour/04-variables-and-types.md
+    requires: [type]
+    used_in:
+      - language-tour/09-statements.md
+      - language-tour/10-declarations.md
+      - specification/declarations.md
+      - compiler/parser-design.md
+    recall_question: >-
+      In `let height: usize = 64;`, what is the `: usize` part called, and
+      when may you leave it out?
+    recall_answer: A type annotation. You may leave it out of a local variable declaration when the type can be inferred from the initializer.
+
+  - id: local-variable
+    term: local variable
+    short: A variable declared with let inside a function; it exists only while its block runs.
+    definition: >-
+      A variable declared with `let` inside a function. It must have an
+      initializer, is immutable unless declared with `mut`, and is visible from
+      its declaration to the end of its block.
+    spec_ref: specification/declarations.md#35-local-variable-declarations
+    introduced_in: language-tour/04-variables-and-types.md
+    requires: [identifier]
+    used_in:
+      - language-tour/10-declarations.md
+      - specification/declarations.md
+      - specification/types-and-values.md
+      - specification/statements.md
+      - compiler/guide/stage-4-names-and-scopes.md
+      - compiler/guide/stage-5-types-and-rules.md
+      - compiler/guide/stage-6-first-machine-code.md
+      - compiler/guide/stage-7-functions-and-control-flow.md
+    recall_question: What do we call a variable declared with `let` inside a function?
+    recall_answer: A local variable. It needs an initializer and is visible from its declaration to the end of its block.
+
+  - id: initializer
+    term: initializer
+    short: The expression after = in a let declaration, which gives the variable its first value.
+    definition: >-
+      The expression after `=` in a `let` declaration. It gives the variable
+      its first value and, when no type is written, its type. Every v0.1 local
+      variable needs one.
+    spec: >-
+      The expression that supplies the starting value of a local binding or one
+      named field value in struct construction.
+    spec_ref: specification/declarations.md#35-local-variable-declarations
+    introduced_in: language-tour/04-variables-and-types.md
+    requires: [local-variable]
+    used_in:
+      - language-tour/09-statements.md
+      - language-tour/10-declarations.md
+      - specification/declarations.md
+      - specification/expressions.md
+      - specification/structs.md
+      - specification/grammar.md
+      - compiler/guide/stage-4-names-and-scopes.md
+      - compiler/guide/stage-5-types-and-rules.md
+    recall_question: In `let width = 128;`, what is the expression after `=` called?
+    recall_answer: The initializer. It gives the variable its first value and, if no type is written, its type; v0.1 requires one.
+
+  - id: type-inference
+    term: type inference
+    short: Working out a type the programmer did not write; in Vortex, only for local variables.
+    definition: >-
+      Working out a type the programmer did not write. In Vortex this happens
+      only for local variables, from their initializers; the result is still
+      one fixed type, so the language stays statically typed.
+    spec_ref: specification/types-and-values.md#410-type-inference
+    introduced_in: language-tour/04-variables-and-types.md
+    requires: [type, initializer, static-typing]
+    used_in:
+      - specification/index.md
+      - specification/types-and-values.md
+      - specification/arrays.md
+      - compiler/guide/stage-4-names-and-scopes.md
+      - compiler/guide/stage-5-types-and-rules.md
+    recall_question: What is it called when the compiler works out a local variable's type from its starting value?
+    recall_answer: Type inference. Vortex does it only for local variables, and the inferred type is still fixed before the program runs.
+
+  - id: default-type
+    term: default type
+    short: The type a literal gets when nothing asks for another; i32 for whole numbers, f32 for decimals.
+    definition: >-
+      The type a literal gets when nothing around it asks for a different one.
+      Whole-number literals default to `i32` and decimal literals default to
+      `f32`.
+    spec: >-
+      The type a numeric literal has when its context gives it no target type:
+      `i32` for an integer literal and `f32` for a floating literal. See
+      [Literal typing](types-and-values.md#literal-typing).
+    spec_ref: specification/types-and-values.md#43-integers
+    introduced_in: language-tour/04-variables-and-types.md
+    requires: [primitive-type, type-inference]
+    used_in:
+      - compiler/guide/index.md
+      - compiler/guide/stage-5-types-and-rules.md
+    recall_question: When nothing around it asks for another type, what type does a whole-number literal get, and a decimal one?
+    recall_answer: Their default types, `i32` for a whole number and `f32` for a decimal.
+
+  - id: mutable
+    term: mutable
+    aliases: [immutable, mutability]
+    short: Allowed to change after creation; a Vortex variable is mutable only when declared with mut.
+    definition: >-
+      Allowed to change after it is created. A Vortex variable is mutable only
+      when declared with `mut`; otherwise it is immutable and cannot be
+      assigned again.
+    spec: >-
+      Describes a place that may be changed: its root is a variable declared
+      with `let mut`, or a name of type `&mut T`. Parameters are immutable. See
+      [References and mutability 9.3](references.md#93-local-mutability).
+    spec_ref: specification/references.md#93-local-mutability
+    introduced_in: language-tour/04-variables-and-types.md
+    requires: [local-variable]
+    used_in:
+      - language-tour/09-statements.md
+      - specification/index.md
+      - specification/types-and-values.md
+      - specification/references.md
+      - specification/grammar.md
+      - compiler/guide/stage-5-types-and-rules.md
+      - compiler/guide/stage-8-data-in-memory.md
+      - compiler/parser-design.md
+    recall_question: What do we call a variable that is allowed to change after it is created, and how do you declare one?
+    recall_answer: Mutable. You declare it with `let mut`; a variable without `mut` is immutable.
+
+  - id: void
+    term: void
+    short: The return type of a function that returns no value; void is not a value you can store.
+    definition: >-
+      The type that says a function returns no value; the `-> void` may be left
+      out. `void` is not a value, so it cannot be stored in a variable, used as a
+      parameter value or written as a literal.
+    spec_ref: specification/types-and-values.md#42-primitive-types
+    introduced_in: language-tour/04-variables-and-types.md
+    requires: [type]
+    used_in: []
+    recall_question: Which return type means a function hands back no value, and may be left out?
+    recall_answer: The type `void`. It describes the absence of a value, so it cannot be stored in a variable.
+
+  - id: array
+    term: array
+    short: A fixed number of values of one element type stored side by side; its shape is part of its type.
+    definition: >-
+      A fixed number of values of the same type stored next to each other. Its
+      dimensions are known at compile time and are part of its type, as in
+      `[f32; 4]` or `[f32; 2, 2]`.
+    spec: >-
+      A homogeneous value with a fixed element type and compile-time shape. See
+      [Arrays and shapes](arrays.md).
+    spec_ref: specification/arrays.md#71-array-types
+    introduced_in: language-tour/04-variables-and-types.md
+    requires: [type]
+    used_in:
+      - specification/arrays.md
+      - specification/grammar.md
+      - compiler/guide/stage-5-types-and-rules.md
+      - compiler/guide/stage-8-data-in-memory.md
+      - compiler/guide/stage-9-runtime-safety.md
+      - compiler/guide/stage-10-matrix-multiplication.md
+      - roadmap.md
+      - compiler/parser-design.md
+    recall_question: Which v0.1 type holds a fixed number of values of one type, with sizes known at compile time, such as `[f32; 4]`?
+    recall_answer: A fixed-size array. Its element type and every dimension are part of its type.
+
+  - id: element-type
+    term: element type
+    short: The single type shared by every element of an array.
+    definition: The single type shared by every element of an array, such as `f32` in `[f32; 4]`.
+    spec: The single type shared by every element of an array.
+    spec_ref: specification/arrays.md#71-array-types
+    introduced_in: language-tour/04-variables-and-types.md
+    requires: [array]
+    used_in:
+      - language-tour/08-expressions.md
+      - specification/types-and-values.md
+      - specification/arrays.md
+      - specification/grammar.md
+      - philosophy.md
+      - compiler/guide/stage-5-types-and-rules.md
+      - compiler/guide/stage-7-functions-and-control-flow.md
+      - compiler/parser-design.md
+    recall_question: In `[f32; 4]`, what is `f32` called?
+    recall_answer: The element type, the single type shared by every element of the array.
+
+  - id: dimension
+    term: dimension
+    short: One size in an array's shape; it must be a compile-time integer.
+    definition: >-
+      One size in an array's shape; `[f32; 4, 8]` has two dimensions, 4 and 8.
+      Each dimension can be written as an expression, but it must evaluate at
+      compile time to an integer that fits `usize`.
+    spec: >-
+      One extent in an array shape. It is written as an integer constant
+      expression and evaluates to a value of at least 1.
+    spec_ref: specification/arrays.md#72-dimension-rules
+    introduced_in: language-tour/04-variables-and-types.md
+    requires: [array]
+    used_in:
+      - language-tour/08-expressions.md
+      - specification/arrays.md
+      - specification/grammar.md
+      - compiler/guide/stage-3-parser-and-tree.md
+      - compiler/guide/stage-5-types-and-rules.md
+      - compiler/guide/stage-8-data-in-memory.md
+      - compiler/guide/stage-10-matrix-multiplication.md
+      - compiler/parser-design.md
+    recall_question: What is one size in an array type such as `[f32; 4, 8]` called, and when must it be known?
+    recall_answer: A dimension. Each one must evaluate at compile time to an integer that fits `usize`.
+
+  - id: shape
+    term: shape
+    short: The list of an array's sizes, one per dimension; part of the array's type in v0.1.
+    definition: >-
+      The list of an array's sizes, one per dimension. The shape of
+      `[f32; 2, 3]` is `[2, 3]`, and in v0.1 the shape is part of the array's
+      type.
+    spec: The ordered list of fixed extents for an array. Shape is part of an array type in v0.1.
+    spec_ref: specification/arrays.md#75-rank-and-shape
+    introduced_in: language-tour/04-variables-and-types.md
+    requires: [dimension]
+    used_in:
+      - specification/arrays.md
+      - specification/grammar.md
+      - philosophy.md
+      - compiler/guide/stage-3-parser-and-tree.md
+      - compiler/guide/stage-5-types-and-rules.md
+      - compiler/guide/stage-8-data-in-memory.md
+      - compiler/guide/stage-10-matrix-multiplication.md
+      - compiler/parser-design.md
+    recall_question: What do we call the list of an array's sizes, one per dimension?
+    recall_answer: Its shape. For `[f32; 2, 3]` the shape is `[2, 3]`, and it is part of the type.
+
+  - id: struct
+    term: struct
+    short: A named value type that groups ordered, named fields, such as Point with x and y.
+    definition: >-
+      A user-defined type, declared with `struct`, that groups related values
+      under names. A struct declaration defines a type but creates no value; a
+      struct expression such as `Point { x: 0.0, y: 0.0 }` creates one.
+    spec: A nominal, named value type containing ordered named fields.
+    spec_ref: specification/structs.md#81-declaration
+    introduced_in: language-tour/04-variables-and-types.md
+    requires: [type]
+    used_in:
+      - language-tour/08-expressions.md
+      - language-tour/10-declarations.md
+      - specification/declarations.md
+      - specification/types-and-values.md
+      - specification/structs.md
+      - specification/grammar.md
+      - compiler/guide/stage-4-names-and-scopes.md
+      - compiler/guide/stage-8-data-in-memory.md
+    recall_question: What do you declare to group related values into a new named type, such as `Point` with `x` and `y`?
+    recall_answer: A struct. Declaring it creates a type; a struct expression creates a value of that type.
+
+  - id: named-type
+    term: named type
+    short: A type written as a name, such as Point, that name resolution connects to a struct declaration.
+    definition: >-
+      A type written as an identifier, such as `Point`. In v0.1 a named type is
+      introduced by a struct declaration, and name resolution decides which
+      declaration it means.
+    spec: A type written as an identifier and preserved until name resolution selects its declaration.
+    spec_ref: specification/types-and-values.md#411-type-equality
+    introduced_in: language-tour/04-variables-and-types.md
+    requires: [struct, identifier]
+    used_in:
+      - language-tour/08-expressions.md
+      - language-tour/10-declarations.md
+      - specification/declarations.md
+      - specification/types-and-values.md
+      - specification/grammar.md
+      - compiler/guide/stage-3-parser-and-tree.md
+      - compiler/guide/stage-4-names-and-scopes.md
+      - compiler/parser-design.md
+    recall_question: What kind of type is written as a plain name, such as `Point`, and must be matched to a struct declaration?
+    recall_answer: A named type. Name resolution finds the struct declaration it refers to.
+
+  - id: reference
+    term: reference
+    short: A safe way to reach an existing value without copying it; &T reads it and &mut T can also change it.
+    definition: >-
+      A safe way to reach an existing value without copying it. A shared
+      reference `&T` lets you read the value; a mutable reference `&mut T` also
+      lets you change it. A reference is not a raw memory address.
+    spec: >-
+      A safe connection to existing storage, written `&T` or `&mut T`. See
+      [References and mutability](references.md).
+    spec_ref: specification/references.md#91-reference-types
+    introduced_in: language-tour/04-variables-and-types.md
+    requires: [mutable]
+    used_in:
+      - specification/types-and-values.md
+      - specification/references.md
+      - specification/grammar.md
+      - compiler/guide/stage-5-types-and-rules.md
+      - compiler/guide/stage-8-data-in-memory.md
+      - compiler/guide/stage-9-runtime-safety.md
+      - compiler/guide/stage-10-matrix-multiplication.md
+      - roadmap.md
+    recall_question: How can a function read or change an existing value without copying it, and how are the two kinds written?
+    recall_answer: Through a reference. `&T` is a shared reference for reading; `&mut T` is a mutable reference that can also change the value.
+
+  - id: addressable
+    term: addressable
+    short: Naming a real storage place, such as a variable, field or array element, that a reference can point at.
+    definition: >-
+      Naming a real storage place that a reference can point at, such as a
+      variable, a struct field or an array element. A temporary result such as
+      `a + b` is not addressable.
+    spec: >-
+      Describes an expression that identifies existing storage and can therefore
+      be referenced. Every place is addressable; temporary calculations are not.
+    spec_ref: specification/references.md#92-reference-expressions
+    introduced_in: language-tour/04-variables-and-types.md
+    requires: [reference]
+    used_in:
+      - language-tour/08-expressions.md
+      - specification/expressions.md
+      - specification/references.md
+      - compiler/guide/stage-5-types-and-rules.md
+    recall_question: What must the operand of `&` or `&mut` be, and why is `a + b` not allowed?
+    recall_answer: Addressable, meaning it names real storage such as a variable, field or array element; `a + b` is only a temporary result.
+
+  # ---- Language tour 5. Expressions ----------------------------------------
+
+  - id: expression
+    term: expression
+    short: A piece of code that produces a value, such as 2 + 3, width or square(4.0).
+    definition: >-
+      A piece of code that produces a value, such as `42`, `width`, `2 + 3` or
+      `square(4.0)`. Expressions nest inside other expressions and inside
+      statements.
+    spec: >-
+      A construct that computes, constructs, or refers to a value. See
+      [Expressions](expressions.md).
+    spec_ref: specification/expressions.md#51-expression-forms
+    introduced_in: language-tour/08-expressions.md
+    requires: []
+    used_in:
+      - specification/expressions.md
+      - specification/grammar.md
+      - compiler/guide/stage-3-parser-and-tree.md
+      - compiler/guide/stage-5-types-and-rules.md
+      - compiler/guide/stage-7-functions-and-control-flow.md
+      - compiler/guide/stage-8-data-in-memory.md
+      - compiler/parser-design.md
+      - compiler/ast-guide.md
+    recall_question: What do we call a piece of code that produces a value, such as `2 + 3` or `square(4.0)`?
+    recall_answer: An expression. A statement, by contrast, does something and produces no value.
+
+  - id: value
+    term: value
+    short: The result of evaluating an expression; every value has one Vortex type.
+    definition: >-
+      The result of evaluating an expression, such as a number, a boolean, a
+      string, an array or a struct. Every value has exactly one Vortex type.
+    spec: The result of evaluating an expression. A value has one Vortex type.
+    spec_ref: specification/glossary.md
+    introduced_in: language-tour/08-expressions.md
+    requires: [expression, type]
+    used_in:
+      - language-tour/10-declarations.md
+      - specification/types-and-values.md
+      - specification/grammar.md
+      - compiler/guide/stage-5-types-and-rules.md
+      - compiler/guide/stage-6-first-machine-code.md
+      - compiler/guide/stage-7-functions-and-control-flow.md
+      - compiler/guide/stage-8-data-in-memory.md
+      - compiler/guide/stage-9-runtime-safety.md
+    recall_question: What is the result of evaluating an expression called, and how many types does it have?
+    recall_answer: A value. Every value has exactly one Vortex type.
+
+  - id: literal
+    term: literal
+    short: A value written directly in the source, such as 42, 3.14, true or 'V'.
+    definition: >-
+      A value written directly in the source. The scalar literal forms are
+      integer (`42`), floating-point (`3.14`), boolean (`true`), character
+      (`'V'`) and string (`"text"`) literals.
+    spec_ref: specification/lexical-structure.md#25-literals
+    introduced_in: language-tour/08-expressions.md
+    requires: [value]
+    used_in:
+      - specification/lexical-structure.md
+      - specification/types-and-values.md
+      - specification/grammar.md
+      - compiler/guide/stage-2-lexer.md
+      - compiler/guide/stage-5-types-and-rules.md
+      - compiler/guide/stage-8-data-in-memory.md
+      - compiler/parser-design.md
+      - compiler/ast-guide.md
+    recall_question: What do we call a value written directly in the source, such as `42` or `true`?
+    recall_answer: A literal. Integer, floating-point, boolean, character and string literals are the scalar forms.
+
+  - id: precedence
+    term: precedence
+    short: Which operator groups first when there are no parentheses; multiplication groups before addition.
+    definition: >-
+      Which operator groups first when there are no parentheses. In Vortex `*`
+      has higher precedence than `+`, so `2 + 3 * 4` means `2 + (3 * 4)`, which
+      is 14.
+    spec: >-
+      The rule that determines which operator groups more tightly when
+      parentheses do not state the grouping explicitly.
+    spec_ref: specification/expressions.md#52-precedence-and-associativity
+    introduced_in: language-tour/08-expressions.md
+    requires: [expression]
+    used_in:
+      - specification/expressions.md
+      - specification/grammar.md
+      - compiler/guide/stage-3-parser-and-tree.md
+      - compiler/parser-design.md
+    recall_question: Why does `2 + 3 * 4` evaluate to 14 and not 20?
+    recall_answer: Because of precedence. `*` groups before `+`, so the expression means `2 + (3 * 4)`.
+
+  - id: short-circuit-evaluation
+    term: short-circuit evaluation
+    tooltip: true
+    short: Evaluating the right side of && or || only when the left side has not already decided the answer.
+    definition: >-
+      Evaluating the right side of `&&` or `||` only when the left side has not
+      already decided the answer. It is what makes
+      `index < 4 && values[index] > 0.0` safe to write.
+    spec_ref: specification/expressions.md#57-logical-expressions
+    introduced_in: language-tour/08-expressions.md
+    requires: [expression]
+    used_in:
+      - compiler/guide/stage-7-functions-and-control-flow.md
+    recall_question: In `index < 4 && values[index] > 0.0`, what stops the array read when `index` is too large?
+    recall_answer: Short-circuit evaluation. The right side of `&&` or `||` runs only when the left side has not already decided the answer.
+
+  - id: function-call
+    term: function call
+    short: Running a function's body from somewhere else, then carrying on from just after the call.
+    definition: >-
+      Running a function's body from somewhere else in the program, then
+      carrying on from just after the call. A call such as `square(4.0)` is an
+      expression, and its arguments must match the function's parameters in
+      number and type.
+    spec_ref: specification/expressions.md#calls
+    introduced_in: language-tour/08-expressions.md
+    requires: [expression]
+    used_in:
+      - language-tour/09-statements.md
+      - specification/references.md
+      - compiler/guide/stage-5-types-and-rules.md
+      - compiler/guide/stage-7-functions-and-control-flow.md
+      - compiler/guide/stage-8-data-in-memory.md
+      - roadmap.md
+      - compiler/parser-design.md
+    recall_question: What is `square(4.0)` an example of, and what happens when it runs?
+    recall_answer: A function call. The function's body runs, then execution carries on from just after the call.
+
+  - id: cast
+    term: cast
+    short: An explicit conversion between numeric types, written like a call, such as f32(count).
+    definition: >-
+      An explicit conversion from one numeric type to another, written like a
+      call, as in `f32(count)` or `i32(temperature)`. Only primitive type names
+      can be cast targets, and a value that does not fit the new type is an
+      error, never silently wrapped.
+    spec: >-
+      An expression that converts one value to a numeric type, written as a
+      numeric type keyword and one parenthesized operand, such as `f32(count)`.
+      See [Casts and
+      conversions](types-and-values.md#412-casts-and-conversions).
+    spec_ref: specification/types-and-values.md#412-casts-and-conversions
+    introduced_in: language-tour/08-expressions.md
+    requires: [primitive-type, expression]
+    used_in:
+      - language-tour/06-runtime-and-numerical-rules.md
+      - specification/types-and-values.md
+      - compiler/guide/stage-9-runtime-safety.md
+      - roadmap.md
+      - compiler/parser-design.md
+    recall_question: How do you convert `count` to an `f32` in Vortex, and what is this called?
+    recall_answer: With a cast written like a call, `f32(count)`. A value that does not fit the new type is reported as an error rather than silently changed.
+
+  - id: rank
+    term: rank
+    short: The number of dimensions an array has; a 2 by 3 array has rank 2.
+    definition: >-
+      The number of dimensions an array has. `[f32; 4]` has rank 1 and
+      `[f32; 2, 3]` has rank 2; an indexing expression must supply one index
+      per dimension.
+    spec: The number of dimensions in an array type.
+    spec_ref: specification/arrays.md#75-rank-and-shape
+    introduced_in: language-tour/08-expressions.md
+    requires: [dimension]
+    used_in:
+      - specification/arrays.md
+      - compiler/guide/stage-8-data-in-memory.md
+      - compiler/guide/stage-10-matrix-multiplication.md
+    recall_question: What do we call the number of dimensions of an array, such as 2 for `[f32; 2, 3]`?
+    recall_answer: Its rank. An indexing expression must give one index for each dimension.
+
+  - id: indexing
+    term: indexing
+    aliases: [index expression]
+    short: Reading one element of an array by position, with one integer index per dimension.
+    definition: >-
+      An expression that reads one element of an array by position, such as
+      `values[index]` or `matrix[row, column]`. Each index must be an integer,
+      and there must be one index per dimension.
+    spec_ref: specification/arrays.md#76-indexing
+    introduced_in: language-tour/08-expressions.md
+    requires: [array, expression]
+    used_in:
+      - specification/types-and-values.md
+      - specification/expressions.md
+      - specification/arrays.md
+      - compiler/guide/stage-3-parser-and-tree.md
+      - compiler/guide/stage-5-types-and-rules.md
+      - compiler/guide/stage-8-data-in-memory.md
+      - compiler/guide/stage-10-matrix-multiplication.md
+      - compiler/parser-design.md
+    recall_question: What is `matrix[row, column]` an example of, and what must its indices be?
+    recall_answer: Indexing. There must be one integer index for each dimension of the array.
+
+  - id: bounds-check
+    term: bounds check
+    short: A check that an index is at least zero and below the size of its dimension.
+    definition: >-
+      A check that an array index is at least zero and less than the size of
+      its dimension. Vortex does it during compilation when the index is known,
+      and in the generated code otherwise.
+    spec_ref: specification/arrays.md#76-indexing
+    introduced_in: language-tour/08-expressions.md
+    requires: [indexing, dimension]
+    used_in:
+      - language-tour/06-runtime-and-numerical-rules.md
+      - specification/arrays.md
+      - compiler/guide/stage-5-types-and-rules.md
+      - compiler/guide/stage-7-functions-and-control-flow.md
+      - compiler/guide/stage-8-data-in-memory.md
+      - compiler/guide/stage-9-runtime-safety.md
+      - compiler/guide/stage-10-matrix-multiplication.md
+    recall_question: What check makes sure `values[index]` stays inside the array, and when does it happen?
+    recall_answer: A bounds check. It happens during compilation when the index is already known, and at run time otherwise.
+
+  - id: range
+    term: range
+    short: A bounded sequence such as 0..10, which excludes 10, or 0..=10, which includes it.
+    definition: >-
+      An expression for a bounded sequence of integers, mainly used by `for`
+      loops. `0..10` includes 0 but not 10; `0..=10` includes both.
+      Open-ended forms such as `..10` are not part of v0.1.
+    spec: >-
+      An expression `start..end`, which excludes `end`, or `start..=end`, which
+      includes it. In v0.1 a range may appear only as the iterable of a `for`
+      statement; it is not a value. See [Expressions
+      5.8](expressions.md#58-ranges).
+    spec_ref: specification/expressions.md#58-ranges
+    introduced_in: language-tour/08-expressions.md
+    requires: [expression]
+    used_in:
+      - language-tour/09-statements.md
+      - specification/expressions.md
+      - specification/grammar.md
+      - compiler/guide/stage-2-lexer.md
+      - compiler/guide/stage-3-parser-and-tree.md
+      - compiler/guide/stage-7-functions-and-control-flow.md
+      - compiler/guide/stage-9-runtime-safety.md
+      - compiler/parser-design.md
+    recall_question: Which values does the range `0..4` produce, and how do you include the end value?
+    recall_answer: The values 0, 1, 2 and 3; the end is excluded. Writing `0..=4` includes the end value.
+
+  # ---- Language tour 6. Statements -----------------------------------------
+
+  - id: statement
+    term: statement
+    short: A piece of code that does something; in Vortex a statement produces no value.
+    definition: >-
+      A piece of code that does something, such as `let x = 1;`, `return x;` or
+      a `while` loop. In Vortex statements do not produce values; simple ones
+      end with `;`, while block forms such as `if` do not.
+    spec: >-
+      A construct that performs an action or changes control flow. See
+      [Statements](statements.md).
+    spec_ref: specification/statements.md#61-statement-forms
+    introduced_in: language-tour/09-statements.md
+    requires: [expression]
+    used_in:
+      - language-tour/10-declarations.md
+      - specification/statements.md
+      - specification/grammar.md
+      - compiler/guide/stage-3-parser-and-tree.md
+      - compiler/guide/stage-5-types-and-rules.md
+      - compiler/guide/stage-7-functions-and-control-flow.md
+      - compiler/guide/stage-11-release.md
+      - compiler/parser-design.md
+    recall_question: What do we call a piece of code that does something, such as `return x;`, and does it produce a value in Vortex?
+    recall_answer: A statement. In Vortex a statement produces no value.
+
+  - id: block
+    term: block
+    short: A pair of braces with statements inside; in Vortex every block creates a new scope.
+    definition: >-
+      A pair of braces `{ }` with zero or more statements inside. Every block
+      creates a new scope, and in v0.1 a block is not itself a value.
+    spec: >-
+      A brace-delimited ordered sequence of statements that creates a local
+      scope. A function's body block shares one scope with the function's
+      parameters; see [Scopes](declarations.md#36-scopes).
+    spec_ref: specification/statements.md#62-blocks
+    introduced_in: language-tour/09-statements.md
+    requires: [statement]
+    used_in:
+      - language-tour/10-declarations.md
+      - specification/declarations.md
+      - specification/statements.md
+      - specification/grammar.md
+      - compiler/guide/stage-3-parser-and-tree.md
+      - compiler/guide/stage-4-names-and-scopes.md
+      - compiler/guide/stage-7-functions-and-control-flow.md
+      - compiler/parser-design.md
+    recall_question: What do braces with statements inside form, and what does each one create?
+    recall_answer: A block. Every block creates a new scope, so a variable declared inside it cannot be used after the closing brace.
+
+  - id: assignment
+    term: assignment
+    short: A statement that stores a new value into a mutable variable, field or array element.
+    definition: >-
+      A statement that changes the value stored in a mutable variable, mutable
+      field or mutable array element, such as `total = 10;` or `total += 2.5;`.
+      Literals, calculations and immutable variables cannot be assigned to.
+    spec_ref: specification/statements.md#64-assignment
+    introduced_in: language-tour/09-statements.md
+    requires: [statement, mutable]
+    used_in:
+      - language-tour/10-declarations.md
+      - specification/statements.md
+      - specification/grammar.md
+      - compiler/guide/stage-3-parser-and-tree.md
+      - compiler/guide/stage-5-types-and-rules.md
+      - compiler/guide/stage-6-first-machine-code.md
+      - roadmap.md
+      - compiler/parser-design.md
+    recall_question: Which statement changes the value of an existing variable, and what must be true of its target?
+    recall_answer: An assignment. Its target must be mutable storage, such as a variable declared with `mut`.
+
+  - id: loop-variable
+    term: loop variable
+    aliases: [loop-local variable]
+    short: The variable a for loop introduces; it is visible only inside the loop's body.
+    definition: >-
+      The variable a `for` loop introduces, such as `index` in
+      `for index in 0..4`. It is visible only inside the loop's body.
+    spec_ref: specification/statements.md#68-for-loops
+    introduced_in: language-tour/09-statements.md
+    requires: [range, local-variable]
+    used_in:
+      - specification/declarations.md
+      - specification/statements.md
+      - specification/grammar.md
+      - compiler/guide/stage-4-names-and-scopes.md
+      - compiler/guide/stage-7-functions-and-control-flow.md
+      - compiler/guide/stage-9-runtime-safety.md
+      - compiler/parser-design.md
+    recall_question: In `for index in 0..4 { ... }`, what is `index`, and where can it be used?
+    recall_answer: The loop variable. It is visible only inside the loop's body.
+
+  # ---- Language tour 7. Declarations ---------------------------------------
+
+  - id: declaration
+    term: declaration
+    short: A place in the program that introduces a name, such as let width = 128; or fn scale(...).
+    definition: >-
+      A place in the program that introduces a name or definition. Vortex
+      declares functions and structs at the top level, parameters and fields
+      inside them, and local variables inside blocks.
+    spec: >-
+      A construct that introduces a name or definition. Top-level Vortex
+      declarations are functions and structs; locals are declaration
+      statements.
+    spec_ref: specification/declarations.md#31-program-structure
+    introduced_in: language-tour/10-declarations.md
+    requires: [identifier]
+    used_in:
+      - specification/declarations.md
+      - specification/structs.md
+      - specification/grammar.md
+      - compiler/guide/stage-3-parser-and-tree.md
+      - compiler/guide/stage-4-names-and-scopes.md
+      - compiler/guide/stage-5-types-and-rules.md
+      - compiler/guide/stage-7-functions-and-control-flow.md
+      - compiler/parser-design.md
+    recall_question: What do we call a place in the program that introduces a name, such as `let width = 128;`?
+    recall_answer: A declaration. Top-level declarations are functions and structs; locals are declared by statements inside blocks.
+
+  - id: scope
+    term: scope
+    short: The region of source text where a declaration's name can be used.
+    definition: >-
+      The region of source text where a declaration's name can be used.
+      Top-level names are visible in the whole program, parameters in their
+      function body, and local variables from their declaration to the end of
+      their block.
+    spec: The source region in which a declaration's name is visible.
+    spec_ref: specification/declarations.md#36-scopes
+    introduced_in: language-tour/10-declarations.md
+    requires: [declaration, block]
+    used_in:
+      - specification/index.md
+      - specification/declarations.md
+      - specification/statements.md
+      - specification/diagnostics.md
+      - specification/grammar.md
+      - philosophy.md
+      - compiler/guide/stage-4-names-and-scopes.md
+      - roadmap.md
+    recall_question: What is the region of source text where a declaration's name can be used called?
+    recall_answer: Its scope. A local variable's scope runs from its declaration to the end of its block.
+
+  - id: nested-scope
+    term: nested scope
+    short: A scope inside another; inner code sees outer names, but not the other way round.
+    definition: >-
+      A scope inside another scope, created by a nested block. Code in the
+      inner scope can see names from the outer one; code in the outer scope
+      cannot see names declared inside.
+    spec_ref: specification/declarations.md#36-scopes
+    introduced_in: language-tour/10-declarations.md
+    requires: [scope]
+    used_in:
+      - compiler/guide/stage-4-names-and-scopes.md
+      - compiler/guide/stage-7-functions-and-control-flow.md
+    recall_question: When a block sits inside another block, which names can each one see?
+    recall_answer: The inner block is a nested scope. It sees the outer names, but the outer code cannot see names declared inside it.
+
+  - id: duplicate-declaration
+    term: duplicate declaration
+    short: Two declarations of the same name in the same scope; always an error.
+    definition: >-
+      Two declarations of the same name in the same scope, such as two fields
+      named `value` in one struct. Vortex always rejects them.
+    spec_ref: specification/declarations.md#36-scopes
+    introduced_in: language-tour/10-declarations.md
+    requires: [declaration, scope]
+    used_in:
+      - specification/declarations.md
+      - compiler/guide/stage-4-names-and-scopes.md
+    recall_question: What is it called when the same name is declared twice in one scope, and is it ever allowed?
+    recall_answer: A duplicate declaration. Vortex always rejects it.
+
+  - id: shadowing
+    term: shadowing
+    short: Declaring a name in an inner scope that an outer scope already declares; not yet decided for Vortex.
+    definition: >-
+      Declaring a name in an inner scope that an outer scope already declares,
+      so that inside the inner scope the name means the new declaration.
+      Whether Vortex allows this is not yet decided, so programs should not
+      rely on it.
+    spec: >-
+      Declaring a name while another declaration of the same name is visible, so
+      that the new one would hide the old one. Vortex v0.1 forbids it; see
+      [Scopes](declarations.md#36-scopes).
+    spec_ref: specification/declarations.md#36-scopes
+    introduced_in: language-tour/10-declarations.md
+    requires: [nested-scope, declaration]
+    used_in:
+      - specification/declarations.md
+      - compiler/guide/stage-4-names-and-scopes.md
+    recall_question: What is it called when an inner block redeclares a name that an outer block already declares, and does v0.1 allow it?
+    recall_answer: Shadowing. Whether Vortex allows it is not yet decided, so do not rely on it.
+
+  - id: function
+    term: function
+    short: A named piece of code declared with fn, with parameters, an optional return type and a body.
+    definition: >-
+      A top-level declaration, written with `fn`, that gives a piece of code a
+      name, typed parameters, an optional return type and a block body.
+      Declaring a function does not run it; it runs when code calls it, or when
+      the runtime starts `main`.
+    spec_ref: specification/declarations.md#32-functions
+    introduced_in: language-tour/10-declarations.md
+    requires: [declaration, block]
+    used_in:
+      - specification/declarations.md
+      - specification/grammar.md
+      - compiler/guide/stage-4-names-and-scopes.md
+      - compiler/guide/stage-5-types-and-rules.md
+      - compiler/guide/stage-7-functions-and-control-flow.md
+      - compiler/guide/stage-10-matrix-multiplication.md
+      - roadmap.md
+      - compiler/parser-design.md
+    recall_question: >-
+      What does `fn add(left: i32, right: i32) -> i32 { ... }` declare, and
+      when does its body run?
+    recall_answer: A function. Its body runs only when code calls it, or, for `main`, when the program starts.
+
+  - id: parameter
+    term: parameter
+    short: A named, typed input in a function's declaration; every v0.1 parameter needs an explicit type.
+    definition: >-
+      A named, typed input listed in a function's declaration, such as `left`
+      in `fn add(left: i32, right: i32)`. Every v0.1 parameter needs an
+      explicit type, and it is visible only inside its function body.
+    spec: A named, typed input declared in a function signature.
+    spec_ref: specification/declarations.md#32-functions
+    introduced_in: language-tour/10-declarations.md
+    requires: [function, type]
+    used_in:
+      - specification/declarations.md
+      - specification/grammar.md
+      - compiler/guide/stage-4-names-and-scopes.md
+      - compiler/guide/stage-5-types-and-rules.md
+      - compiler/guide/stage-7-functions-and-control-flow.md
+      - compiler/guide/stage-8-data-in-memory.md
+      - compiler/guide/stage-10-matrix-multiplication.md
+      - compiler/parser-design.md
+    recall_question: What do we call a named, typed input listed in a function's declaration?
+    recall_answer: A parameter. Every v0.1 parameter needs an explicit type and is visible only inside its function body.
+
+  - id: argument
+    term: argument
+    short: The value supplied for one parameter at a particular call, such as 3 in add(3, 4).
+    definition: >-
+      The value supplied for one parameter at a particular call, such as `3` in
+      `add(3, 4)`. The number and types of the arguments must match the
+      parameter list.
+    spec: An expression supplied by a call for one function parameter.
+    spec_ref: specification/expressions.md#calls
+    introduced_in: language-tour/10-declarations.md
+    requires: [parameter, function-call]
+    used_in:
+      - specification/expressions.md
+      - specification/grammar.md
+      - compiler/guide/stage-0-workbench.md
+      - compiler/guide/stage-5-types-and-rules.md
+      - compiler/guide/stage-6-first-machine-code.md
+      - compiler/guide/stage-7-functions-and-control-flow.md
+      - compiler/guide/stage-9-runtime-safety.md
+      - compiler/guide/stage-10-matrix-multiplication.md
+    recall_question: In the call `add(3, 4)`, what are `3` and `4` called?
+    recall_answer: Arguments. Each one supplies the value for one parameter, and their number and types must match the parameter list.
+
+  - id: field
+    term: field
+    short: One named part of a struct, such as x in Point.
+    definition: >-
+      One named part of a struct, declared with a name and a type, such as
+      `x: f32` in `Point`. A field belongs to its struct type and is read
+      through a value with a dot, as in `point.x`.
+    spec: A named component declared by a struct.
+    spec_ref: specification/structs.md#84-field-access
+    introduced_in: language-tour/10-declarations.md
+    requires: [struct, declaration]
+    used_in:
+      - specification/declarations.md
+      - specification/expressions.md
+      - specification/structs.md
+      - specification/grammar.md
+      - compiler/guide/stage-3-parser-and-tree.md
+      - compiler/guide/stage-4-names-and-scopes.md
+      - compiler/guide/stage-8-data-in-memory.md
+      - compiler/parser-design.md
+    recall_question: >-
+      In `struct Point { x: f32, y: f32 }`, what are `x` and `y` called, and
+      how do you read one?
+    recall_answer: Fields. You read one through a value with a dot, as in `point.x`.
+
+  # ---- Language tour 8. Runtime and numerical rules ------------------------
+
+  - id: compile-time
+    term: compile time
+    short: While the compiler is working on the source, before any executable exists.
+    definition: >-
+      While the compiler is working on the source, before any executable
+      exists. Errors the compiler can prove, such as a known out-of-bounds
+      index, are reported at compile time.
+    spec: >-
+      The period in which the compiler translates and validates a program
+      before that program executes.
+    spec_ref: specification/glossary.md
+    introduced_in: language-tour/06-runtime-and-numerical-rules.md
+    requires: []
+    used_in:
+      - language-tour/05-types-planned-for-later.md
+      - specification/index.md
+      - specification/grammar.md
+      - compiler/guide/stage-5-types-and-rules.md
+      - compiler/guide/stage-6-first-machine-code.md
+      - compiler/guide/stage-9-runtime-safety.md
+      - compiler/guide/stage-10-matrix-multiplication.md
+      - compiler/parser-design.md
+    recall_question: What do we call the period while the compiler is working on the source, before any executable exists?
+    recall_answer: Compile time. Errors found then are reported before the program can run.
+
+  - id: run-time
+    term: run time
+    short: While the finished executable is running.
+    definition: >-
+      While the finished executable is running. Some rules, such as whether an
+      index is in bounds or a divisor is zero, can only be checked at run time.
+    spec: The period in which a compiled Vortex program executes.
+    spec_ref: specification/glossary.md
+    introduced_in: language-tour/06-runtime-and-numerical-rules.md
+    requires: [compile-time]
+    used_in:
+      - compiler/guide/stage-4-names-and-scopes.md
+      - compiler/guide/stage-5-types-and-rules.md
+      - compiler/guide/stage-6-first-machine-code.md
+      - compiler/guide/stage-8-data-in-memory.md
+      - compiler/guide/stage-9-runtime-safety.md
+      - compiler/guide/stage-10-matrix-multiplication.md
+    recall_question: What do we call the period while the finished executable is running?
+    recall_answer: Run time. Checks that depend on values known only then are made at run time.
+
+  - id: runtime-check
+    term: runtime check
+    short: A small test placed in the generated code before an operation that might be invalid.
+    definition: >-
+      A small test the compiler places in the generated code, just before an
+      operation that might be invalid, such as an array access or an integer
+      division. It may be left out only when the compiler can prove the
+      operation safe.
+    spec_ref: specification/conformance.md#14-static-and-dynamic-rules
+    introduced_in: language-tour/06-runtime-and-numerical-rules.md
+    requires: [run-time]
+    used_in:
+      - specification/conformance.md
+      - specification/diagnostics.md
+      - philosophy.md
+      - compiler/guide/stage-5-types-and-rules.md
+      - compiler/guide/stage-6-first-machine-code.md
+      - compiler/guide/stage-9-runtime-safety.md
+    recall_question: What does the compiler place in generated code just before an operation that might fail, such as dividing by a variable?
+    recall_answer: A runtime check. It may be left out only when the compiler can prove the operation safe.
+
+  - id: runtime-error
+    term: runtime error
+    short: What happens when a runtime check fails; the program stops and reports the problem.
+    definition: >-
+      What happens when a runtime check fails: the program stops and reports
+      what went wrong. Out-of-bounds access, integer division by zero, integer
+      overflow and impossible casts are runtime errors in v0.1.
+    spec_ref: specification/diagnostics.md#runtime-error
+    introduced_in: language-tour/06-runtime-and-numerical-rules.md
+    requires: [runtime-check]
+    used_in:
+      - specification/conformance.md
+      - specification/diagnostics.md
+      - compiler/guide/stage-1-source-and-diagnostics.md
+      - compiler/guide/stage-6-first-machine-code.md
+      - compiler/guide/stage-7-functions-and-control-flow.md
+      - compiler/guide/stage-9-runtime-safety.md
+      - compiler/guide/stage-11-release.md
+      - roadmap.md
+    recall_question: What happens when a running Vortex program divides an integer by zero?
+    recall_answer: A runtime error. The program stops and reports what went wrong.
+
+  # ---- Language tour 9. Planned types --------------------------------------
+
+  - id: slice
+    term: slice
+    short: A planned view into part of an array whose length is known only at run time; not in v0.1.
+    definition: >-
+      A planned type, written `&[T]`, that would view part of an array without
+      owning or copying it. Its length would be known only while the program
+      runs. Slices are not part of v0.1; use a reference to a fixed-size array
+      instead.
+    introduced_in: language-tour/05-types-planned-for-later.md
+    requires: [array, reference]
+    used_in:
+      - language-tour/07-kernels-and-parallel-execution.md
+      - specification/arrays.md
+      - compiler/guide/stage-10-matrix-multiplication.md
+      - compiler/guide/stage-11-release.md
+      - roadmap.md
+      - compiler/ast-guide.md
+    recall_question: Which planned type would view part of an array with a length known only at run time, and what do you use in v0.1 instead?
+    recall_answer: A slice, such as `&[f32]`. In v0.1 you use a reference to a fixed-size array, such as `&[f32; 4]`.
+
+  - id: vector
+    term: vector
+    short: A planned growable array type whose length can change at run time; not in v0.1.
+    definition: >-
+      A planned type, `Vector<T>`, that would own contiguous memory whose length
+      can grow or shrink while the program runs. It is not part of v0.1, which
+      has no generics or methods.
+    introduced_in: language-tour/05-types-planned-for-later.md
+    requires: [array]
+    used_in:
+      - compiler/guide/stage-8-data-in-memory.md
+      - compiler/parser-design.md
+    recall_question: Which planned type would hold values whose count can grow or shrink while the program runs?
+    recall_answer: A vector, `Vector<T>`. It is future work; v0.1 has only fixed-size arrays.
+
+  - id: tensor
+    term: tensor
+    short: A planned multidimensional numeric type; fixed-size multidimensional arrays stand in for it in v0.1.
+    definition: >-
+      A planned multidimensional type for Vortex's main numerical workloads,
+      possibly written like `Tensor<f32, [128, 256]>`. Its syntax has not been
+      decided; fixed-size multidimensional arrays are the v0.1 replacement.
+    introduced_in: language-tour/05-types-planned-for-later.md
+    requires: [array, dimension]
+    used_in:
+      - philosophy.md
+      - compiler/guide/stage-6-first-machine-code.md
+      - compiler/guide/stage-10-matrix-multiplication.md
+      - compiler/guide/stage-11-release.md
+    recall_question: Which planned type is meant for multidimensional numerical data, and what replaces it in v0.1?
+    recall_answer: A tensor. In v0.1 you use a fixed-size multidimensional array such as `[f32; 4, 4]`.
+
+  # ---- Language tour 10. Planned kernels and parallelism -------------------
+
+  - id: kernel
+    term: kernel
+    short: A planned kind of function for large amounts of numerical data, possibly run on a GPU; not in v0.1.
+    definition: >-
+      A planned kind of function that processes a large amount of numerical
+      data and could eventually run on a GPU or another accelerator. The
+      `kernel` keyword and parallel syntax are not part of v0.1.
+    introduced_in: language-tour/07-kernels-and-parallel-execution.md
+    requires: [function]
+    used_in:
+      - philosophy.md
+      - compiler/guide/stage-11-release.md
+    recall_question: What is the planned kind of function that could run on a GPU, and can you declare one in v0.1?
+    recall_answer: A kernel. No; kernel and parallel syntax are future work, so v0.1 rejects them.
+
+  # ---- Specification-only vocabulary ---------------------------------------
+
+  - id: normative
+    term: normative
+    short: Required for conformance; informative text explains but adds no requirements.
+    definition: >-
+      Required for language conformance. In the specification, must, must not,
+      required and shall state requirements; may and implementation-defined
+      permit a choice; should gives guidance only.
+    spec: >-
+      Required for language conformance. Informative explanations help readers
+      but do not create additional requirements. The specification chapters are
+      normative; see [Document authority](conformance.md#11-document-authority).
+    spec_ref: specification/index.md#normative-vocabulary
+    introduced_in: specification/index.md
+    requires: []
+    used_in:
+      - authorship.md
+    recall_question: What do we call specification text that is required for conformance, as opposed to informative text?
+    recall_answer: Normative. Words such as must and shall state requirements; informative explanations add none.
+
+  - id: implementation-defined
+    term: implementation-defined
+    short: Behavior where the specification permits a choice and requires the implementation to document it.
+    definition: >-
+      Behavior for which the specification permits a choice and requires the
+      implementation to document that choice and apply it consistently. It is
+      allowed only where the specification says so.
+    spec: >-
+      Describes behavior for which the specification permits a choice and
+      requires the implementation to document that choice. Every such behavior,
+      and every implementation limit, is listed in [Implementation-defined
+      behavior and
+      limits](conformance.md#110-implementation-defined-behavior-and-limits).
+    spec_ref: specification/conformance.md#16-implementation-defined-behavior
+    introduced_in: specification/conformance.md
+    requires: [normative]
+    used_in: []
+    recall_question: What do we call behavior where the specification lets the implementation choose, as long as the choice is documented?
+    recall_answer: Implementation-defined behavior. It is allowed only where the specification explicitly permits it.
+
+  - id: binding
+    term: binding
+    short: The association between a name and a declaration or storage location.
+    definition: >-
+      The association between a name and a declaration or storage location.
+      Name resolution binds each name to the declaration it refers to.
+    spec: The association between a name and a declaration or storage location.
+    spec_ref: specification/glossary.md
+    introduced_in: specification/glossary.md
+    requires: [identifier, declaration]
+    used_in:
+      - compiler/guide/stage-4-names-and-scopes.md
+      - compiler/guide/stage-5-types-and-rules.md
+      - compiler/guide/stage-7-functions-and-control-flow.md
+      - compiler/guide/stage-8-data-in-memory.md
+    recall_question: What does the specification call the association between a name and a declaration or storage location?
+    recall_answer: A binding. Name resolution binds each name to what it refers to.
+
+  # ---- Compiler guide overview ---------------------------------------------
+
+  - id: compiler
+    term: compiler
+    short: A program that translates programs; it reads source code, checks it and writes code a machine can run.
+    definition: >-
+      A program that translates other programs. It reads source code, works out
+      what it means, rejects programs that break the rules with a clear
+      message, and writes out code a machine can run.
+    introduced_in: compiler/guide/index.md
+    requires: []
+    used_in:
+      - compiler/guide/stage-0-workbench.md
+      - compiler/guide/stage-1-source-and-diagnostics.md
+      - compiler/guide/stage-4-names-and-scopes.md
+      - compiler/guide/stage-5-types-and-rules.md
+      - compiler/guide/stage-6-first-machine-code.md
+      - compiler/guide/stage-9-runtime-safety.md
+      - compiler/guide/stage-10-matrix-multiplication.md
+      - compiler/guide/stage-11-release.md
+    recall_question: What do we call a program that reads source code, checks it, and writes out code a machine can run?
+    recall_answer: A compiler. It also rejects programs that break the rules and explains the problem.
+
+  - id: source-code
+    term: source code
+    short: The text of a program as a person wrote it.
+    definition: The text of a program as a person wrote it; the input a compiler reads.
+    introduced_in: compiler/guide/index.md
+    requires: [compiler]
+    used_in:
+      - compiler/guide/stage-0-workbench.md
+      - compiler/guide/stage-6-first-machine-code.md
+    recall_question: What is the text of a program as a person wrote it called?
+    recall_answer: Source code. It is what the compiler reads.
+
+  - id: machine-code
+    term: machine code
+    short: Instructions in the numeric form a processor executes directly.
+    definition: >-
+      Instructions in the numeric form a processor executes directly, which is
+      what a compiler ultimately produces. A file of machine code that the
+      operating system can start is an executable.
+    introduced_in: compiler/guide/index.md
+    requires: [compiler]
+    used_in:
+      - compiler/guide/stage-6-first-machine-code.md
+      - compiler/guide/stage-8-data-in-memory.md
+      - compiler/architecture.md
+      - compiler/parser-design.md
+    recall_question: What do we call instructions in the numeric form a processor can execute directly?
+    recall_answer: Machine code. A file of it that the operating system can start is an executable.
+
+  - id: code-generator
+    term: code generator
+    short: The compiler stage that turns the intermediate representation into instructions for a real processor.
+    definition: >-
+      The compiler stage that turns the lowered program, written in an
+      intermediate representation, into instructions for a real processor.
+    introduced_in: compiler/guide/index.md
+    requires: [compiler, machine-code]
+    used_in:
+      - compiler/guide/stage-7-functions-and-control-flow.md
+      - compiler/guide/stage-8-data-in-memory.md
+    recall_question: Which compiler stage turns the lowered program into instructions for a real processor?
+    recall_answer: The code generator. A linker then joins its output with the runtime library to make the executable.
+
+  # ---- Compiler guide 0. The workbench -------------------------------------
+
+  - id: driver
+    term: driver
+    short: The program a person runs to use the compiler; it runs the stages in order and reports the outcome.
+    definition: >-
+      The program a person runs to use the compiler. It reads the command line,
+      runs the stages in order, and reports the outcome. For Vortex it is the
+      `vortex` command.
+    introduced_in: compiler/guide/stage-0-workbench.md
+    requires: [compiler]
+    used_in:
+      - compiler/guide/stage-2-lexer.md
+      - compiler/guide/stage-6-first-machine-code.md
+    recall_question: What is the program a person runs to use the compiler, which runs the stages in order and reports the outcome?
+    recall_answer: The driver. For Vortex it is the `vortex` command.
+
+  - id: build
+    term: build
+    short: The process that turns the compiler's own source code into the vortex program.
+    definition: >-
+      The process that turns the compiler's own source code into the `vortex`
+      program. A build system is the tool that knows the recipe.
+    introduced_in: compiler/guide/stage-0-workbench.md
+    requires: [compiler, source-code]
+    used_in:
+      - compiler/guide/stage-3-parser-and-tree.md
+      - compiler/guide/stage-4-names-and-scopes.md
+      - compiler/guide/stage-5-types-and-rules.md
+      - compiler/guide/stage-6-first-machine-code.md
+      - compiler/guide/stage-7-functions-and-control-flow.md
+      - compiler/guide/stage-11-release.md
+      - roadmap.md
+      - compiler/parser-design.md
+    recall_question: What is the process that turns the compiler's own source code into the `vortex` program called?
+    recall_answer: The build. The build system is the tool that knows the recipe.
+
+  - id: build-system
+    term: build system
+    short: The tool that knows the recipe for building the compiler.
+    definition: The tool that knows the recipe for building the compiler from its source code.
+    introduced_in: compiler/guide/stage-0-workbench.md
+    requires: [build]
+    used_in:
+      - roadmap.md
+    recall_question: Which tool knows the recipe for building the compiler?
+    recall_answer: The build system. It turns the compiler's source code into the `vortex` program.
+
+  - id: clean-configuration
+    term: clean configuration
+    short: A build that starts from nothing, with no leftover files and no settings that exist on one machine only.
+    definition: >-
+      A build that starts from nothing, with no files left over from an earlier
+      build and no settings that exist only on one person's machine.
+    introduced_in: compiler/guide/stage-0-workbench.md
+    requires: [build]
+    used_in:
+      - compiler/guide/stage-6-first-machine-code.md
+      - roadmap.md
+    recall_question: What do we call a build that starts from nothing, with no leftover files or machine-specific settings?
+    recall_answer: A clean configuration, with no files from an earlier build and no settings that exist only on one person's machine.
+
+  - id: exit-status
+    term: exit status
+    short: A small number a program hands back when it finishes; by convention zero means success.
+    definition: >-
+      A small number every program hands back to whoever started it when it
+      finishes. By long convention zero means success and anything else means
+      failure; test runners and build scripts read it.
+    spec: >-
+      The number a finished program hands back to whatever started it. A Vortex
+      program exits with 0 when `main` returns and with 101 after a runtime
+      error; see [Diagnostics](diagnostics.md#106-runtime-reporting).
+    introduced_in: compiler/guide/stage-0-workbench.md
+    requires: []
+    used_in:
+      - compiler/guide/stage-1-source-and-diagnostics.md
+      - compiler/guide/stage-6-first-machine-code.md
+      - compiler/guide/stage-9-runtime-safety.md
+      - compiler/guide/stage-11-release.md
+      - roadmap.md
+    recall_question: What number does a program hand back when it finishes, and which value means success?
+    recall_answer: Its exit status. By convention zero means success and anything else means failure.
+
+  - id: test
+    term: test
+    short: One small automatic check with a pass or fail answer.
+    definition: One small, automatic check with a definite answer, pass or fail.
+    introduced_in: compiler/guide/stage-0-workbench.md
+    requires: []
+    used_in:
+      - compiler/guide/stage-3-parser-and-tree.md
+      - compiler/guide/stage-5-types-and-rules.md
+      - compiler/guide/stage-6-first-machine-code.md
+      - compiler/guide/stage-7-functions-and-control-flow.md
+      - compiler/guide/stage-10-matrix-multiplication.md
+      - compiler/guide/stage-11-release.md
+      - roadmap.md
+      - compiler/architecture.md
+    recall_question: What do we call one small, automatic check with a definite pass or fail answer?
+    recall_answer: A test. It either passes or fails, with nothing in between.
+
+  - id: test-case
+    term: test case
+    short: One source file plus a description of what should happen to it.
+    definition: >-
+      The material for one test. For a compiler this is usually one Vortex
+      source file together with a description of what should happen to it.
+    introduced_in: compiler/guide/stage-0-workbench.md
+    requires: [test]
+    used_in:
+      - compiler/guide/stage-6-first-machine-code.md
+      - compiler/guide/stage-7-functions-and-control-flow.md
+      - compiler/guide/stage-11-release.md
+    recall_question: For a compiler, what is the material for one test usually made of, and what is it called?
+    recall_answer: A test case, one Vortex source file together with a description of what should happen to it.
+
+  - id: valid-program
+    term: valid program
+    short: A program the specification says must be accepted.
+    definition: A Vortex program the specification says must be accepted.
+    introduced_in: compiler/guide/stage-0-workbench.md
+    requires: []
+    used_in:
+      - compiler/guide/stage-3-parser-and-tree.md
+      - compiler/guide/stage-5-types-and-rules.md
+      - compiler/guide/stage-11-release.md
+      - roadmap.md
+      - compiler/architecture.md
+    recall_question: What do we call a program the specification says the compiler must accept?
+    recall_answer: A valid program. Its opposite, an invalid program, must be rejected.
+
+  - id: invalid-program
+    term: invalid program
+    short: A program written on purpose to break one rule, which the compiler must reject.
+    definition: >-
+      A program the specification says must be rejected, written on purpose to
+      break exactly one rule.
+    introduced_in: compiler/guide/stage-0-workbench.md
+    requires: [valid-program]
+    used_in:
+      - compiler/guide/stage-1-source-and-diagnostics.md
+      - compiler/guide/stage-4-names-and-scopes.md
+      - compiler/guide/stage-5-types-and-rules.md
+      - compiler/guide/stage-11-release.md
+      - roadmap.md
+    recall_question: What do we call a test program written on purpose to break exactly one rule?
+    recall_answer: An invalid program. The compiler must reject it.
+
+  - id: expected-output
+    term: expected output
+    short: The written-down result a test case should produce, such as printed output or an error's kind and location.
+    definition: >-
+      A written-down record of what should happen when the compiler meets a
+      test case, such as the program's printed output or the kind and location
+      of the error. The test passes only if the real output matches it.
+    introduced_in: compiler/guide/stage-0-workbench.md
+    requires: [test-case]
+    used_in:
+      - compiler/guide/stage-1-source-and-diagnostics.md
+      - compiler/guide/stage-2-lexer.md
+      - compiler/guide/stage-6-first-machine-code.md
+      - compiler/guide/stage-10-matrix-multiplication.md
+      - compiler/guide/stage-11-release.md
+      - roadmap.md
+    recall_question: Which written record does a test compare against to decide whether it passed?
+    recall_answer: The expected output, such as the program's printed text or the error's kind and location.
+
+  - id: test-runner
+    term: test runner
+    short: A program that runs every test case, compares the results with the expected output and reports pass or fail.
+    definition: >-
+      A program that finds all the test cases, runs the compiler on each one,
+      compares what happened with the expected output, and reports a pass or a
+      fail for each.
+    introduced_in: compiler/guide/stage-0-workbench.md
+    requires: [test-case, expected-output]
+    used_in:
+      - compiler/guide/stage-11-release.md
+      - roadmap.md
+    recall_question: Which program finds all the test cases, runs the compiler on each, and reports pass or fail?
+    recall_answer: The test runner. It compares what happened with each test's expected output.
+
+  - id: regression
+    term: regression
+    short: Something that used to work and has stopped working.
+    definition: >-
+      Something that used to work and has stopped working because of a later
+      change. Running every old test after every change is how you catch one.
+    introduced_in: compiler/guide/stage-0-workbench.md
+    requires: [test]
+    used_in:
+      - compiler/guide/stage-11-release.md
+    recall_question: What do we call something that used to work and has stopped working after a change, and how do you catch it?
+    recall_answer: A regression. You catch it by running every old test after every change.
+
+  - id: empty-compiler
+    term: empty compiler
+    tooltip: true
+    short: A compiler whose driver runs and exits properly but does not translate anything yet.
+    definition: >-
+      A compiler whose driver runs and exits properly but does no translation
+      yet. Milestone 0 is complete when the empty compiler builds reliably and
+      the test runner can report a passing and a failing test.
+    introduced_in: compiler/guide/stage-0-workbench.md
+    requires: [driver, build]
+    used_in:
+      - roadmap.md
+    recall_question: What do we call a compiler whose driver runs and exits properly but translates nothing yet?
+    recall_answer: An empty compiler. Milestone 0 is done when it builds reliably and the test runner reports a pass and a fail.
+
+  # ---- Compiler guide 1. Source text and error messages --------------------
+
+  - id: source-file
+    term: source file
+    short: The file of Vortex text handed to the compiler.
+    definition: >-
+      The file of Vortex text the user hands to the compiler. The specification
+      defines it as a sequence of source characters provided to the compiler.
+    spec_ref: specification/conformance.md#12-programs
+    introduced_in: compiler/guide/stage-1-source-and-diagnostics.md
+    requires: [source-code]
+    used_in:
+      - compiler/guide/stage-6-first-machine-code.md
+      - compiler/guide/stage-11-release.md
+      - roadmap.md
+    recall_question: What is the file of Vortex text handed to the compiler called?
+    recall_answer: The source file, a sequence of source characters provided to the compiler.
+
+  - id: character
+    term: character
+    short: One symbol of text as a person would count it.
+    definition: >-
+      One symbol of text as a person would count it, such as a letter, a digit,
+      a space or `λ`. A character may need more than one byte.
+    introduced_in: compiler/guide/stage-1-source-and-diagnostics.md
+    requires: []
+    used_in:
+      - compiler/guide/stage-2-lexer.md
+      - compiler/guide/stage-8-data-in-memory.md
+      - roadmap.md
+    recall_question: What is one symbol of text as a person would count it, such as a letter or `λ`, called?
+    recall_answer: A character. Some characters fit in one byte; others need several.
+
+  - id: byte
+    term: byte
+    short: The unit files and memory are stored in; it holds 8 bits, and one character may need several.
+    definition: >-
+      The unit a file, and memory, is actually stored in. A byte holds 8 bits,
+      one of 256 values; some characters fit in one byte and others need
+      several.
+    introduced_in: compiler/guide/stage-1-source-and-diagnostics.md
+    requires: [character]
+    used_in:
+      - compiler/guide/stage-8-data-in-memory.md
+    recall_question: What is the 8-bit unit that files and memory are stored in called?
+    recall_answer: A byte. It holds one of 256 values, and one character may need several bytes.
+
+  - id: encoding
+    term: encoding
+    short: The rule that says which bytes stand for which characters.
+    definition: The rule that says which bytes stand for which characters. UTF-8 is the most common encoding.
+    introduced_in: compiler/guide/stage-1-source-and-diagnostics.md
+    requires: [character, byte]
+    used_in: []
+    recall_question: Which rule says which bytes stand for which characters?
+    recall_answer: An encoding. UTF-8 is the most common one.
+
+  - id: utf-8
+    term: UTF-8
+    abbr: UTF-8
+    short: The most common text encoding; plain English letters take one byte, other characters two to four.
+    definition: >-
+      The most common text encoding. ASCII characters, such as plain English
+      letters and digits, take one byte each; other characters take two to
+      four. Vortex `String` values store UTF-8 text.
+    spec_ref: specification/types-and-values.md#46-characters-and-strings
+    introduced_in: compiler/guide/stage-1-source-and-diagnostics.md
+    requires: [encoding]
+    used_in:
+      - compiler/guide/stage-2-lexer.md
+      - compiler/guide/stage-5-types-and-rules.md
+      - compiler/guide/stage-8-data-in-memory.md
+      - roadmap.md
+    recall_question: Which encoding stores plain English letters in one byte and other characters in two to four, and is used by Vortex strings?
+    recall_answer: UTF-8. A Vortex `String` stores UTF-8 text.
+
+  - id: offset
+    term: offset
+    short: A position in a file counted from its start; easy for a program, hard for a person to find.
+    definition: >-
+      A position in the file counted from the start, such as the 28th
+      character. It is simple for a program to store and compare, but useless
+      for a person trying to find the place.
+    introduced_in: compiler/guide/stage-1-source-and-diagnostics.md
+    requires: [source-file]
+    used_in:
+      - compiler/guide/stage-8-data-in-memory.md
+    recall_question: What do we call a position in a source file counted from its start?
+    recall_answer: An offset. It is easy for a program to store, but people need line and column instead.
+
+  - id: line-and-column
+    term: line and column
+    short: A position a person can find; which row of the file, and how far along it.
+    definition: >-
+      A position a person can find. The line is which row of the file; the
+      column is how far along that row.
+    introduced_in: compiler/guide/stage-1-source-and-diagnostics.md
+    requires: [offset]
+    used_in: []
+    recall_question: How does a diagnostic describe a position so that a person can find it?
+    recall_answer: By line and column, which row of the file and how far along that row.
+
+  - id: source-span
+    term: source span
+    tooltip: true
+    short: The start and length of the source text a token, node or diagnostic came from.
+    definition: >-
+      A stretch of source text, given as a start position and a length. Every
+      token, every tree node and every error message carries one.
+    spec: >-
+      A byte offset from the start of the source file and a length in bytes,
+      identifying the source text of a token, AST node, or diagnostic.
+      Diagnostics show the start as a line and column, both counted from 1; see
+      [Conformance 1.7](conformance.md#17-source-locations).
+    spec_ref: specification/conformance.md#17-source-locations
+    introduced_in: compiler/guide/stage-1-source-and-diagnostics.md
+    requires: [offset]
+    used_in:
+      - compiler/guide/stage-2-lexer.md
+      - compiler/guide/stage-3-parser-and-tree.md
+      - compiler/guide/stage-11-release.md
+      - roadmap.md
+      - compiler/architecture.md
+    recall_question: What does every token, tree node and error message carry to say exactly which stretch of source it came from?
+    recall_answer: A source span, a start position and a length.
+
+  - id: diagnostic
+    term: diagnostic
+    short: A message from the compiler about a problem in the source.
+    definition: >-
+      A message from the compiler about a problem in the source. In Vortex v0.1
+      every diagnostic is an error, and each one needs a source location.
+    spec_ref: specification/diagnostics.md#101-required-diagnostic-data
+    introduced_in: compiler/guide/stage-1-source-and-diagnostics.md
+    requires: [compiler, source-file]
+    used_in:
+      - compiler/guide/stage-2-lexer.md
+      - compiler/guide/stage-4-names-and-scopes.md
+      - compiler/guide/stage-5-types-and-rules.md
+      - compiler/guide/stage-9-runtime-safety.md
+      - compiler/guide/stage-11-release.md
+      - roadmap.md
+      - compiler/architecture.md
+      - compiler/parser-design.md
+    recall_question: What do we call a message from the compiler about a problem in the source?
+    recall_answer: A diagnostic. In v0.1 every diagnostic is an error and carries a source location.
+
+  - id: category
+    term: category
+    short: The kind of problem a diagnostic reports, such as a lexical error or a type error; the spec lists eight.
+    definition: >-
+      The kind of problem a diagnostic reports, such as a lexical error or a
+      type error. The specification lists eight categories.
+    spec_ref: specification/diagnostics.md#102-categories
+    introduced_in: compiler/guide/stage-1-source-and-diagnostics.md
+    requires: [diagnostic]
+    used_in:
+      - compiler/guide/stage-2-lexer.md
+      - compiler/guide/stage-4-names-and-scopes.md
+      - compiler/guide/stage-5-types-and-rules.md
+      - compiler/guide/stage-9-runtime-safety.md
+      - compiler/guide/stage-11-release.md
+      - compiler/ast-guide.md
+    recall_question: What sorts diagnostics into kinds such as lexical error or type error, and how many kinds does the specification list?
+    recall_answer: The category. The specification lists eight.
+
+  - id: primary-span
+    term: primary span
+    tooltip: true
+    short: The one stretch of source a diagnostic is about, where its marker points.
+    definition: The one span a diagnostic is about, the place its marker points at.
+    introduced_in: compiler/guide/stage-1-source-and-diagnostics.md
+    requires: [diagnostic, source-span]
+    used_in: []
+    recall_question: Which span of a diagnostic is the one it is about, where the marker points?
+    recall_answer: The primary span. Notes may point at other, related spans.
+
+  - id: note
+    term: note
+    short: An extra line on a diagnostic, often pointing at a related place in the source.
+    definition: >-
+      An extra line attached to a diagnostic, often pointing at a second,
+      related span, such as the declaration that explains why the primary span
+      is wrong.
+    introduced_in: compiler/guide/stage-1-source-and-diagnostics.md
+    requires: [primary-span]
+    used_in:
+      - compiler/guide/stage-3-parser-and-tree.md
+      - compiler/guide/stage-4-names-and-scopes.md
+      - compiler/guide/stage-5-types-and-rules.md
+      - compiler/guide/stage-6-first-machine-code.md
+      - compiler/guide/stage-7-functions-and-control-flow.md
+      - compiler/guide/stage-8-data-in-memory.md
+    recall_question: Which extra line on a diagnostic can point at a second, related place, such as an earlier declaration?
+    recall_answer: A note. It helps explain why the primary span is wrong.
+
+  - id: marker
+    term: marker
+    short: Symbols printed under a source line to show which characters a diagnostic means; ^ is a caret.
+    definition: >-
+      The row of symbols printed under a source line to show exactly which
+      characters the diagnostic means. Clang calls a single `^` the caret.
+    introduced_in: compiler/guide/stage-1-source-and-diagnostics.md
+    requires: [primary-span]
+    used_in:
+      - compiler/guide/stage-6-first-machine-code.md
+    recall_question: What is printed under a source line to show exactly which characters a diagnostic means?
+    recall_answer: A marker, such as a caret `^` under the characters in question.
+
+  - id: source-manager
+    term: source manager
+    tooltip: true
+    short: The part of the compiler that holds the source text and turns positions into locations, reading no syntax.
+    definition: >-
+      The part of the compiler that holds the source text and turns positions
+      into locations a person can find, without interpreting any syntax.
+    introduced_in: compiler/guide/stage-1-source-and-diagnostics.md
+    requires: [source-file, line-and-column]
+    used_in:
+      - compiler/architecture.md
+    recall_question: Which part of the compiler holds the source text and turns offsets into lines and columns?
+    recall_answer: The source manager. It never interprets any syntax.
+
+  # ---- Compiler guide 2. The lexer -----------------------------------------
+
+  - id: lexer
+    term: lexer
+    aliases: [scanner]
+    short: The compiler stage that groups characters into tokens.
+    definition: >-
+      The compiler stage that groups the characters of a source file into
+      tokens. It skips whitespace and comments, keeps each token's spelling and
+      source span, and reports malformed token text.
+    spec_ref: specification/lexical-structure.md
+    introduced_in: compiler/guide/stage-2-lexer.md
+    requires: [token, source-file]
+    used_in:
+      - compiler/guide/stage-3-parser-and-tree.md
+      - compiler/guide/stage-11-release.md
+      - roadmap.md
+      - compiler/architecture.md
+      - compiler/parser-design.md
+    recall_question: Which compiler stage groups characters into tokens and skips whitespace and comments?
+    recall_answer: The lexer, also called the scanner.
+
+  - id: token
+    term: token
+    short: One unit of the language, such as a keyword, name, number or symbol, with a kind, spelling and location.
+    definition: >-
+      One unit of the language, like a word in a sentence, such as a keyword, a
+      name, a number or a symbol. Each token has a kind, a spelling and a source
+      span.
+    spec: One lexical unit with a kind, source spelling, and source span.
+    spec_ref: specification/lexical-structure.md#28-token-source-data
+    introduced_in: compiler/guide/stage-2-lexer.md
+    requires: [character]
+    used_in:
+      - compiler/guide/stage-3-parser-and-tree.md
+      - roadmap.md
+      - compiler/architecture.md
+      - compiler/parser-design.md
+      - compiler/ast-guide.md
+    recall_question: What do we call one unit of the language, such as a keyword, a name, a number or a symbol?
+    recall_answer: A token. Each token has a kind, a spelling and a source span.
+
+  - id: token-kind
+    term: token kind
+    short: Which sort of token something is, such as keyword, identifier or integer literal.
+    definition: >-
+      Which sort of token something is, such as a keyword, an identifier, an
+      integer literal or a particular operator.
+    introduced_in: compiler/guide/stage-2-lexer.md
+    requires: [token]
+    used_in:
+      - compiler/guide/stage-11-release.md
+      - compiler/parser-design.md
+    recall_question: Which property of a token says whether it is a keyword, an identifier, an integer literal or an operator?
+    recall_answer: Its token kind. With the spelling and the source span, it describes the token.
+
+  - id: spelling
+    term: spelling
+    aliases: [lexeme]
+    short: The exact characters a token was made from; many books call it the lexeme.
+    definition: >-
+      The exact characters a token was made from, as they appear in the file.
+      Many books call it the lexeme.
+    introduced_in: compiler/guide/stage-2-lexer.md
+    requires: [token]
+    used_in:
+      - compiler/architecture.md
+    recall_question: What do we call the exact characters a token was made from, and what do many books call it?
+    recall_answer: Its spelling, also called the lexeme.
+
+  - id: token-stream
+    term: token stream
+    tooltip: true
+    short: The whole sequence of tokens for a file, in order, ending with an end-of-file token.
+    definition: >-
+      The whole sequence of tokens for one file, in order, ending with the
+      end-of-file token. It is what the lexer hands to the parser.
+    introduced_in: compiler/guide/stage-2-lexer.md
+    requires: [token]
+    used_in:
+      - roadmap.md
+      - compiler/architecture.md
+      - compiler/parser-design.md
+    recall_question: What does the lexer hand to the parser?
+    recall_answer: The token stream, every token of the file in order, ending with an end-of-file token.
+
+  - id: keyword
+    term: keyword
+    short: A word the language reserves, such as let or while, that cannot be used as a name.
+    definition: >-
+      A word the language reserves for itself, such as `let`, `fn` or `while`.
+      A keyword cannot be used as a name; primitive type names such as `i32`
+      and `String` are keywords too.
+    spec_ref: specification/lexical-structure.md#24-keywords
+    introduced_in: compiler/guide/stage-2-lexer.md
+    requires: [token, identifier]
+    used_in:
+      - compiler/guide/stage-3-parser-and-tree.md
+      - compiler/guide/stage-4-names-and-scopes.md
+      - compiler/guide/stage-5-types-and-rules.md
+    recall_question: What do we call a word such as `let`, `fn` or `while` that the language reserves and that cannot be used as a name?
+    recall_answer: A keyword. Matching is case-sensitive, so `String` is a keyword but `string` is an identifier.
+
+  - id: whitespace
+    term: whitespace
+    short: Spaces, tabs and line breaks; they separate tokens and mean nothing else.
+    definition: >-
+      Spaces, tabs and line breaks. In Vortex they separate tokens and carry no
+      other meaning; a line break does not end a statement.
+    spec_ref: specification/lexical-structure.md#21-whitespace-and-line-boundaries
+    introduced_in: compiler/guide/stage-2-lexer.md
+    requires: [token]
+    used_in: []
+    recall_question: What are spaces, tabs and line breaks called, and what do they do in Vortex?
+    recall_answer: Whitespace. It separates tokens and means nothing else; a line break does not end a statement.
+
+  - id: longest-match
+    term: longest match
+    aliases: [maximal munch]
+    tooltip: true
+    short: When several tokens could start at the same place, the lexer takes the longest valid one.
+    definition: >-
+      The rule that when several tokens could start at the same place, the
+      lexer takes the longest one that is valid. It is also called maximal
+      munch.
+    spec_ref: specification/lexical-structure.md#26-operators-and-punctuation
+    introduced_in: compiler/guide/stage-2-lexer.md
+    requires: [token, lexer]
+    used_in: []
+    recall_question: Why does the lexer read `<=` as one token rather than `<` followed by `=`?
+    recall_answer: Because of the longest-match rule, also called maximal munch. When several tokens could start at the same place, the lexer takes the longest valid one.
+
+  - id: end-of-file-token
+    term: end-of-file token
+    tooltip: true
+    short: A token with no spelling that marks the end of the input.
+    definition: >-
+      A token with no spelling that marks the end of the input, so later stages
+      have a clear place to stop.
+    introduced_in: compiler/guide/stage-2-lexer.md
+    requires: [token-stream]
+    used_in: []
+    recall_question: Which token has no spelling and marks where the input ends?
+    recall_answer: The end-of-file token. It gives later stages a clear place to stop.
+
+  - id: lexical-error
+    term: lexical error
+    short: A diagnostic saying some characters cannot form any valid token.
+    definition: >-
+      A diagnostic saying that some characters cannot form any valid token,
+      such as an unterminated string or an unsupported escape.
+    spec_ref: specification/diagnostics.md#lexical-error
+    introduced_in: compiler/guide/stage-2-lexer.md
+    requires: [diagnostic, token]
+    used_in: []
+    recall_question: Which kind of diagnostic says that some characters cannot form any valid token?
+    recall_answer: A lexical error, for example an unterminated string or an unsupported escape.
+
+  - id: tokenizing
+    term: tokenizing
+    aliases: [lexing]
+    short: Grouping characters into tokens; the lexer's job.
+    definition: Grouping characters into tokens, the job of the lexer. The specification calls it lexing.
+    spec: Converting source characters into tokens.
+    spec_ref: specification/glossary.md
+    introduced_in: compiler/guide/stage-2-lexer.md
+    requires: [token, lexer]
+    used_in: []
+    recall_question: What do we call the work of grouping characters into tokens?
+    recall_answer: Tokenizing, which the specification calls lexing.
+
+  - id: decoded-value
+    term: decoded value
+    tooltip: true
+    short: The value a literal actually stands for, with escape sequences turned into real characters.
+    definition: >-
+      The value a literal actually stands for, with escape sequences turned
+      into the real characters; the two characters `\n` decode to one line
+      feed.
+    introduced_in: compiler/guide/stage-2-lexer.md
+    requires: [literal, escape-sequence]
+    used_in: []
+    recall_question: What is the value a literal actually stands for, after `\n` has become a real line feed, called?
+    recall_answer: Its decoded value. The lexer must preserve it for each literal.
+
+  # ---- Compiler guide 3. The parser and the syntax tree --------------------
+
+  - id: parser
+    term: parser
+    short: The part of the compiler that reads tokens, checks them against the grammar and builds a syntax tree.
+    definition: >-
+      The part of the compiler that reads tokens, checks that they follow the
+      grammar, and builds a syntax tree. It reports syntax errors and recovers
+      so it can keep checking the rest of the file.
+    spec_ref: specification/grammar.md
+    introduced_in: compiler/guide/stage-3-parser-and-tree.md
+    requires: [token-stream, grammar]
+    used_in:
+      - compiler/guide/stage-4-names-and-scopes.md
+      - compiler/guide/stage-5-types-and-rules.md
+      - compiler/guide/stage-11-release.md
+      - roadmap.md
+      - compiler/architecture.md
+      - compiler/parser-design.md
+      - compiler/ast-guide.md
+    recall_question: Which part of the compiler reads the tokens, checks them against the grammar and builds a syntax tree?
+    recall_answer: The parser. It reports a syntax error when the tokens do not fit the grammar.
+
+  - id: parsing
+    term: parsing
+    short: Checking the grammatical structure of a token stream and building the AST.
+    definition: >-
+      The work of checking the grammatical structure of a token stream and
+      building the syntax tree; the parser's job.
+    spec: Checking the grammatical structure of a token stream and building the AST.
+    spec_ref: specification/glossary.md
+    introduced_in: compiler/guide/stage-3-parser-and-tree.md
+    requires: [parser, abstract-syntax-tree]
+    used_in:
+      - compiler/guide/stage-4-names-and-scopes.md
+      - compiler/guide/stage-5-types-and-rules.md
+      - compiler/parser-design.md
+    recall_question: What does the specification call checking the grammatical structure of a token stream and building the AST?
+    recall_answer: Parsing, the job of the parser.
+
+  - id: grammar
+    term: grammar
+    short: The written rules for which token sequences form valid programs.
+    definition: >-
+      The written rules for which token sequences form valid programs. Vortex's
+      grammar is the formal grammar chapter of the specification, which defines
+      the exact v0.1 source syntax.
+    spec: >-
+      The formal rules describing which token sequences form valid source
+      constructs. See the [formal grammar](grammar.md).
+    spec_ref: specification/grammar.md
+    introduced_in: compiler/guide/stage-3-parser-and-tree.md
+    requires: [token]
+    used_in:
+      - compiler/guide/stage-4-names-and-scopes.md
+      - compiler/guide/stage-5-types-and-rules.md
+      - compiler/guide/stage-11-release.md
+      - compiler/parser-design.md
+      - compiler/ast-guide.md
+      - authorship.md
+    recall_question: What do we call the written rules for which token sequences form valid programs?
+    recall_answer: The grammar. For Vortex it is the formal grammar chapter of the specification.
+
+  - id: grammar-rule
+    term: grammar rule
+    aliases: [production]
+    short: One entry in the grammar describing the shape of one construct; also called a production.
+    definition: >-
+      One entry in the grammar, describing the shape of one construct, for
+      example that a `while` statement is `while`, then an expression, then a
+      block. Also called a production.
+    introduced_in: compiler/guide/stage-3-parser-and-tree.md
+    requires: [grammar]
+    used_in: []
+    recall_question: What is one entry in the grammar, describing the shape of one construct, called?
+    recall_answer: A rule, also called a production.
+
+  - id: node
+    term: node
+    short: One item in a tree, standing for one construct.
+    definition: >-
+      One item in a tree. In a syntax tree each node stands for one construct,
+      such as one addition, one `if` statement or one function.
+    introduced_in: compiler/guide/stage-3-parser-and-tree.md
+    requires: []
+    used_in:
+      - compiler/architecture.md
+      - compiler/parser-design.md
+      - compiler/ast-guide.md
+    recall_question: In a syntax tree, what stands for one construct, such as one addition or one `if` statement?
+    recall_answer: A node. Literals and names are usually leaf nodes.
+
+  - id: root-child-leaf
+    term: root, child, leaf
+    short: The top node of a tree, a node directly below another, and a node with no children.
+    definition: >-
+      The root is the node at the top of a tree. A node directly below another
+      is its child. A node with no children is a leaf; literals and names are
+      usually leaves.
+    introduced_in: compiler/guide/stage-3-parser-and-tree.md
+    requires: [node]
+    used_in: []
+    recall_question: In a tree, what are the top node, a node directly below another, and a node with no children called?
+    recall_answer: The root, a child and a leaf. Literals and names are usually leaves.
+
+  - id: parse-tree
+    term: parse tree
+    aliases: [concrete syntax tree]
+    tooltip: true
+    short: A tree with a node for every grammar rule the parser used, including punctuation.
+    definition: >-
+      A tree with one node for every grammar rule the parser used, including
+      punctuation. Also called a concrete syntax tree.
+    introduced_in: compiler/guide/stage-3-parser-and-tree.md
+    requires: [parser, node, grammar-rule]
+    used_in: []
+    recall_question: Which kind of tree has a node for every grammar rule the parser used, including punctuation?
+    recall_answer: A parse tree, also called a concrete syntax tree.
+
+  - id: abstract-syntax-tree
+    term: abstract syntax tree
+    abbr: AST
+    short: A tree that keeps only the meaningful parts of a program and drops punctuation.
+    definition: >-
+      A tree that keeps only the parts of the program that carry meaning, and
+      drops punctuation whose job the tree's shape already shows. When the
+      compiler guide says syntax tree, it means this kind.
+    spec: >-
+      A tree representation that preserves the meaningful structure of parsed
+      source without retaining every punctuation token as its own node. See the
+      [AST learning guide](../compiler/ast-guide.md).
+    spec_ref: specification/glossary.md
+    introduced_in: compiler/guide/stage-3-parser-and-tree.md
+    requires: [parser, node]
+    used_in:
+      - compiler/guide/stage-4-names-and-scopes.md
+      - compiler/guide/stage-6-first-machine-code.md
+      - compiler/guide/stage-8-data-in-memory.md
+      - compiler/guide/stage-10-matrix-multiplication.md
+      - roadmap.md
+      - compiler/architecture.md
+      - compiler/parser-design.md
+      - compiler/ast-guide.md
+    recall_question: Which tree keeps only the meaningful parts of a program and drops punctuation whose job the tree's shape already shows?
+    recall_answer: The abstract syntax tree (AST), which the guide simply calls the syntax tree.
+
+  - id: associativity
+    term: associativity
+    short: Which way operators of equal precedence group; left-associative means a - b - c is (a - b) - c.
+    definition: >-
+      Which way operators of the same precedence group when they repeat. Most
+      Vortex binary operators are left-associative, so `a - b - c` means
+      `(a - b) - c`; prefix unary operators group right.
+    spec: >-
+      The rule that determines grouping when operators at the same precedence
+      level repeat. Most binary Vortex operators group left; prefix unary
+      operators group right. Equality, comparison and range operators do not
+      associate: repeating one without parentheses is a syntax error
+      ([why](../decisions/operators.md#d37)).
+    spec_ref: specification/expressions.md#52-precedence-and-associativity
+    introduced_in: compiler/guide/stage-3-parser-and-tree.md
+    requires: [precedence]
+    used_in:
+      - compiler/parser-design.md
+    recall_question: Does `a - b - c` mean `(a - b) - c` or `a - (b - c)`, and which rule decides?
+    recall_answer: Associativity decides. Most Vortex binary operators are left-associative, so it means `(a - b) - c`.
+
+  - id: lookahead
+    term: lookahead
+    short: Peeking at upcoming tokens without using them up.
+    definition: >-
+      Peeking at the next token, or the next few, without using it up, so the
+      parser can choose which rule applies.
+    introduced_in: compiler/guide/stage-3-parser-and-tree.md
+    requires: [parser, token]
+    used_in: []
+    recall_question: What is the parser doing when it peeks at the next token without using it up, to decide which rule applies?
+    recall_answer: Using lookahead. It lets the parser choose a rule before committing to it.
+
+  - id: syntax-error
+    term: syntax error
+    short: A report that the tokens do not match the grammar, such as a missing ; or an unclosed (.
+    definition: A report that the tokens do not match the grammar, such as a missing `;` or an unclosed `(`.
+    spec_ref: specification/diagnostics.md#syntax-error
+    introduced_in: compiler/guide/stage-3-parser-and-tree.md
+    requires: [grammar, diagnostic]
+    used_in:
+      - compiler/guide/stage-11-release.md
+      - roadmap.md
+      - compiler/parser-design.md
+    recall_question: Which kind of diagnostic reports that the tokens do not match the grammar, such as a missing `;`?
+    recall_answer: A syntax error. The parser reports it and then tries to recover.
+
+  - id: error-recovery
+    term: error recovery
+    short: What the parser does after a syntax error so it can keep checking the rest of the file.
+    definition: >-
+      What the parser does after a syntax error so it can keep checking the
+      rest of the file, usually by skipping ahead to a synchronization point.
+    spec_ref: specification/diagnostics.md#105-recovery
+    introduced_in: compiler/guide/stage-3-parser-and-tree.md
+    requires: [syntax-error, parser]
+    used_in: []
+    recall_question: What does the parser do after a syntax error so that it can keep checking the rest of the file?
+    recall_answer: Error recovery, usually by skipping ahead to a synchronization point such as `;` or `}`.
+
+  - id: synchronization-point
+    term: synchronization point
+    tooltip: true
+    short: A token, such as ; or }, where the parser can safely start again after an error.
+    definition: A token where the parser can safely start again after an error, such as `;`, `}` or the next `fn`.
+    introduced_in: compiler/guide/stage-3-parser-and-tree.md
+    requires: [error-recovery]
+    used_in:
+      - compiler/parser-design.md
+    recall_question: After a syntax error, at which tokens can the parser safely start again?
+    recall_answer: At synchronization points, such as `;`, `}` or the next `fn`.
+
+  - id: cascade
+    term: cascade
+    short: A burst of false errors caused by one real mistake.
+    definition: >-
+      A burst of false errors caused by one real mistake, because the parser got
+      confused about where it was.
+    introduced_in: compiler/guide/stage-3-parser-and-tree.md
+    requires: [syntax-error]
+    used_in: []
+    recall_question: What do we call a burst of false errors caused by one real mistake?
+    recall_answer: A cascade. It happens when the parser gets confused about where it is.
+
+  - id: recursive-descent
+    term: recursive descent
+    tooltip: true
+    short: A hand-written parser in which each grammar rule becomes one piece that calls the pieces for its sub-rules.
+    definition: >-
+      A way of writing a parser by hand in which each grammar rule becomes one
+      piece of the parser, and rules that contain other rules call those pieces.
+    introduced_in: compiler/guide/stage-3-parser-and-tree.md
+    requires: [parser, grammar-rule]
+    used_in:
+      - compiler/parser-design.md
+    recall_question: What is the hand-written parsing style in which each grammar rule becomes one piece that calls the pieces for the rules it contains?
+    recall_answer: Recursive descent.
+
+  - id: pratt-parsing
+    term: Pratt parsing
+    tooltip: true
+    short: A well-known technique for parsing expressions with many precedence levels, named after Vaughan Pratt.
+    definition: >-
+      A well-known technique for parsing expressions with many precedence
+      levels, named after Vaughan Pratt.
+    introduced_in: compiler/guide/stage-3-parser-and-tree.md
+    requires: [precedence, parser]
+    used_in: []
+    recall_question: Which well-known technique, named after Vaughan Pratt, parses expressions with many precedence levels?
+    recall_answer: Pratt parsing.
+
+  # ---- Compiler guide 4. Names and scopes ----------------------------------
+
+  - id: use
+    term: use
+    short: A place where a name appears in order to refer to something already declared.
+    definition: >-
+      A place in the program where a name appears in order to refer to
+      something already declared, such as `width` in `print(width)`.
+    introduced_in: compiler/guide/stage-4-names-and-scopes.md
+    requires: [declaration, identifier]
+    used_in:
+      - compiler/guide/stage-5-types-and-rules.md
+      - compiler/guide/stage-6-first-machine-code.md
+      - compiler/guide/stage-7-functions-and-control-flow.md
+      - compiler/guide/stage-8-data-in-memory.md
+      - compiler/guide/stage-10-matrix-multiplication.md
+      - roadmap.md
+      - compiler/parser-design.md
+      - compiler/ast-guide.md
+    recall_question: In `print(width)`, what is this appearance of `width` called, as opposed to the place where it was declared?
+    recall_answer: A use. Name resolution links each use to its declaration.
+
+  - id: visible
+    term: visible
+    short: A declaration is visible at a point if its name can be used there.
+    definition: A declaration is visible at a point in the program if its name can be used there.
+    introduced_in: compiler/guide/stage-4-names-and-scopes.md
+    requires: [scope]
+    used_in:
+      - compiler/guide/stage-7-functions-and-control-flow.md
+      - compiler/guide/stage-8-data-in-memory.md
+    recall_question: What do we say about a declaration whose name can be used at a given point in the program?
+    recall_answer: It is visible at that point. Outside its scope it is not.
+
+  - id: lookup
+    term: lookup
+    short: Searching for the declaration a use refers to, starting in the use's scope and moving outward.
+    definition: >-
+      Searching for the declaration a use refers to, starting from the scope
+      where the use appears and moving outward.
+    introduced_in: compiler/guide/stage-4-names-and-scopes.md
+    requires: [use, nested-scope]
+    used_in: []
+    recall_question: How does the compiler find the declaration that a use refers to?
+    recall_answer: By lookup, starting in the use's own scope and moving outward.
+
+  - id: symbol-table
+    term: symbol table
+    tooltip: true
+    short: The compiler's record of which names are declared in which scopes and what each refers to.
+    definition: >-
+      The compiler's record of which names are declared in which scopes, and
+      what each one refers to. It is an idea, not a particular data structure.
+    introduced_in: compiler/guide/stage-4-names-and-scopes.md
+    requires: [scope, declaration]
+    used_in:
+      - roadmap.md
+      - compiler/parser-design.md
+    recall_question: What is the compiler's record of which names are declared in which scopes called?
+    recall_answer: The symbol table. It is an idea, not a particular data structure.
+
+  - id: namespace
+    term: namespace
+    short: A separate set of names, such as a struct's field names, that do not clash with other names.
+    definition: >-
+      A separate set of names. A struct's field names form their own
+      namespace, reached through a value of that struct type, and do not clash
+      with local variables.
+    spec: >-
+      A set of names in which each name has one meaning. All top-level functions
+      and structs share one namespace, and each struct's field names form a
+      separate one. See [Scopes](declarations.md#36-scopes).
+    introduced_in: compiler/guide/stage-4-names-and-scopes.md
+    requires: [field, scope]
+    used_in: []
+    recall_question: Why can a struct field named `x` and a local variable named `x` exist together without clashing?
+    recall_answer: The field names form their own namespace, reached only through a value of the struct type.
+
+  - id: name-resolution
+    term: name resolution
+    short: The stage that links each use of a name to its declaration and reports unknown or out-of-scope names.
+    definition: >-
+      The stage that links each use of a name to its declaration and reports
+      unknown, duplicate and out-of-scope names.
+    spec: >-
+      Connecting each name use to one visible declaration and diagnosing
+      unknown, duplicate, shadowing, or out-of-scope names.
+    spec_ref: specification/declarations.md#37-name-resolution
+    introduced_in: compiler/guide/stage-4-names-and-scopes.md
+    requires: [use, declaration, lookup]
+    used_in:
+      - compiler/guide/stage-5-types-and-rules.md
+      - compiler/guide/stage-6-first-machine-code.md
+      - compiler/guide/stage-7-functions-and-control-flow.md
+      - compiler/architecture.md
+      - compiler/parser-design.md
+    recall_question: Which compiler stage links each use of a name to its declaration and reports unknown or duplicate names?
+    recall_answer: Name resolution. Its problems are reported as name errors.
+
+  - id: name-error
+    term: name error
+    short: The diagnostic category for unknown, duplicated or out-of-scope names and unresolved named types.
+    definition: >-
+      The diagnostic category for a name that is unknown, duplicated in the
+      same scope, or used outside its scope, and for a named type that does not
+      resolve.
+    spec_ref: specification/diagnostics.md#name-error
+    introduced_in: compiler/guide/stage-4-names-and-scopes.md
+    requires: [name-resolution, category]
+    used_in: []
+    recall_question: Which diagnostic category covers an unknown name, a duplicate in the same scope, or a named type that does not resolve?
+    recall_answer: A name error.
+
+  # ---- Compiler guide 5. Types and language rules --------------------------
+
+  - id: type-checking
+    term: type checking
+    short: Working out every expression's type and checking that operations, calls, assignments and returns fit.
+    definition: >-
+      Working out the type of every expression and checking that each
+      operation, call, assignment and return uses types that fit together.
+    spec: >-
+      Determining expression types and validating that operations, calls,
+      assignments, and returns use compatible types.
+    spec_ref: specification/glossary.md
+    introduced_in: compiler/guide/stage-5-types-and-rules.md
+    requires: [type, expression]
+    used_in:
+      - compiler/guide/stage-6-first-machine-code.md
+      - compiler/guide/stage-8-data-in-memory.md
+      - compiler/guide/stage-9-runtime-safety.md
+      - compiler/architecture.md
+      - compiler/parser-design.md
+      - compiler/ast-guide.md
+    recall_question: Which compiler stage works out the type of every expression and checks that operations, calls and returns fit together?
+    recall_answer: Type checking. For example, it rejects `3.0 & 1.0`, because bitwise operators need integers.
+
+  - id: compatible
+    term: compatible
+    short: Allowed to be used together under the type rules; in v0.1 this usually means exactly the same type.
+    definition: >-
+      Allowed to be used together under the type rules. Vortex v0.1 has almost
+      no automatic conversions, so compatible usually means the same type.
+    spec: >-
+      Describes two types that are equal after literal typing. Vortex v0.1 has
+      no implicit conversions, so wherever a rule requires compatible types they
+      must be the same type. See [Type
+      equality](types-and-values.md#411-type-equality) and the [decision
+      record](../decisions/numbers.md#d30).
+    introduced_in: compiler/guide/stage-5-types-and-rules.md
+    requires: [type]
+    used_in:
+      - compiler/parser-design.md
+    recall_question: In v0.1, what does it usually take for two types to be compatible?
+    recall_answer: Being the same type, because v0.1 has almost no automatic conversions.
+
+  - id: control-flow-path
+    term: control-flow path
+    tooltip: true
+    short: One possible route through a function body, following one choice at every if, loop and return.
+    definition: >-
+      One possible route through a function's body, following one choice at
+      every `if`, loop and `return`. A non-`void` function must return a value
+      on every reachable path.
+    introduced_in: compiler/guide/stage-5-types-and-rules.md
+    requires: [function, statement]
+    used_in: []
+    recall_question: What do we call one possible route through a function body, following one choice at every `if`, loop and `return`?
+    recall_answer: A control-flow path. A non-`void` function must return a value on every reachable one.
+
+  - id: constant-evaluation
+    term: constant evaluation
+    short: Working out an expression's value during compilation, because the language needs it before the program runs.
+    definition: >-
+      Working out the value of an expression while compiling, because the
+      language needs that value before the program runs. Array dimensions are
+      the v0.1 case, so `[f32; 2 + 2]` becomes `[f32; 4]`.
+    spec: >-
+      Evaluation performed by the compiler before the program runs: of fixed
+      array dimensions, and of every checked operation whose deciding operands
+      are integer constant expressions, where a failure is a constant-evaluation
+      error. See [Expressions 5.12](expressions.md#512-constant-expressions).
+    spec_ref: specification/arrays.md#72-dimension-rules
+    introduced_in: compiler/guide/stage-5-types-and-rules.md
+    requires: [compile-time, dimension]
+    used_in:
+      - compiler/guide/stage-8-data-in-memory.md
+      - compiler/guide/stage-9-runtime-safety.md
+      - compiler/guide/stage-11-release.md
+      - compiler/architecture.md
+      - compiler/parser-design.md
+    recall_question: Which compiler step turns `[f32; 2 + 2]` into `[f32; 4]` before the program runs?
+    recall_answer: Constant evaluation. Array dimensions are the v0.1 case that needs it.
+
+  - id: static-rule
+    term: static rule
+    short: A rule the compiler can check by reading the program, before it runs.
+    definition: >-
+      A rule the compiler can check by reading the program, before it runs.
+      Syntax, name visibility, types, mutability and fixed array sizes are
+      static rules.
+    spec: A rule that a conforming implementation can check before program execution.
+    spec_ref: specification/conformance.md#14-static-and-dynamic-rules
+    introduced_in: compiler/guide/stage-5-types-and-rules.md
+    requires: [compile-time]
+    used_in:
+      - compiler/guide/stage-9-runtime-safety.md
+    recall_question: What kind of rule can the compiler check just by reading the program, such as a type or mutability rule?
+    recall_answer: A static rule. Breaking one is reported before the program runs.
+
+  - id: dynamic-rule
+    term: dynamic rule
+    short: A rule that depends on values known only while the program runs.
+    definition: >-
+      A rule that depends on values known only while the program runs, such as
+      whether an index is inside its array or a divisor is zero. It needs a
+      runtime check unless the compiler can prove the answer.
+    spec: A requirement involving values that may only be known during execution.
+    spec_ref: specification/conformance.md#14-static-and-dynamic-rules
+    introduced_in: compiler/guide/stage-5-types-and-rules.md
+    requires: [run-time, static-rule]
+    used_in:
+      - compiler/guide/stage-9-runtime-safety.md
+    recall_question: What kind of rule, such as an index being inside its array, depends on values known only while the program runs?
+    recall_answer: A dynamic rule. Unless the compiler can prove the answer, it keeps a runtime check for it.
+
+  - id: well-formed
+    term: well-formed
+    short: Satisfying every applicable v0.1 rule; a conforming compiler must accept a well-formed program.
+    definition: >-
+      Satisfying every applicable v0.1 rule. A conforming implementation must
+      accept every well-formed program within its documented implementation
+      limits.
+    spec: Describes a program that satisfies every applicable v0.1 rule.
+    spec_ref: specification/conformance.md#12-programs
+    introduced_in: compiler/guide/stage-5-types-and-rules.md
+    requires: [static-rule]
+    used_in: []
+    recall_question: What do we call a program that satisfies every applicable v0.1 rule?
+    recall_answer: Well-formed. A conforming compiler must accept it, within its documented limits.
+
+  - id: ill-formed
+    term: ill-formed
+    short: Breaking at least one required language rule; an ill-formed program must be rejected.
+    definition: >-
+      Breaking at least one required language rule. An ill-formed program must
+      be rejected rather than silently given some other meaning.
+    spec: Describes source that violates at least one required language rule and must be rejected.
+    spec_ref: specification/conformance.md#13-implementation-conformance
+    introduced_in: compiler/guide/stage-5-types-and-rules.md
+    requires: [well-formed]
+    used_in: []
+    recall_question: What is source that breaks at least one required language rule called, and what must the compiler do with it?
+    recall_answer: Ill-formed. The compiler must reject it.
+
+  - id: negative-test
+    term: negative test
+    tooltip: true
+    short: A test that passes only if the compiler rejects a bad program for the right reason at the right place.
+    definition: >-
+      A test that feeds the compiler a program that should be rejected, and
+      passes only if the compiler rejects it for the right reason at the right
+      place.
+    introduced_in: compiler/guide/stage-5-types-and-rules.md
+    requires: [invalid-program, diagnostic]
+    used_in:
+      - roadmap.md
+    recall_question: Which kind of test passes only if the compiler rejects a bad program for the right reason at the right place?
+    recall_answer: A negative test.
+
+  - id: semantic-analysis
+    term: semantic analysis
+    tooltip: true
+    short: Static checks that need context beyond the grammar, such as mutability, loop-only statements and main.
+    definition: >-
+      Static checks that need context beyond the grammar, such as whether an
+      assignment target is mutable, whether `break` is inside a loop, and
+      whether the program has a valid `main`.
+    spec: >-
+      Static checks that require context beyond grammar, including mutability,
+      control-flow placement, and entry-point validation.
+    spec_ref: specification/diagnostics.md#semantic-error
+    introduced_in: compiler/guide/stage-5-types-and-rules.md
+    requires: [static-rule, grammar]
+    used_in:
+      - compiler/parser-design.md
+    recall_question: Which checks run after parsing to enforce rules that need context, such as `break` appearing only inside a loop?
+    recall_answer: Semantic analysis. It covers mutability, control-flow placement and entry-point validation.
+
+  # ---- Compiler guide 6. The first machine code ----------------------------
+
+  - id: intermediate-representation
+    term: intermediate representation
+    abbr: IR
+    short: The program written inside the compiler in a form that is no longer source text but not yet machine code.
+    definition: >-
+      A way of writing the program down inside the compiler that is no longer
+      Vortex source and not yet machine code. It sits between the front end and
+      the back end.
+    introduced_in: compiler/guide/stage-6-first-machine-code.md
+    requires: [machine-code, front-end]
+    used_in:
+      - compiler/guide/stage-7-functions-and-control-flow.md
+      - compiler/guide/stage-8-data-in-memory.md
+      - compiler/guide/stage-9-runtime-safety.md
+      - compiler/parser-design.md
+    recall_question: What do we call the form of the program inside the compiler that is no longer source text but not yet machine code?
+    recall_answer: The intermediate representation (IR). It sits between the front end and the back end.
+
+  - id: lowering
+    term: lowering
+    short: Rewriting a program in a simpler, more machine-like form, such as a syntax tree into an IR.
+    definition: >-
+      Rewriting a program in a lower-level form, for example from the checked
+      syntax tree into an IR, or from an IR into something closer to the
+      machine.
+    spec: >-
+      Translating a validated representation into a lower-level intermediate or
+      target representation.
+    spec_ref: specification/glossary.md
+    introduced_in: compiler/guide/stage-6-first-machine-code.md
+    requires: [intermediate-representation, abstract-syntax-tree]
+    used_in:
+      - compiler/guide/stage-7-functions-and-control-flow.md
+      - compiler/guide/stage-11-release.md
+      - compiler/architecture.md
+    recall_question: What is it called when the compiler rewrites the checked syntax tree as a list of small, ordered steps?
+    recall_answer: Lowering. It moves the program toward a more machine-like form, such as an IR.
+
+  - id: front-end
+    term: front end
+    short: The first half of a compiler, which reads the source, works out its meaning and rejects bad programs.
+    definition: >-
+      The first half of a compiler, which reads the source code, works out its
+      structure and meaning, and rejects programs that break the rules. In this
+      guide it is stages 1 to 5.
+    introduced_in: compiler/guide/stage-6-first-machine-code.md
+    requires: [compiler]
+    used_in:
+      - compiler/guide/stage-7-functions-and-control-flow.md
+      - compiler/guide/stage-8-data-in-memory.md
+      - compiler/guide/stage-9-runtime-safety.md
+      - compiler/guide/stage-10-matrix-multiplication.md
+      - compiler/guide/stage-11-release.md
+      - roadmap.md
+    recall_question: Which half of the compiler reads the source, works out what it means and rejects bad programs?
+    recall_answer: The front end. In this guide it is stages 1 to 5.
+
+  - id: back-end
+    term: back end
+    short: The second half of a compiler, which turns a checked program into code for a particular machine.
+    definition: >-
+      The second half of a compiler, which turns a checked program into code
+      for a particular kind of machine. Supporting another target, such as a
+      GPU, would need another back end but the same front end.
+    introduced_in: compiler/guide/stage-6-first-machine-code.md
+    requires: [front-end, machine-code]
+    used_in:
+      - compiler/guide/stage-7-functions-and-control-flow.md
+    recall_question: Which half of the compiler turns a checked program into code for a particular machine?
+    recall_answer: The back end. Another kind of machine, such as a GPU, would need another back end but the same front end.
+
+  - id: target
+    term: target
+    short: The kind of machine and operating system the generated program is meant to run on.
+    definition: The kind of machine and operating system the generated program is meant to run on.
+    introduced_in: compiler/guide/stage-6-first-machine-code.md
+    requires: []
+    used_in:
+      - compiler/guide/stage-8-data-in-memory.md
+      - compiler/architecture.md
+      - compiler/parser-design.md
+    recall_question: What do we call the kind of machine and operating system a generated program is meant to run on?
+    recall_answer: The target. The back end produces code for it.
+
+  - id: instruction
+    term: instruction
+    short: One basic operation a processor can carry out, such as adding two numbers.
+    definition: >-
+      One basic operation a processor can carry out, such as adding two numbers
+      or jumping to another place in the code.
+    introduced_in: compiler/guide/stage-6-first-machine-code.md
+    requires: [machine-code]
+    used_in:
+      - compiler/guide/stage-7-functions-and-control-flow.md
+      - compiler/guide/stage-8-data-in-memory.md
+      - compiler/guide/stage-9-runtime-safety.md
+    recall_question: What is one basic operation a processor can carry out, such as adding two numbers, called?
+    recall_answer: An instruction. Machine code is a sequence of instructions in numeric form.
+
+  - id: register
+    term: register
+    short: A small, very fast storage slot inside the processor.
+    definition: >-
+      A small, very fast storage slot inside the processor. Instructions mostly
+      work on values held in registers.
+    introduced_in: compiler/guide/stage-6-first-machine-code.md
+    requires: [instruction]
+    used_in: []
+    recall_question: What are the small, very fast storage slots inside the processor called?
+    recall_answer: Registers. Instructions mostly work on values held in them.
+
+  - id: assembly-language
+    term: assembly language
+    short: A readable text form of machine instructions, one per line; an assembler turns it into machine code.
+    definition: >-
+      A text form of machine instructions, one instruction per line, readable
+      by people. An assembler turns it into machine code.
+    introduced_in: compiler/guide/stage-6-first-machine-code.md
+    requires: [instruction, machine-code]
+    used_in: []
+    recall_question: What is the readable text form of machine instructions, which an assembler turns into machine code?
+    recall_answer: Assembly language.
+
+  - id: object-file
+    term: object file
+    tooltip: true
+    short: Machine code that is not yet a complete program and may refer to code elsewhere, such as print.
+    definition: >-
+      A file of machine code that is not yet a complete program. It may use
+      names, such as `print`, whose code lives somewhere else.
+    introduced_in: compiler/guide/stage-6-first-machine-code.md
+    requires: [machine-code]
+    used_in:
+      - roadmap.md
+    recall_question: What do we call a file of machine code that is not yet a complete program and may refer to code elsewhere, such as `print`?
+    recall_answer: An object file. A linker joins object files and libraries into an executable.
+
+  - id: linker
+    term: linker
+    short: A tool that joins object files and libraries, such as the runtime, into one executable.
+    definition: >-
+      The tool that joins object files and libraries into one executable,
+      filling in each name with the address of the code it refers to.
+    introduced_in: compiler/guide/stage-6-first-machine-code.md
+    requires: [object-file, executable]
+    used_in: []
+    recall_question: Which tool joins object files and the runtime library into one executable?
+    recall_answer: The linker. It fills in each name with the address of the code it refers to.
+
+  - id: executable
+    term: executable
+    short: A file of machine code that the operating system can start as a program.
+    definition: A file of machine code that the operating system can start as a program.
+    introduced_in: compiler/guide/stage-6-first-machine-code.md
+    requires: [machine-code]
+    used_in:
+      - compiler/guide/stage-8-data-in-memory.md
+      - compiler/guide/stage-9-runtime-safety.md
+      - compiler/guide/stage-11-release.md
+      - roadmap.md
+      - compiler/architecture.md
+    recall_question: What do we call a file of machine code that the operating system can start as a program?
+    recall_answer: An executable. The linker produces it from object files and libraries.
+
+  - id: runtime-library
+    term: runtime library
+    short: A small body of code shipped with the language that generated programs call for services such as printing.
+    definition: >-
+      A small body of code, supplied with the language rather than written by
+      the programmer, that generated programs call for services such as
+      printing and error reporting. The guide also calls it the runtime.
+    introduced_in: compiler/guide/stage-6-first-machine-code.md
+    requires: [executable]
+    used_in:
+      - compiler/guide/stage-9-runtime-safety.md
+    recall_question: Where does the code for `print` come from in a compiled Vortex program?
+    recall_answer: From the runtime library, code supplied with the language that generated programs call for services such as printing.
+
+  - id: standard-output
+    term: standard output
+    short: The text stream a program writes to by default, which tests can capture.
+    definition: >-
+      The text stream a program writes to by default, usually shown in the
+      terminal. Tests capture it to compare with the expected output.
+    spec: >-
+      The output stream for a program's normal results. `print` writes there.
+    introduced_in: compiler/guide/stage-6-first-machine-code.md
+    requires: [expected-output]
+    used_in: []
+    recall_question: Which text stream does a program write to by default, and which tests capture to compare with the expected output?
+    recall_answer: Standard output.
+
+  - id: static-single-assignment
+    term: static single assignment form
+    abbr: SSA
+    aliases: [static single assignment]
+    short: A way of writing a program in which every variable is assigned exactly once.
+    definition: >-
+      A style of IR in which every named value is assigned exactly once. A
+      variable that changes becomes a series of separately named versions,
+      which makes many later analyses simpler.
+    introduced_in: compiler/guide/stage-6-first-machine-code.md
+    requires: [intermediate-representation]
+    used_in:
+      - compiler/guide/stage-7-functions-and-control-flow.md
+    recall_question: In which style of IR is every named value assigned exactly once, so that a changing variable becomes a series of versions?
+    recall_answer: Static single assignment (SSA) form.
+
+  - id: phi
+    term: phi
+    short: In SSA form, a marker at the point where paths meet that picks which version of a value to use.
+    definition: >-
+      In SSA form, a marker at a point where two paths meet that picks which
+      version of a value to use, depending on which path was taken.
+    introduced_in: compiler/guide/stage-6-first-machine-code.md
+    requires: [static-single-assignment]
+    used_in:
+      - compiler/guide/stage-7-functions-and-control-flow.md
+    recall_question: In SSA form, what picks which version of a value to use at a point where two paths meet?
+    recall_answer: A phi. Its choice depends on which path was taken.
+
+  - id: pass
+    term: pass
+    short: One trip through the whole program by one part of the compiler, doing one job.
+    definition: >-
+      One trip over the whole program that does one job, such as checking types
+      or lowering to IR, reading one representation and producing another or a
+      list of problems.
+    introduced_in: compiler/guide/stage-6-first-machine-code.md
+    requires: [compiler]
+    used_in:
+      - compiler/guide/stage-7-functions-and-control-flow.md
+      - compiler/guide/stage-8-data-in-memory.md
+      - compiler/guide/stage-10-matrix-multiplication.md
+      - compiler/guide/stage-11-release.md
+      - roadmap.md
+      - compiler/architecture.md
+    recall_question: What do we call one trip over the whole program by one part of the compiler, doing one job?
+    recall_answer: A pass, such as checking types or lowering to IR.
+
+  - id: toolchain
+    term: toolchain
+    short: The outside programs the compiler depends on, such as an assembler, a linker or a C compiler.
+    definition: >-
+      The set of outside programs the compiler depends on to finish its work,
+      such as an assembler, a linker or a C compiler.
+    introduced_in: compiler/guide/stage-6-first-machine-code.md
+    requires: [linker, assembly-language]
+    used_in: []
+    recall_question: What do we call the outside programs, such as an assembler and a linker, that the compiler depends on?
+    recall_answer: The toolchain.
+
+  - id: nanopass
+    term: nanopass
+    short: A style of compiler design that uses many very small passes, each doing one job.
+    definition: >-
+      A style of compiler design that uses many very small passes, each of
+      which performs a single task. The nanopass papers are worth reading
+      before you design lowering.
+    introduced_in: compiler/guide/stage-6-first-machine-code.md
+    requires: [pass]
+    used_in: []
+    recall_question: Which style of compiler design uses many very small passes, each performing a single task?
+    recall_answer: Nanopass.
+
+  - id: bytecode
+    term: bytecode
+    short: Simple instructions meant to be run by a program called a virtual machine, not directly by the processor.
+    definition: >-
+      A compact list of simple instructions meant to be run by another program,
+      a virtual machine, rather than directly by the processor. The second half
+      of Crafting Interpreters compiles to bytecode; Vortex compiles to machine
+      code.
+    introduced_in: compiler/guide/stage-6-first-machine-code.md
+    requires: [instruction, machine-code]
+    used_in: []
+    recall_question: What do we call simple instructions that are run by a virtual machine rather than directly by the processor?
+    recall_answer: Bytecode. Vortex compiles to machine code instead.
+
+  # ---- Compiler guide 7. Functions and control flow ------------------------
+
+  - id: caller
+    term: caller
+    short: The function that makes a call.
+    definition: >-
+      The function that makes a call. When the called function finishes,
+      execution carries on in the caller just after the call.
+    introduced_in: compiler/guide/stage-7-functions-and-control-flow.md
+    requires: [function-call]
+    used_in:
+      - compiler/guide/stage-8-data-in-memory.md
+      - compiler/ast-guide.md
+    recall_question: In a function call, what is the function that makes the call named?
+    recall_answer: The caller. The function being called is the callee.
+
+  - id: callee
+    term: callee
+    short: The function being called.
+    definition: >-
+      The function being called. It runs its body with the arguments it was
+      given and hands any return value back to the caller.
+    introduced_in: compiler/guide/stage-7-functions-and-control-flow.md
+    requires: [function-call, caller]
+    used_in:
+      - compiler/guide/stage-8-data-in-memory.md
+      - compiler/parser-design.md
+    recall_question: In a function call, what is the function being called named?
+    recall_answer: The callee. It hands its return value back to the caller.
+
+  - id: return-value
+    term: return value
+    short: The value a function hands back to its caller; a void function has none.
+    definition: The value a function hands back to its caller. A `void` function has none.
+    introduced_in: compiler/guide/stage-7-functions-and-control-flow.md
+    requires: [function, caller]
+    used_in:
+      - roadmap.md
+    recall_question: What is the value a function hands back to its caller called, and which functions have none?
+    recall_answer: The return value. A `void` function has none.
+
+  - id: call-stack
+    term: call stack
+    short: The record of calls that have started and not yet finished; each call adds an entry on top.
+    definition: >-
+      The record of calls that have started and not yet finished. Each new call
+      goes on top, and each return removes the top entry.
+    introduced_in: compiler/guide/stage-7-functions-and-control-flow.md
+    requires: [function-call]
+    used_in: []
+    recall_question: What records the calls that have started but not yet finished, adding one on each call and removing one on each return?
+    recall_answer: The call stack.
+
+  - id: stack-frame
+    term: stack frame
+    tooltip: true
+    short: One call's entry on the call stack, holding its parameters, local variables and where to return to.
+    definition: >-
+      One entry on the call stack. It holds what a single call needs while it
+      runs, namely its parameters, its local variables and where to go back to.
+    introduced_in: compiler/guide/stage-7-functions-and-control-flow.md
+    requires: [call-stack, parameter, local-variable]
+    used_in: []
+    recall_question: What is one call's entry on the call stack, holding its parameters, local variables and return place, called?
+    recall_answer: A stack frame.
+
+  - id: calling-convention
+    term: calling convention
+    tooltip: true
+    short: The agreement between caller and callee about where arguments and the return value go.
+    definition: >-
+      The agreement between caller and callee about where arguments are placed
+      and where the return value is found.
+    introduced_in: compiler/guide/stage-7-functions-and-control-flow.md
+    requires: [caller, callee, argument, return-value]
+    used_in: []
+    recall_question: Which agreement between caller and callee says where arguments are placed and where the return value is found?
+    recall_answer: The calling convention.
+
+  - id: basic-block
+    term: basic block
+    tooltip: true
+    short: A straight run of instructions entered only at the top and left only at the bottom.
+    definition: >-
+      A straight run of instructions with one way in, at the top, and one way
+      out, at the bottom. Nothing jumps into the middle of it.
+    introduced_in: compiler/guide/stage-7-functions-and-control-flow.md
+    requires: [instruction]
+    used_in: []
+    recall_question: What is a straight run of instructions with one way in at the top and one way out at the bottom called?
+    recall_answer: A basic block. Nothing jumps into the middle of it.
+
+  - id: control-flow-graph
+    term: control-flow graph
+    abbr: CFG
+    short: A function drawn as basic blocks joined by arrows that show where execution can go next.
+    definition: >-
+      A picture of a function as basic blocks joined by arrows, where each
+      arrow shows a place execution can go next.
+    introduced_in: compiler/guide/stage-7-functions-and-control-flow.md
+    requires: [basic-block]
+    used_in: []
+    recall_question: Which picture of a function shows basic blocks joined by arrows for where execution can go next?
+    recall_answer: The control-flow graph (CFG).
+
+  - id: edge
+    term: edge
+    short: One arrow in a control-flow graph.
+    definition: One arrow in a control-flow graph, showing one place execution can go next.
+    introduced_in: compiler/guide/stage-7-functions-and-control-flow.md
+    requires: [control-flow-graph]
+    used_in:
+      - compiler/guide/stage-9-runtime-safety.md
+    recall_question: What is one arrow in a control-flow graph called?
+    recall_answer: An edge. It shows one place execution can go next.
+
+  - id: branch
+    term: branch
+    aliases: [jump, conditional branch]
+    short: An instruction that moves execution to another block; conditional on a bool, or an unconditional jump.
+    definition: >-
+      An instruction that moves execution to another block. A conditional
+      branch chooses between two blocks based on a `bool`; an unconditional
+      branch, often called a jump, always goes to the same one.
+    introduced_in: compiler/guide/stage-7-functions-and-control-flow.md
+    requires: [basic-block]
+    used_in: []
+    recall_question: Which instruction moves execution to another block, and what is its unconditional kind often called?
+    recall_answer: A branch. A conditional branch picks between two blocks using a `bool`; an unconditional one is a jump.
+
+  - id: back-edge
+    term: back edge
+    tooltip: true
+    short: An edge that leads back to an earlier block, which is what makes a loop.
+    definition: An edge that goes back to an earlier block, which is what makes a loop.
+    introduced_in: compiler/guide/stage-7-functions-and-control-flow.md
+    requires: [edge]
+    used_in: []
+    recall_question: In a control-flow graph, what kind of edge makes a loop?
+    recall_answer: A back edge, one that goes back to an earlier block.
+
+  - id: join-point
+    term: join point
+    tooltip: true
+    short: A block that two or more paths lead into, such as the code after an if and else.
+    definition: A block that two or more paths lead into, such as the code after an `if ... else`.
+    introduced_in: compiler/guide/stage-7-functions-and-control-flow.md
+    requires: [basic-block, edge]
+    used_in: []
+    recall_question: What do we call the block that two or more paths lead into, such as the code after an `if ... else`?
+    recall_answer: A join point.
+
+  - id: early-return
+    term: early return
+    short: A return that ends a function before its last statement.
+    definition: >-
+      A `return` that ends the function before its last statement, such as
+      `return;` inside an `if` in a `void` function.
+    introduced_in: compiler/guide/stage-7-functions-and-control-flow.md
+    requires: [function, statement]
+    used_in: []
+    recall_question: What do we call a `return` that ends a function before its last statement?
+    recall_answer: An early return.
+
+  - id: lifetime
+    term: lifetime
+    short: How long a variable exists while the program runs, as opposed to where its name is visible.
+    definition: >-
+      How long a variable or value exists while the program runs. A local
+      variable exists from its declaration until execution leaves its block;
+      that is distinct from its scope, which is where its name is visible.
+    spec: >-
+      The interval during which a value or storage location exists and may be
+      accessed safely.
+    spec_ref: specification/statements.md#611-scope-and-lifetime
+    introduced_in: compiler/guide/stage-7-functions-and-control-flow.md
+    requires: [local-variable, scope]
+    used_in: []
+    recall_question: Scope says where a variable's name is visible; what says how long the variable itself exists while the program runs?
+    recall_answer: Its lifetime. A local variable exists from its declaration until execution leaves its block.
+
+  # ---- Compiler guide 8. Data in memory ------------------------------------
+
+  - id: memory
+    term: memory
+    short: The large, numbered storage area a running program reads and writes.
+    definition: >-
+      The large, numbered storage area a running program reads and writes.
+      Think of it as one very long row of small boxes, each one a byte.
+    introduced_in: compiler/guide/stage-8-data-in-memory.md
+    requires: [byte]
+    used_in:
+      - compiler/guide/stage-11-release.md
+    recall_question: What is the large, numbered storage area a running program reads and writes called?
+    recall_answer: Memory, one very long row of bytes, each with its own number.
+
+  - id: address
+    term: address
+    short: The number of a byte in memory, used to say where a value starts.
+    definition: The number of a byte in memory. A value's address is the number of its first byte.
+    introduced_in: compiler/guide/stage-8-data-in-memory.md
+    requires: [memory, byte]
+    used_in:
+      - compiler/ast-guide.md
+    recall_question: What is the number of a byte in memory called, and which byte gives a value its one?
+    recall_answer: An address. A value's address is the number of its first byte.
+
+  - id: size
+    term: size
+    short: How many bytes a value takes up.
+    definition: How many bytes a value takes up. An `f32` is 32 bits, so it fills four bytes.
+    introduced_in: compiler/guide/stage-8-data-in-memory.md
+    requires: [byte]
+    used_in:
+      - compiler/guide/stage-9-runtime-safety.md
+      - compiler/guide/stage-10-matrix-multiplication.md
+    recall_question: What do we call how many bytes a value takes up, and what is it for an `f32`?
+    recall_answer: Its size. An `f32` takes four bytes.
+
+  - id: alignment
+    term: alignment
+    short: A rule that a value must start at an address that is a multiple of some number.
+    definition: >-
+      A rule that a value must start at an address that is a multiple of some
+      number, often its own size. Many processors read a four-byte number
+      faster, or only correctly, when it starts at a multiple of four.
+    introduced_in: compiler/guide/stage-8-data-in-memory.md
+    requires: [address, size]
+    used_in: []
+    recall_question: Which rule says a value must start at an address that is a multiple of some number?
+    recall_answer: Alignment. A four-byte number, for example, is best started at a multiple of four.
+
+  - id: padding
+    term: padding
+    short: Unused bytes placed between or after the parts of a value so each part meets its alignment rule.
+    definition: >-
+      Unused bytes placed between or after the parts of a value so that each
+      part meets its alignment rule.
+    introduced_in: compiler/guide/stage-8-data-in-memory.md
+    requires: [alignment]
+    used_in: []
+    recall_question: What are the unused bytes placed between or after a value's parts, so each part meets its alignment rule, called?
+    recall_answer: Padding.
+
+  - id: layout-offset
+    term: offset (within a value)
+    short: The distance in bytes from the start of a value to one of its parts.
+    definition: >-
+      The distance, in bytes, from the start of a value to one of its parts,
+      such as a struct field or an array element.
+    introduced_in: compiler/guide/stage-8-data-in-memory.md
+    requires: [byte]
+    used_in: []
+    recall_question: In a value's layout, what is the distance in bytes from the start of the value to one of its parts called?
+    recall_answer: An offset. Each field or element of a value sits at its own offset.
+
+  - id: layout
+    term: layout
+    short: The full description of a value's size, alignment and the offset of every element or field.
+    definition: >-
+      The complete description of where each part of a value sits, namely its
+      size, its alignment and the offset of every element or field.
+    spec_ref: specification/structs.md#88-layout
+    introduced_in: compiler/guide/stage-8-data-in-memory.md
+    requires: [size, alignment, layout-offset]
+    used_in:
+      - compiler/guide/stage-10-matrix-multiplication.md
+      - compiler/guide/stage-11-release.md
+    recall_question: What is the full description of a value's size, alignment and the offset of each of its parts called?
+    recall_answer: Its layout.
+
+  - id: contiguous
+    term: contiguous
+    short: Stored side by side with no gaps.
+    definition: >-
+      Stored side by side with no gaps. The specification says arrays are
+      intended to use contiguous, predictable storage.
+    spec_ref: specification/arrays.md#78-memory-and-layout
+    introduced_in: compiler/guide/stage-8-data-in-memory.md
+    requires: [memory]
+    used_in: []
+    recall_question: What do we call values stored side by side in memory with no gaps?
+    recall_answer: Contiguous. Arrays are intended to use contiguous, predictable storage.
+
+  - id: aggregate
+    term: aggregate
+    aliases: [aggregate type]
+    short: A value made of other values; in v0.1, arrays and structs.
+    definition: A value made of other values. In Vortex v0.1 the aggregates are arrays and structs.
+    spec: >-
+      A type composed of subordinate values. Vortex v0.1 aggregate types are
+      fixed arrays and structs.
+    spec_ref: specification/glossary.md
+    introduced_in: compiler/guide/stage-8-data-in-memory.md
+    requires: [array, struct]
+    used_in: []
+    recall_question: What do we call a value made of other values, and which v0.1 types are like that?
+    recall_answer: An aggregate. In v0.1 the aggregates are arrays and structs.
+
+  - id: row-major-order
+    term: row-major order
+    tooltip: true
+    short: Storing a two-dimensional array one whole row after another.
+    definition: >-
+      Storing a two-dimensional array one whole row after another, so that
+      neighbours in a row are neighbours in memory.
+    spec: >-
+      The array layout in which the last index varies fastest: a `[T; 2, 2]` is
+      stored as `[0, 0]`, `[0, 1]`, `[1, 0]`, `[1, 1]`. Every v0.1 array uses
+      it. See [Arrays and shapes](arrays.md#78-memory-and-layout).
+    introduced_in: compiler/guide/stage-8-data-in-memory.md
+    requires: [contiguous, dimension]
+    used_in: []
+    recall_question: What do we call storing a two-dimensional array one whole row after another?
+    recall_answer: Row-major order. Neighbours in a row are then neighbours in memory.
+
+  - id: column-major-order
+    term: column-major order
+    tooltip: true
+    short: Storing a two-dimensional array one whole column after another.
+    definition: >-
+      Storing a two-dimensional array one whole column after another, so that
+      neighbours in a column are neighbours in memory.
+    introduced_in: compiler/guide/stage-8-data-in-memory.md
+    requires: [row-major-order]
+    used_in: []
+    recall_question: What do we call storing a two-dimensional array one whole column after another?
+    recall_answer: Column-major order. Neighbours in a column are then neighbours in memory.
+
+  - id: application-binary-interface
+    term: application binary interface
+    abbr: ABI
+    short: The low-level agreement about how values are laid out and passed between functions in machine code.
+    definition: >-
+      The low-level agreement about how values are laid out and passed between
+      functions in machine code.
+    introduced_in: compiler/guide/stage-8-data-in-memory.md
+    requires: [layout, calling-convention]
+    used_in: []
+    recall_question: What is the low-level agreement about how values are laid out and passed between functions in machine code?
+    recall_answer: The application binary interface (ABI).
+
+  # ---- Compiler guide 9. Runtime safety ------------------------------------
+
+  - id: integer-overflow
+    term: integer overflow
+    short: An integer calculation whose true answer does not fit in its type.
+    definition: >-
+      An integer calculation whose true answer does not fit in its type; for
+      `i32`, anything above 2,147,483,647 or below -2,147,483,648. In Vortex
+      v0.1 it is an error, never silently wrapped.
+    spec_ref: specification/diagnostics.md#runtime-error
+    introduced_in: compiler/guide/stage-9-runtime-safety.md
+    requires: [primitive-type, runtime-error]
+    used_in:
+      - roadmap.md
+    recall_question: What is it called when an `i32` calculation's true answer does not fit in 32 bits, and what does v0.1 do about it?
+    recall_answer: Integer overflow. Vortex v0.1 reports it as an error and never silently wraps or saturates the value.
+
+  - id: wrapping
+    term: wrapping
+    short: Handling overflow by silently dropping the high bits; v0.1 does not do this.
+    definition: >-
+      Handling overflow by silently throwing away the high bits, so a number
+      that is too big comes back as a small or negative one. Vortex v0.1 does
+      not do this.
+    introduced_in: compiler/guide/stage-9-runtime-safety.md
+    requires: [integer-overflow]
+    used_in: []
+    recall_question: What is it called when overflow is handled by silently dropping the high bits, and does v0.1 do it?
+    recall_answer: Wrapping. Vortex v0.1 does not do it.
+
+  - id: saturating
+    term: saturating
+    short: Handling overflow by clamping to the largest or smallest value; v0.1 does not do this.
+    definition: >-
+      Handling overflow by clamping to the largest or smallest value the type
+      can hold. Vortex v0.1 does not do this either.
+    introduced_in: compiler/guide/stage-9-runtime-safety.md
+    requires: [integer-overflow]
+    used_in: []
+    recall_question: What is it called when overflow is handled by clamping to the largest or smallest value, and does v0.1 do it?
+    recall_answer: Saturating. Vortex v0.1 does not do it.
+
+  - id: undefined-behavior
+    term: undefined behavior
+    tooltip: true
+    short: A situation where the rules say nothing about what happens next.
+    definition: >-
+      A situation where the rules of a language or machine say nothing at all
+      about what happens next; the program may crash, give a wrong answer or
+      appear to work. Vortex v0.1 does not intentionally expose it to
+      well-formed programs.
+    spec: >-
+      Behavior for which a language imposes no requirements. Vortex v0.1 does
+      not intentionally expose undefined behavior to well-formed safe programs.
+    spec_ref: specification/conformance.md#15-undefined-behavior
+    introduced_in: compiler/guide/stage-9-runtime-safety.md
+    requires: [dynamic-rule, well-formed]
+    used_in: []
+    recall_question: What do we call a situation where the rules say nothing about what happens next, and can a well-formed v0.1 program reach it?
+    recall_answer: Undefined behavior. Vortex v0.1 does not intentionally expose it to well-formed programs.
+
+  - id: proven-safe
+    term: proven safe
+    short: Known by the compiler, from the source alone, to be unable to fail.
+    definition: >-
+      Known by the compiler, from the source alone, to be unable to fail. Only
+      such a proof allows a runtime check to be left out.
+    introduced_in: compiler/guide/stage-9-runtime-safety.md
+    requires: [runtime-check]
+    used_in: []
+    recall_question: When may the compiler leave out a runtime check?
+    recall_answer: Only when the operation is proven safe, known from the source alone to be unable to fail.
+
+  - id: ieee-754
+    term: IEEE 754
+    abbr: IEEE 754
+    short: The international standard for floating-point arithmetic, which f32 and f64 follow.
+    definition: >-
+      The international standard for floating-point arithmetic. Vortex's `f32`
+      and `f64` follow it, and v0.1 does not reorder floating-point operations
+      in ways that change their results.
+    spec_ref: specification/types-and-values.md#44-floating-point-values
+    introduced_in: compiler/guide/stage-9-runtime-safety.md
+    requires: []
+    used_in: []
+    recall_question: Which international standard do Vortex's `f32` and `f64` follow?
+    recall_answer: IEEE 754, the standard for floating-point arithmetic.
+
+  - id: nan
+    term: NaN
+    abbr: NaN
+    short: Not a number; a special floating-point value produced by operations such as 0.0 / 0.0.
+    definition: >-
+      Short for not a number. A special IEEE 754 value produced by operations
+      such as zero divided by zero.
+    introduced_in: compiler/guide/stage-9-runtime-safety.md
+    requires: [ieee-754]
+    used_in:
+      - compiler/guide/stage-11-release.md
+    recall_question: Which special floating-point value does `0.0 / 0.0` produce?
+    recall_answer: NaN, short for not a number.
+
+  - id: infinity
+    term: infinity
+    short: A special floating-point value produced, for example, by dividing a nonzero number by zero.
+    definition: A special IEEE 754 value produced, for example, by dividing a nonzero number by zero.
+    introduced_in: compiler/guide/stage-9-runtime-safety.md
+    requires: [ieee-754]
+    used_in: []
+    recall_question: Which special floating-point value does dividing a nonzero number by zero produce?
+    recall_answer: Infinity, a special IEEE 754 value.
+
+  - id: boundary-case
+    term: boundary case
+    short: The value at the edge, the last one that works and the first one that fails.
+    definition: >-
+      The value right at the edge, the last one that works and the first one
+      that fails, such as the last index of a dimension and one past it.
+    introduced_in: compiler/guide/stage-9-runtime-safety.md
+    requires: [test-case]
+    used_in:
+      - roadmap.md
+    recall_question: When testing a runtime check, what do we call the values right at the edge, the last that works and the first that fails?
+    recall_answer: Boundary cases, such as the last valid index and one past it.
+
+  # ---- Compiler guide 10. Matrix multiplication ----------------------------
+
+  - id: matrix
+    term: matrix
+    short: A rectangle of numbers in rows and columns; in v0.1, a two-dimensional array.
+    definition: >-
+      A rectangle of numbers arranged in rows and columns. In Vortex v0.1 a
+      matrix is simply a two-dimensional array such as `[f32; 2, 3]`.
+    introduced_in: compiler/guide/stage-10-matrix-multiplication.md
+    requires: [array, rank]
+    used_in:
+      - compiler/guide/stage-11-release.md
+      - roadmap.md
+    recall_question: What is a rectangle of numbers in rows and columns called, and how is it written in v0.1?
+    recall_answer: A matrix. In v0.1 it is simply a two-dimensional array such as `[f32; 2, 3]`.
+
+  - id: row-and-column
+    term: row, column
+    short: One horizontal line of a matrix, and one vertical line.
+    definition: >-
+      A row is one horizontal line of a matrix and a column is one vertical
+      line. A 2 by 3 matrix has 2 rows and 3 columns.
+    introduced_in: compiler/guide/stage-10-matrix-multiplication.md
+    requires: [matrix]
+    used_in: []
+    recall_question: In a matrix, what are one horizontal line and one vertical line called, and how many of each does a 2 by 3 matrix have?
+    recall_answer: A row and a column. A 2 by 3 matrix has 2 rows and 3 columns.
+
+  - id: square-matrix
+    term: square matrix
+    short: A matrix with as many rows as columns.
+    definition: A matrix with as many rows as columns, such as 2 by 2 or 4 by 4.
+    introduced_in: compiler/guide/stage-10-matrix-multiplication.md
+    requires: [row-and-column]
+    used_in: []
+    recall_question: What do we call a matrix with as many rows as columns?
+    recall_answer: A square matrix, such as 4 by 4.
+
+  - id: rectangular-matrix
+    term: rectangular matrix
+    short: A matrix whose numbers of rows and columns differ.
+    definition: A matrix whose number of rows and number of columns differ, such as 2 by 3.
+    introduced_in: compiler/guide/stage-10-matrix-multiplication.md
+    requires: [row-and-column]
+    used_in:
+      - roadmap.md
+    recall_question: What do we call a matrix whose numbers of rows and columns differ, such as 2 by 3?
+    recall_answer: A rectangular matrix.
+
+  - id: matrix-multiplication
+    term: matrix multiplication
+    short: Combining matrices A and B into C, where each cell of C comes from one row of A and one column of B.
+    definition: >-
+      An operation that combines a matrix `A` and a matrix `B` into a new
+      matrix `C`, where each number in `C` is built from one row of `A` and one
+      column of `B`. It is the first real Vortex program the guide builds.
+    introduced_in: compiler/guide/stage-10-matrix-multiplication.md
+    requires: [matrix, dot-product]
+    used_in:
+      - compiler/guide/stage-11-release.md
+      - roadmap.md
+    recall_question: Which operation builds each cell of a matrix C from one row of A and one column of B?
+    recall_answer: Matrix multiplication. Each cell of the result is one dot product.
+
+  - id: dot-product
+    term: dot product
+    tooltip: true
+    short: Multiplying two equal-length lists position by position and adding the results.
+    definition: >-
+      Multiplying two equally long lists of numbers position by position and
+      adding up the results. Each cell of a matrix product is one dot product.
+    introduced_in: compiler/guide/stage-10-matrix-multiplication.md
+    requires: []
+    used_in: []
+    recall_question: What do we call multiplying two equal-length lists position by position and adding up the results?
+    recall_answer: A dot product. Each cell of a matrix product is one.
+
+  - id: inner-dimension
+    term: inner dimension
+    tooltip: true
+    short: The size that must match to multiply two matrices, the columns of A and the rows of B.
+    definition: >-
+      The size that must match for two matrices to be multiplied, namely the
+      number of columns of `A` and the number of rows of `B`.
+    introduced_in: compiler/guide/stage-10-matrix-multiplication.md
+    requires: [matrix-multiplication, row-and-column]
+    used_in: []
+    recall_question: To multiply A by B, which size must match, and what is it called?
+    recall_answer: The inner dimension, the number of columns of A, which must equal the number of rows of B.
+
+  - id: known-answer
+    term: known answer
+    short: A result worked out independently, which a test compares the program's output against.
+    definition: >-
+      A result worked out independently, by hand or by trusted software, that a
+      test compares the program's output against.
+    introduced_in: compiler/guide/stage-10-matrix-multiplication.md
+    requires: [test]
+    used_in:
+      - compiler/guide/stage-11-release.md
+    recall_question: What is a result worked out independently, by hand or by trusted software, that a test compares the output against?
+    recall_answer: A known answer.
+
+  - id: tolerance
+    term: tolerance
+    short: How far apart two floating-point results may be and still count as equal.
+    definition: How far apart two floating-point results may be and still count as equal.
+    introduced_in: compiler/guide/stage-10-matrix-multiplication.md
+    requires: [ieee-754]
+    used_in: []
+    recall_question: When a test compares floating-point results, what says how far apart they may be and still count as equal?
+    recall_answer: The tolerance.
+
+  - id: naive
+    term: naive
+    short: Written in the most direct way, with no attempt to make it fast.
+    definition: >-
+      Written in the most direct way, with no attempt to make it fast. The
+      roadmap calls the v0.1 matrix multiplication straightforward and
+      unoptimized.
+    introduced_in: compiler/guide/stage-10-matrix-multiplication.md
+    requires: []
+    used_in: []
+    recall_question: What do we call code written in the most direct way, with no attempt to make it fast?
+    recall_answer: Naive, like the straightforward, unoptimized v0.1 matrix multiplication.
+
+  - id: loop-nest
+    term: loop nest
+    short: Loops placed inside other loops; matrix multiplication is usually three deep.
+    definition: Loops placed inside other loops. Matrix multiplication is usually three loops deep.
+    introduced_in: compiler/guide/stage-10-matrix-multiplication.md
+    requires: [loop-variable]
+    used_in: []
+    recall_question: What do we call loops placed inside other loops, such as the three loops of matrix multiplication?
+    recall_answer: A loop nest.
+
+  # ---- Compiler guide 11. Release ------------------------------------------
+
+  - id: release
+    term: release
+    short: A version of the compiler given a name and offered to others as working, with its limits stated.
+    definition: >-
+      A version of the compiler that is given a name and offered to other
+      people as working, with its limits stated.
+    introduced_in: compiler/guide/stage-11-release.md
+    requires: []
+    used_in:
+      - roadmap.md
+    recall_question: What is a named version of the compiler, offered to others as working with its limits stated, called?
+    recall_answer: A release.
+
+  - id: release-gate
+    term: release gate
+    tooltip: true
+    short: The list of checks that must all pass before a release may be named.
+    definition: The list of checks that must all pass before a release may be named.
+    introduced_in: compiler/guide/stage-11-release.md
+    requires: [release, test-suite]
+    used_in:
+      - roadmap.md
+    recall_question: What is the list of checks that must all pass before a release may be named?
+    recall_answer: The release gate.
+
+  - id: version-number
+    term: version number
+    short: The name given to a release, such as v0.1.0, so people can say exactly which compiler they used.
+    definition: >-
+      The name given to a release, such as `v0.1.0`. It lets people say
+      exactly which compiler they used.
+    introduced_in: compiler/guide/stage-11-release.md
+    requires: [release]
+    used_in: []
+    recall_question: What lets people say exactly which release of the compiler they used, such as `v0.1.0`?
+    recall_answer: The version number.
+
+  - id: test-suite
+    term: test suite
+    short: The whole collection of automated tests for the compiler.
+    definition: The whole collection of automated tests for the compiler, which the test runner runs.
+    introduced_in: compiler/guide/stage-11-release.md
+    requires: [test, test-runner]
+    used_in:
+      - roadmap.md
+    recall_question: What is the whole collection of automated tests for the compiler called?
+    recall_answer: The test suite.
+
+  - id: valid-and-invalid-pair
+    term: valid and invalid pair
+    tooltip: true
+    short: Two nearly identical test programs, one accepted and one rejected, showing a rule is enforced exactly.
+    definition: >-
+      Two small test programs, one that must be accepted and a nearly identical
+      one that must be rejected, which together show a rule is enforced exactly
+      where it should be.
+    introduced_in: compiler/guide/stage-11-release.md
+    requires: [valid-program, invalid-program]
+    used_in: []
+    recall_question: Which pair of nearly identical test programs shows that a rule is enforced exactly where it should be?
+    recall_answer: A valid and invalid pair, one accepted and one rejected.
+
+  - id: end-to-end-test
+    term: end-to-end test
+    short: A test that runs the whole compiler on a source file, runs the result, and checks what comes out.
+    definition: >-
+      A test that runs the whole compiler on a source file, runs the resulting
+      executable if there is one, and checks what comes out.
+    introduced_in: compiler/guide/stage-11-release.md
+    requires: [test, executable]
+    used_in:
+      - roadmap.md
+      - compiler/architecture.md
+    recall_question: Which kind of test runs the whole compiler on a source file, runs the result and checks what comes out?
+    recall_answer: An end-to-end test.
+
+  - id: clean-checkout
+    term: clean checkout
+    short: A fresh copy of the project's files with nothing left over from earlier builds.
+    definition: A fresh copy of the project's files, with nothing left over from earlier builds.
+    introduced_in: compiler/guide/stage-11-release.md
+    requires: [clean-configuration]
+    used_in:
+      - roadmap.md
+    recall_question: What is a fresh copy of the project's files, with nothing left over from earlier builds, called?
+    recall_answer: A clean checkout.
+
+  - id: known-limitation
+    term: known limitation
+    short: Something the language describes but this compiler does not yet do, written down so nobody is surprised.
+    definition: >-
+      Something the language describes that this compiler does not yet do,
+      written down so users are not surprised by it.
+    introduced_in: compiler/guide/stage-11-release.md
+    requires: [release]
+    used_in:
+      - roadmap.md
+    recall_question: What do we call something the language describes that this compiler does not yet do, written down for users?
+    recall_answer: A known limitation.
+
+  - id: implementation-limit
+    term: implementation limit
+    short: A point where a compiler supports less than the language allows; it must be documented.
+    definition: >-
+      A point where a compiler supports less than the language allows, such as
+      a maximum array size. The conformance chapter requires these to be
+      documented.
+    spec_ref: specification/conformance.md#13-implementation-conformance
+    introduced_in: compiler/guide/stage-11-release.md
+    requires: [known-limitation]
+    used_in: []
+    recall_question: What do we call a point where a compiler supports less than the language allows, such as a maximum array size?
+    recall_answer: An implementation limit. The specification requires it to be documented.
+
+  - id: expected-failure
+    term: expected failure
+    tooltip: true
+    short: A test known to fail and marked that way on purpose, usually because it covers a known limitation.
+    definition: >-
+      A test that is known to fail and is marked that way on purpose, usually
+      because it tests a known limitation.
+    introduced_in: compiler/guide/stage-11-release.md
+    requires: [known-limitation, test]
+    used_in: []
+    recall_question: What is a test that is known to fail, and marked that way on purpose, called?
+    recall_answer: An expected failure, usually a test of a known limitation.
+
+  # ---- Defined only in the word list ---------------------------------------
+
+  - id: tree-walk-interpreter
+    term: tree-walk interpreter
+    tooltip: true
+    short: A program that runs code by visiting the nodes of its syntax tree one by one, without machine code.
+    definition: >-
+      A program that runs code by visiting the nodes of its syntax tree one by
+      one, without producing machine code.
+    introduced_in: compiler/guide/words.md
+    requires: [abstract-syntax-tree, node]
+    used_in: []
+    recall_question: What runs a program by visiting the nodes of its syntax tree one by one, without producing machine code?
+    recall_answer: A tree-walk interpreter.
+
+  - id: vertical-slice
+    term: vertical slice
+    tooltip: true
+    short: A thin piece of work through every stage at once, such as compiling one tiny program to an executable.
+    definition: >-
+      A thin piece of work that goes through every stage at once, such as
+      compiling one tiny program all the way to an executable.
+    introduced_in: compiler/guide/words.md
+    requires: [compiler]
+    used_in:
+      - roadmap.md
+      - compiler/parser-design.md
+      - compiler/ast-guide.md
+    recall_question: What do we call a thin piece of work that goes through every compiler stage at once?
+    recall_answer: A vertical slice, such as compiling one tiny program all the way to an executable.
+
+  # ---- Terms added to the glossary by the language decisions ---------------
+
+  - id: borrow
+    term: borrow
+    short: "The part of a program during which a reference made by & or &mut is live: to the end of the enclosing..."
+    definition: >-
+      The part of a program during which a reference made by & or &mut is live:
+      to the end of the enclosing block for a let binding, or for the whole call
+      for an argument. See References and mutability 9.8.
+    spec: >-
+      The part of a program during which a reference made by `&` or `&mut` is
+      live: to the end of the enclosing block for a `let` binding, or for the
+      whole call for an argument. See [References and mutability
+      9.8](references.md#98-aliasing).
+    spec_ref: specification/references.md#98-aliasing
+    introduced_in: specification/references.md
+    requires: []
+    recall_question: "Which term does the specification use for this idea: the part of a program during which a reference made by & or &mut is live: to the end of the enclosing...?"
+    recall_answer: >-
+      Borrow. The part of a program during which a reference made by & or &mut
+      is live: to the end of the enclosing block for a let binding, or for the
+      whole call for an argument. See References and mutability 9.8.
+
+  - id: built-in-function
+    term: built-in function
+    short: "A function the language provides without a declaration"
+    definition: >-
+      A function the language provides without a declaration. Vortex v0.1 has
+      one, print; see Programs and declarations.
+    spec: >-
+      A function the language provides without a declaration. Vortex v0.1 has
+      one, `print`; see [Programs and
+      declarations](declarations.md#39-built-in-functions).
+    spec_ref: specification/declarations.md#39-built-in-functions
+    introduced_in: specification/declarations.md
+    requires: []
+    recall_question: "Which term does the specification use for this idea: a function the language provides without a declaration?"
+    recall_answer: >-
+      Built-in function. A function the language provides without a declaration.
+      Vortex v0.1 has one, print; see Programs and declarations.
+
+  - id: checked-operation
+    term: checked operation
+    short: "An operation that must detect an invalid case, such as integer overflow, division by zero or an..."
+    definition: >-
+      An operation that must detect an invalid case, such as integer overflow,
+      division by zero or an out-of-bounds index, and fail with a diagnostic
+      instead of producing a wrong value. See Expressions 5.5 and Arrays and
+      shapes 7.6.
+    spec: >-
+      An operation that must detect an invalid case, such as integer overflow,
+      division by zero or an out-of-bounds index, and fail with a diagnostic
+      instead of producing a wrong value. See [Expressions
+      5.5](expressions.md#checked-integer-operations) and [Arrays and shapes
+      7.6](arrays.md#76-indexing).
+    spec_ref: specification/expressions.md#checked-integer-operations
+    introduced_in: specification/expressions.md
+    requires: []
+    recall_question: "Which term does the specification use for this idea: an operation that must detect an invalid case, such as integer overflow, division by zero or an...?"
+    recall_answer: >-
+      Checked operation. An operation that must detect an invalid case, such as
+      integer overflow, division by zero or an out-of-bounds index, and fail
+      with a diagnostic instead of producing a wrong value. See Expressions 5.5
+      and Arrays and shapes 7.6.
+
+  - id: constant-expression
+    term: constant expression
+    short: "In v0.1, an integer constant expression: integer literals, each optionally preceded by unary -, combined..."
+    definition: >-
+      In v0.1, an integer constant expression: integer literals, each optionally
+      preceded by unary -, combined with parentheses and the binary operators +,
+      -, , / and %. Names and calls are never constant expressions. See
+      Expressions.
+    spec: >-
+      In v0.1, an integer constant expression: integer literals, each optionally
+      preceded by unary `-`, combined with parentheses and the binary operators
+      `+`, `-`, `*`, `/` and `%`. Names and calls are never constant
+      expressions. See [Expressions](expressions.md#512-constant-expressions).
+    spec_ref: specification/expressions.md#512-constant-expressions
+    introduced_in: specification/expressions.md
+    requires: []
+    recall_question: "Which term does the specification use for this idea: in v0.1, an integer constant expression: integer literals, each optionally preceded by unary -, combined...?"
+    recall_answer: >-
+      Constant expression. In v0.1, an integer constant expression: integer
+      literals, each optionally preceded by unary -, combined with parentheses
+      and the binary operators +, -, , / and %. Names and calls are never
+      constant expressions. See Expressions.
+
+  - id: deciding-operand
+    term: deciding operand
+    short: "An operand whose value decides whether a checked operation fails: the divisor for division by zero, the..."
+    definition: >-
+      An operand whose value decides whether a checked operation fails: the
+      divisor for division by zero, the count for a shift, the index for bounds,
+      the operand for a cast, and every operand for overflow. See Expressions
+      5.12.
+    spec: >-
+      An operand whose value decides whether a checked operation fails: the
+      divisor for division by zero, the count for a shift, the index for bounds,
+      the operand for a cast, and every operand for overflow. See [Expressions
+      5.12](expressions.md#512-constant-expressions).
+    spec_ref: specification/expressions.md#512-constant-expressions
+    introduced_in: specification/expressions.md
+    requires: []
+    recall_question: "Which term does the specification use for this idea: an operand whose value decides whether a checked operation fails: the divisor for division by zero, the...?"
+    recall_answer: >-
+      Deciding operand. An operand whose value decides whether a checked
+      operation fails: the divisor for division by zero, the count for a shift,
+      the index for bounds, the operand for a cast, and every operand for
+      overflow. See Expressions 5.12.
+
+  - id: fragment
+    term: fragment
+    short: "An example block that shows a type, an expression or a partial construct for its syntax"
+    definition: >-
+      An example block that shows a type, an expression or a partial construct
+      for its syntax. A fragment is never compiled and has no result. See
+      Specification examples.
+    spec: >-
+      An example block that shows a type, an expression or a partial construct
+      for its syntax. A fragment is never compiled and has no result. See
+      [Specification examples](conformance.md#18-specification-examples).
+    spec_ref: specification/conformance.md#18-specification-examples
+    introduced_in: specification/conformance.md
+    requires: []
+    recall_question: "Which term does the specification use for this idea: an example block that shows a type, an expression or a partial construct for its syntax?"
+    recall_answer: >-
+      Fragment. An example block that shows a type, an expression or a partial
+      construct for its syntax. A fragment is never compiled and has no result.
+      See Specification examples.
+
+  - id: implicit-dereference
+    term: implicit dereference
+    short: "The rule that a name of type &T or &mut T denotes its referent: used as a value, the name reads the..."
+    definition: >-
+      The rule that a name of type &T or &mut T denotes its referent: used as a
+      value, the name reads the referent, and as the root of an assignment
+      target, it writes the referent. Vortex v0.1 has no dereference operator.
+      See Using a reference.
+    spec: >-
+      The rule that a name of type `&T` or `&mut T` denotes its referent: used
+      as a value, the name reads the referent, and as the root of an assignment
+      target, it writes the referent. Vortex v0.1 has no dereference operator.
+      See [Using a reference](references.md#using-a-reference).
+    spec_ref: specification/references.md#using-a-reference
+    introduced_in: specification/references.md
+    requires: []
+    recall_question: "Which term does the specification use for this idea: the rule that a name of type &T or &mut T denotes its referent: used as a value, the name reads the...?"
+    recall_answer: >-
+      Implicit dereference. The rule that a name of type &T or &mut T denotes
+      its referent: used as a value, the name reads the referent, and as the
+      root of an assignment target, it writes the referent. Vortex v0.1 has no
+      dereference operator. See Using a reference.
+
+  - id: label
+    term: label
+    short: "The comment on the first line of every vortex example block, such as // statements: type error, that names..."
+    definition: >-
+      The comment on the first line of every vortex example block, such as //
+      statements: type error, that names what the block contains and what a
+      conforming implementation must do with it. See Specification examples.
+    spec: >-
+      The comment on the first line of every `vortex` example block, such as `//
+      statements: type error`, that names what the block contains and what a
+      conforming implementation must do with it. See [Specification
+      examples](conformance.md#18-specification-examples).
+    spec_ref: specification/conformance.md#18-specification-examples
+    introduced_in: specification/conformance.md
+    requires: []
+    recall_question: "Which term does the specification use for this idea: the comment on the first line of every vortex example block, such as // statements: type error, that names...?"
+    recall_answer: >-
+      Label. The comment on the first line of every vortex example block, such
+      as // statements: type error, that names what the block contains and what
+      a conforming implementation must do with it. See Specification examples.
+
+  - id: literal-typing
+    term: literal typing
+    short: "The rule that gives an integer or floating literal its type from a peer operand, an expected type, or its..."
+    definition: >-
+      The rule that gives an integer or floating literal its type from a peer
+      operand, an expected type, or its default type. See Literal typing.
+    spec: >-
+      The rule that gives an integer or floating literal its type from a peer
+      operand, an expected type, or its default type. See [Literal
+      typing](types-and-values.md#literal-typing).
+    spec_ref: specification/types-and-values.md#literal-typing
+    introduced_in: specification/types-and-values.md
+    requires: []
+    recall_question: "Which term does the specification use for this idea: the rule that gives an integer or floating literal its type from a peer operand, an expected type, or its...?"
+    recall_answer: >-
+      Literal typing. The rule that gives an integer or floating literal its
+      type from a peer operand, an expected type, or its default type. See
+      Literal typing.
+
+  - id: place
+    term: place
+    short: "An expression that names storage: a name followed by zero or more index and field suffixes, such as..."
+    definition: >-
+      An expression that names storage: a name followed by zero or more index
+      and field suffixes, such as points[index].x. The name is the place's root.
+      Assignment targets and the operands of & and &mut are places. See
+      References and mutability 9.3.
+    spec: >-
+      An expression that names storage: a name followed by zero or more index
+      and field suffixes, such as `points[index].x`. The name is the place's
+      root. Assignment targets and the operands of `&` and `&mut` are places.
+      See [References and mutability 9.3](references.md#93-local-mutability).
+    spec_ref: specification/references.md#93-local-mutability
+    introduced_in: specification/references.md
+    requires: []
+    recall_question: "Which term does the specification use for this idea: an expression that names storage: a name followed by zero or more index and field suffixes, such as...?"
+    recall_answer: >-
+      Place. An expression that names storage: a name followed by zero or more
+      index and field suffixes, such as points[index].x. The name is the place's
+      root. Assignment targets and the operands of & and &mut are places. See
+      References and mutability 9.3.
+
+  - id: planned
+    term: planned
+    short: "Describes syntax, behavior or an example that is not part of v0.1 but shows a direction for a later version"
+    definition: >-
+      Describes syntax, behavior or an example that is not part of v0.1 but
+      shows a direction for a later version. A v0.1 implementation must not
+      accept planned syntax. See Specification examples and record 50.
+    spec: >-
+      Describes syntax, behavior or an example that is not part of v0.1 but
+      shows a direction for a later version. A v0.1 implementation must not
+      accept planned syntax. See [Specification
+      examples](conformance.md#18-specification-examples) and [record
+      50](../decisions/documentation.md#d50).
+    spec_ref: specification/conformance.md#18-specification-examples
+    introduced_in: specification/conformance.md
+    requires: []
+    recall_question: "Which term does the specification use for this idea: describes syntax, behavior or an example that is not part of v0.1 but shows a direction for a later version?"
+    recall_answer: >-
+      Planned. Describes syntax, behavior or an example that is not part of v0.1
+      but shows a direction for a later version. A v0.1 implementation must not
+      accept planned syntax. See Specification examples and record 50.
+
+  - id: referent
+    term: referent
+    short: "The storage a reference refers to"
+    definition: >-
+      The storage a reference refers to. Using a reference's name reads or
+      writes its referent. See References and mutability 9.4.
+    spec: >-
+      The storage a reference refers to. Using a reference's name reads or
+      writes its referent. See [References and mutability
+      9.4](references.md#94-shared-references).
+    spec_ref: specification/references.md#94-shared-references
+    introduced_in: specification/references.md
+    requires: []
+    recall_question: "Which term does the specification use for this idea: the storage a reference refers to?"
+    recall_answer: >-
+      Referent. The storage a reference refers to. Using a reference's name
+      reads or writes its referent. See References and mutability 9.4.
+
+  - id: reserved-word
+    term: reserved word
+    short: "A spelling set aside for a future version, such as i64 or const"
+    definition: >-
+      A spelling set aside for a future version, such as i64 or const. It has no
+      meaning in v0.1, and using it outside a comment or literal is a lexical
+      error. See Lexical structure and decision 29.
+    spec: >-
+      A spelling set aside for a future version, such as `i64` or `const`. It
+      has no meaning in v0.1, and using it outside a comment or literal is a
+      lexical error. See [Lexical structure](lexical-structure.md#24-keywords)
+      and [decision 29](../decisions/lexical.md#d29).
+    spec_ref: specification/lexical-structure.md#24-keywords
+    introduced_in: specification/lexical-structure.md
+    requires: []
+    recall_question: "Which term does the specification use for this idea: a spelling set aside for a future version, such as i64 or const?"
+    recall_answer: >-
+      Reserved word. A spelling set aside for a future version, such as i64 or
+      const. It has no meaning in v0.1, and using it outside a comment or
+      literal is a lexical error. See Lexical structure and decision 29.
+
+  - id: standard-error
+    term: standard error
+    short: "The output stream a program uses for error reports, kept separate from standard output"
+    definition: >-
+      The output stream a program uses for error reports, kept separate from
+      standard output. A runtime error is reported there.
+    spec: >-
+      The output stream a program uses for error reports, kept separate from
+      standard output. A runtime error is reported there.
+    introduced_in: specification/glossary.md
+    requires: []
+    recall_question: "Which term does the specification use for this idea: the output stream a program uses for error reports, kept separate from standard output?"
+    recall_answer: >-
+      Standard error. The output stream a program uses for error reports, kept
+      separate from standard output. A runtime error is reported there.
+
+  - id: static-error
+    term: static error
+    short: "The example-label group for code that parses but must be rejected before it runs: a name, type, semantic..."
+    definition: >-
+      The example-label group for code that parses but must be rejected before
+      it runs: a name, type, semantic or constant-evaluation error. It is not a
+      diagnostic category; each example names its exact category. See
+      Specification examples and record 51.
+    spec: >-
+      The example-label group for code that parses but must be rejected before
+      it runs: a name, type, semantic or constant-evaluation error. It is not a
+      diagnostic category; each example names its exact category. See
+      [Specification examples](conformance.md#18-specification-examples) and
+      [record 51](../decisions/documentation.md#d51).
+    spec_ref: specification/conformance.md#18-specification-examples
+    introduced_in: specification/conformance.md
+    requires: []
+    recall_question: "Which term does the specification use for this idea: the example-label group for code that parses but must be rejected before it runs: a name, type, semantic...?"
+    recall_answer: >-
+      Static error. The example-label group for code that parses but must be
+      rejected before it runs: a name, type, semantic or constant-evaluation
+      error. It is not a diagnostic category; each example names its exact
+      category. See Specification examples and record 51.
+
+  - id: terminating-statement
+    term: terminating statement
+    short: "A statement after which execution cannot continue with the next statement: a return, a non-empty block..."
+    definition: >-
+      A statement after which execution cannot continue with the next statement:
+      a return, a non-empty block whose last statement terminates, or an if with
+      an else whose branches both terminate. Loops never terminate. See
+      Statements 6.10.
+    spec: >-
+      A statement after which execution cannot continue with the next statement:
+      a `return`, a non-empty block whose last statement terminates, or an `if`
+      with an `else` whose branches both terminate. Loops never terminate. See
+      [Statements 6.10](statements.md#610-return).
+    spec_ref: specification/statements.md#610-return
+    introduced_in: specification/statements.md
+    requires: []
+    recall_question: "Which term does the specification use for this idea: a statement after which execution cannot continue with the next statement: a return, a non-empty block...?"
+    recall_answer: >-
+      Terminating statement. A statement after which execution cannot continue
+      with the next statement: a return, a non-empty block whose last statement
+      terminates, or an if with an else whose branches both terminate. Loops
+      never terminate. See Statements 6.10.
+
+  - id: unicode-scalar-value
+    term: Unicode scalar value
+    short: "A Unicode code point other than a surrogate: U+0000 to U+D7FF or U+E000 to U+10FFFF"
+    definition: >-
+      A Unicode code point other than a surrogate: U+0000 to U+D7FF or U+E000 to
+      U+10FFFF. Each source character and each char value is one Unicode scalar
+      value. See Lexical structure and decision 15.
+    spec: >-
+      A Unicode code point other than a surrogate: U+0000 to U+D7FF or U+E000 to
+      U+10FFFF. Each source character and each `char` value is one Unicode
+      scalar value. See [Lexical
+      structure](lexical-structure.md#source-encoding) and [decision
+      15](../decisions/lexical.md#d15).
+    spec_ref: specification/lexical-structure.md#source-encoding
+    introduced_in: specification/lexical-structure.md
+    requires: []
+    recall_question: "Which term does the specification use for this idea: a Unicode code point other than a surrogate: U+0000 to U+D7FF or U+E000 to U+10FFFF?"
+    recall_answer: >-
+      Unicode scalar value. A Unicode code point other than a surrogate: U+0000
+      to U+D7FF or U+E000 to U+10FFFF. Each source character and each char value
+      is one Unicode scalar value. See Lexical structure and decision 15.
+
+  - id: warning
+    term: warning
+    short: "A diagnostic that points out a likely mistake without rejecting the program"
+    definition: >-
+      A diagnostic that points out a likely mistake without rejecting the
+      program. Warnings are optional and never change whether a program is
+      accepted. See Diagnostics 10.1.
+    spec: >-
+      A diagnostic that points out a likely mistake without rejecting the
+      program. Warnings are optional and never change whether a program is
+      accepted. See [Diagnostics
+      10.1](diagnostics.md#101-required-diagnostic-data).
+    spec_ref: specification/diagnostics.md#101-required-diagnostic-data
+    introduced_in: specification/diagnostics.md
+    requires: []
+    recall_question: "Which term does the specification use for this idea: a diagnostic that points out a likely mistake without rejecting the program?"
+    recall_answer: >-
+      Warning. A diagnostic that points out a likely mistake without rejecting
+      the program. Warnings are optional and never change whether a program is
+      accepted. See Diagnostics 10.1.

@@ -1,0 +1,45 @@
+; ModuleID = 'column_walk.ll'
+source_filename = "column_walk.ll"
+
+@grid = global [64 x [64 x i32]] zeroinitializer
+
+define void @bump_columns() {
+entry:
+  br label %row.preheader
+
+col.preheader:                                    ; preds = %row
+  br label %col
+
+col:                                              ; preds = %col.preheader, %col.latch
+  %j = phi i64 [ %j.next, %col.latch ], [ 0, %col.preheader ]
+  br label %row.split1
+
+row.preheader:                                    ; preds = %entry
+  br label %row
+
+row:                                              ; preds = %row.preheader, %row.split
+  %i = phi i64 [ %0, %row.split ], [ 0, %row.preheader ]
+  br label %col.preheader
+
+row.split1:                                       ; preds = %col
+  %p = getelementptr inbounds [64 x [64 x i32]], ptr @grid, i64 0, i64 %i, i64 %j
+  %v = load i32, ptr %p, align 4
+  %v.1 = add i32 %v, 1
+  store i32 %v.1, ptr %p, align 4
+  %i.next = add nuw nsw i64 %i, 1
+  %row.done = icmp eq i64 %i.next, 64
+  br label %col.latch
+
+row.split:                                        ; preds = %col.latch
+  %0 = add nuw nsw i64 %i, 1
+  %1 = icmp eq i64 %0, 64
+  br i1 %1, label %exit, label %row
+
+col.latch:                                        ; preds = %row.split1
+  %j.next = add nuw nsw i64 %j, 1
+  %col.done = icmp eq i64 %j.next, 64
+  br i1 %col.done, label %row.split, label %col
+
+exit:                                             ; preds = %row.split
+  ret void
+}

@@ -1,0 +1,5 @@
+flags = ["-passes=loop-interchange"]
+follows = [
+  "https://github.com/llvm/llvm-project/blob/release/18.x/llvm/lib/Transforms/Scalar/LoopInterchange.cpp",
+  "https://llvm.org/docs/LangRef.html#getelementptr-instruction",
+]
