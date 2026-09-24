@@ -1,0 +1,8 @@
+AArch64 (bl)    0 stack-argument bytes: call aligned, entry aligned
+x86-64 (call)   0 stack-argument bytes: call aligned, entry aligned
+AArch64 (bl)    8 stack-argument bytes: call MISALIGNED, entry MISALIGNED
+x86-64 (call)   8 stack-argument bytes: call MISALIGNED, entry MISALIGNED
+AArch64 (bl)   16 stack-argument bytes: call aligned, entry aligned
+x86-64 (call)  16 stack-argument bytes: call aligned, entry aligned
+AArch64 (bl)   24 stack-argument bytes: call MISALIGNED, entry MISALIGNED
+x86-64 (call)  24 stack-argument bytes: call MISALIGNED, entry MISALIGNED

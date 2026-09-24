@@ -1,0 +1,14 @@
+// The same function one step down: linalg-1's op is gone, replaced by an
+// explicit loop nest (here, one loop) that a polyhedral pass could still
+// analyze. Run: mlir-opt --lower-affine
+module {
+  func.func @scale_add(%arg0: memref<4xf32>, %arg1: memref<4xf32>, %arg2: memref<4xf32>) {
+    affine.for %arg3 = 0 to 4 {
+      %0 = affine.load %arg0[%arg3] : memref<4xf32>
+      %1 = affine.load %arg1[%arg3] : memref<4xf32>
+      %2 = arith.addf %0, %1 : f32
+      affine.store %2, %arg2[%arg3] : memref<4xf32>
+    }
+    return
+  }
+}

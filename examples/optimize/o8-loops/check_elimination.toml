@@ -1,0 +1,6 @@
+flags = ["-passes=loop(indvars),simplifycfg"]
+follows = [
+  "https://github.com/llvm/llvm-project/blob/release/18.x/llvm/lib/Transforms/Scalar/IndVarSimplify.cpp",
+  "https://github.com/llvm/llvm-project/blob/release/18.x/llvm/lib/Transforms/Utils/SimplifyIndVar.cpp",
+  "https://llvm.org/docs/Passes.html",
+]

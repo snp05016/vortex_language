@@ -1,0 +1,7 @@
+# The address-space numbers and the convergent attribute this example uses
+# are explained in the NVPTX, AMDGPU and Convergent Operations guides.
+follows = [
+  "https://llvm.org/docs/NVPTXUsage.html",
+  "https://llvm.org/docs/AMDGPUUsage.html",
+  "https://llvm.org/docs/ConvergentOperations.html",
+]

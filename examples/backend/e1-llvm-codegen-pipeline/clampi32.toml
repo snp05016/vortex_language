@@ -1,0 +1,8 @@
+# The chapter follows this function through llc -O0 (GlobalISel) and -O2
+# (SelectionDAG), then through -stop-after=finalize-isel and
+# -run-pass=greedy to show MIR before and after register allocation.
+follows = [
+  "https://llvm.org/docs/CodeGenerator.html",
+  "https://llvm.org/docs/MIRLangRef.html",
+  "https://llvm.org/docs/GlobalISel/index.html",
+]

@@ -1,0 +1,10 @@
+Shared-memory tiles for a tiled matmul (an A tile and a B tile, both f32):
+-- 16x16 tile pair, 2048 bytes --
+NVIDIA Hopper, per block      232448 B budget   113 tile(s) of 2048 B
+Apple GPU, per threadgroup     32768 B budget    16 tile(s) of 2048 B
+-- 32x32 tile pair, 8192 bytes --
+NVIDIA Hopper, per block      232448 B budget    28 tile(s) of 8192 B
+Apple GPU, per threadgroup     32768 B budget     4 tile(s) of 8192 B
+-- 64x64 tile pair, 32768 bytes --
+NVIDIA Hopper, per block      232448 B budget     7 tile(s) of 32768 B
+Apple GPU, per threadgroup     32768 B budget     1 tile(s) of 32768 B

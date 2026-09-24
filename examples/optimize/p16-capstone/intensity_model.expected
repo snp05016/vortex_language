@@ -1,0 +1,5 @@
+block_side = 16.0000 (a model parameter, not a cache size)
+N       naive flops/byte   blocked flops/byte
+   64              0.2500                4.0000
+  256              0.2500                4.0000
+ 1024              0.2500                4.0000

@@ -1,0 +1,15 @@
+; ModuleID = 'object_model.ll'
+source_filename = "object_model.ll"
+
+@event_count = global i32 0
+
+declare void @report(i32)
+
+define void @bump_and_report() {
+entry:
+  %old = load i32, ptr @event_count, align 4
+  %new = add i32 %old, 1
+  store i32 %new, ptr @event_count, align 4
+  call void @report(i32 %new)
+  ret void
+}

@@ -1,0 +1,12 @@
+; ModuleID = 'mixed_args.ll'
+source_filename = "mixed_args.ll"
+
+define i64 @combine(i64 %a, float %b, i64 %c, float %d) {
+entry:
+  %bi = fptosi float %b to i64
+  %di = fptosi float %d to i64
+  %s1 = add i64 %a, %bi
+  %s2 = add i64 %s1, %c
+  %s3 = add i64 %s2, %di
+  ret i64 %s3
+}

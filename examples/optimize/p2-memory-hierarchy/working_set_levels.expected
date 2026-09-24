@@ -1,0 +1,9 @@
+       4 KiB -> fits in L1
+      16 KiB -> fits in L1
+      64 KiB -> fits in L1
+     256 KiB -> fits in L2
+    1024 KiB -> fits in L2
+    4096 KiB -> fits in L2
+   16384 KiB -> fits in L2
+   65536 KiB -> fits in DRAM
+  262144 KiB -> fits in DRAM

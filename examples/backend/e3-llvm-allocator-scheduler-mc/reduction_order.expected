@@ -1,0 +1,18 @@
+; ModuleID = 'reduction_order.ll'
+source_filename = "reduction_order.ll"
+
+define float @chain_sum(float %a, float %b, float %c, float %d) {
+entry:
+  %s1 = fadd float %a, %b
+  %s2 = fadd float %s1, %c
+  %s3 = fadd float %s2, %d
+  ret float %s3
+}
+
+define float @tree_sum(float %a, float %b, float %c, float %d) {
+entry:
+  %s1 = fadd float %a, %b
+  %s2 = fadd float %c, %d
+  %s3 = fadd float %s1, %s2
+  ret float %s3
+}

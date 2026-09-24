@@ -1,0 +1,30 @@
+module attributes {transform.with_named_sequence} {
+  func.func @mm(%arg0: memref<64x32xf32>, %arg1: memref<32x16xf32>, %arg2: memref<64x16xf32>) {
+    %c0 = arith.constant 0 : index
+    %c64 = arith.constant 64 : index
+    %c16 = arith.constant 16 : index
+    scf.for %arg3 = %c0 to %c64 step %c16 {
+      %c0_0 = arith.constant 0 : index
+      %c16_1 = arith.constant 16 : index
+      %c16_2 = arith.constant 16 : index
+      scf.for %arg4 = %c0_0 to %c16_1 step %c16_2 {
+        %c0_3 = arith.constant 0 : index
+        %c32 = arith.constant 32 : index
+        %c8 = arith.constant 8 : index
+        scf.for %arg5 = %c0_3 to %c32 step %c8 {
+          %subview = memref.subview %arg0[%arg3, %arg5] [16, 8] [1, 1] : memref<64x32xf32> to memref<16x8xf32, strided<[32, 1], offset: ?>>
+          %subview_4 = memref.subview %arg1[%arg5, %arg4] [8, 16] [1, 1] : memref<32x16xf32> to memref<8x16xf32, strided<[16, 1], offset: ?>>
+          %subview_5 = memref.subview %arg2[%arg3, %arg4] [16, 16] [1, 1] : memref<64x16xf32> to memref<16x16xf32, strided<[16, 1], offset: ?>>
+          linalg.matmul ins(%subview, %subview_4 : memref<16x8xf32, strided<[32, 1], offset: ?>>, memref<8x16xf32, strided<[16, 1], offset: ?>>) outs(%subview_5 : memref<16x16xf32, strided<[16, 1], offset: ?>>)
+        }
+      }
+    }
+    return
+  }
+  transform.named_sequence @__transform_main(%arg0: !transform.any_op {transform.readonly}) {
+    %0 = transform.structured.match ops{["linalg.matmul"]} in %arg0 : (!transform.any_op) -> !transform.any_op
+    %tiled_linalg_op, %loops:3 = transform.structured.tile_using_for %0[16, 16, 8] : (!transform.any_op) -> (!transform.any_op, !transform.any_op, !transform.any_op, !transform.any_op)
+    transform.yield 
+  }
+}
+

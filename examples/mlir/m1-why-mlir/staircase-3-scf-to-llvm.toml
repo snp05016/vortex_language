@@ -1,0 +1,12 @@
+flags = [
+  "--convert-scf-to-cf",
+  "--convert-arith-to-llvm",
+  "--finalize-memref-to-llvm",
+  "--convert-func-to-llvm",
+  "--reconcile-unrealized-casts",
+]
+follows = [
+  "https://mlir.llvm.org/docs/Dialects/SCFDialect/",
+  "https://mlir.llvm.org/docs/Dialects/LLVM/",
+  "https://mlir.llvm.org/docs/Passes/#-convert-func-to-llvm",
+]

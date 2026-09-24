@@ -1,0 +1,8 @@
+Program A: the branch reads the compare's flag
+candidate: cmp
+  refused: nzcv is still live
+candidate: mov
+  safe to delete: none of its results are live
+Program B: nothing reads the flag afterward
+candidate: cmp
+  safe to delete: none of its results are live

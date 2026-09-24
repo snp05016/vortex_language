@@ -1,0 +1,4 @@
+follows = [
+  "https://mlir.llvm.org/docs/Dialects/Linalg/",
+  "https://mlir.llvm.org/docs/Dialects/MemRef/",
+]

@@ -1,0 +1,81 @@
+--- !Missed
+Pass:            inline
+Name:            NeverInline
+Function:        factorial
+Args:
+  - String:          ''''
+  - Callee:          factorial
+  - String:          ''' not inlined into '''
+  - Caller:          factorial
+  - String:          ''' because it should never be inlined '
+  - String:          '(cost=never)'
+  - String:          ': '
+  - Reason:          recursive
+...
+--- !Passed
+Pass:            inline
+Name:            Inlined
+Function:        fast_caller
+Args:
+  - String:          ''''
+  - Callee:          shade
+  - String:          ''' inlined into '''
+  - Caller:          fast_caller
+  - String:          ''''
+  - String:          ' with '
+  - String:          '(cost='
+  - Cost:            '-40'
+  - String:          ', threshold='
+  - Threshold:       '337'
+  - String:          ')'
+...
+--- !Passed
+Pass:            inline
+Name:            Inlined
+Function:        fast_caller
+Args:
+  - String:          ''''
+  - Callee:          shade
+  - String:          ''' inlined into '''
+  - Caller:          fast_caller
+  - String:          ''''
+  - String:          ' with '
+  - String:          '(cost='
+  - Cost:            '5'
+  - String:          ', threshold='
+  - Threshold:       '225'
+  - String:          ')'
+...
+--- !Passed
+Pass:            inline
+Name:            Inlined
+Function:        fast_caller
+Args:
+  - String:          ''''
+  - Callee:          square
+  - String:          ''' inlined into '''
+  - Caller:          fast_caller
+  - String:          ''''
+  - String:          ' with '
+  - String:          '(cost='
+  - Cost:            '-15030'
+  - String:          ', threshold='
+  - Threshold:       '337'
+  - String:          ')'
+...
+--- !Missed
+Pass:            inline
+Name:            TooCostly
+Function:        small_caller
+Args:
+  - String:          ''''
+  - Callee:          shade
+  - String:          ''' not inlined into '''
+  - Caller:          small_caller
+  - String:          ''' because too costly to inline '
+  - String:          '(cost='
+  - Cost:            '5'
+  - String:          ', threshold='
+  - Threshold:       '5'
+  - String:          ')'
+...

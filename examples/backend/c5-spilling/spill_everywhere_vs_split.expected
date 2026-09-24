@@ -1,0 +1,3 @@
+spill everywhere: 9 loads, 1 stores, 10 total
+split:            1 loads, 1 stores, 2 total
+memory ops avoided by splitting: 8

@@ -1,0 +1,3 @@
+elements visited: 512, elements per line: 32
+line transitions, row order (stride 1):    16
+line transitions, column order (stride 64): 512

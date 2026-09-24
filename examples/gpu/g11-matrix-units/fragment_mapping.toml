@@ -1,0 +1,4 @@
+follows = [
+  "https://developer.apple.com/metal/Metal-Shading-Language-Specification.pdf",
+  "https://docs.nvidia.com/cuda/cuda-programming-guide/05-appendices/cpp-language-extensions.html#warp-matrix-functions",
+]

@@ -1,10 +1,357 @@
 # D2. JIT compilation
 
-<p class="page-intro">Executable memory, W^X, Apple's MAP_JIT and calling code generated at run time.</p>
+<p class="page-intro">How a program can write machine code into its own memory and call it, safely, without ever going through an object file or a linker: the page permissions that make this possible, and why Vortex will eventually want it for auto-tuning.</p>
 
-!!! note "This chapter is being written"
+<p class="vx-meta" markdown="1">Level: Advanced · Reading time: about 22 minutes · Builds on: [B3. Object files and assemblers](b3-object-files.md)</p>
 
-    It belongs to the Back end book (D. Around the code). Until it is published,
-    the [book overview](index.md) lists every chapter and its status.
+???+ remember "Before you start, remember"
 
-    **Builds on:** [B3. Object files and assemblers](b3-object-files.md).
+    ??? question "What does a relocation record, and who resolves it?"
+
+        Which bytes are wrong, which symbol will fix them, and how to combine
+        the symbol's final address with what is already sitting in those
+        bytes. A linker resolves every relocation when it decides where each
+        piece of the program will finally live.
+
+        Introduced in [B3. Object files and assemblers](b3-object-files.md#relocations-the-holes-themselves).
+
+    ??? question "What does AAPCS64 do with a function's first two integer arguments, and with its result?"
+
+        The first eight general-purpose arguments go in `x0` through `x7`, in
+        order, so the first two land in `x0` and `x1`. A general-purpose
+        result comes back in `x0`.
+
+        Introduced in [A4. Calling conventions and ABIs](a4-calling-conventions.md#where-arguments-go-two-counters-not-one).
+
+    ??? question "What is an instruction's encoding?"
+
+        The fixed pattern of bits that represents it. On AArch64 every
+        instruction, with no exceptions, is exactly one 32-bit word.
+
+        Introduced in [A1. The machine model](a1-machine-model.md#encoding-an-instruction-is-a-fixed-pattern-of-bits).
+
+    ??? question "In assembly text, what is a directive, and does the processor ever execute one?"
+
+        An order to the assembler, such as `.globl` or `.p2align`, not an
+        instruction. The processor never sees it: the assembler acts on it
+        while turning the text into bytes, and no trace of it remains in the
+        object file's code.
+
+        Introduced in [A2. Reading and writing AArch64 assembly](a2-aarch64-assembly.md#the-smallest-complete-file).
+
+!!! goals "In this chapter"
+
+    - Explain why an ordinary page of memory can never be both writable and executable at once, and name the mechanism each of Linux and Apple Silicon uses to enforce it.
+    - Encode a short sequence of instructions by hand, place the bytes in memory the processor is allowed to run, and call them through a function pointer.
+    - Recognize why a freshly written instruction needs an explicit instruction-cache invalidation before it is safe to execute.
+    - Compare what a JIT skips against the B1 through B4 path from source to a linked, loaded executable, and say what that shortcut costs.
+    - Judge when a future Vortex auto-tuner would want a JIT instead of recompiling and relaunching a process for every kernel variant.
+
+## A function that did not exist a moment ago
+
+Every back end chapter so far has ended the same way: bytes land in a file,
+a linker joins that file with others, a loader maps the result into a new
+process, and only then does anything run. A **just-in-time compiler**, or
+**JIT**, skips all of that. It is a program that generates machine code
+*into its own address space*, while it is running, and then jumps to that
+code directly, in the same process, with no file and no linker in between.
+
+Here is the smallest version of that idea, worked by hand. Two AArch64
+instructions, `add x0, x0, x1` and `ret`, are exactly two 32-bit words. Piping
+them through `llvm-mc`'s encoder shows the bytes:[^llvm-mc]
+
+```text
+add x0, x0, x1     ; encoding: [0x00,0x00,0x01,0x8b]
+ret                 ; encoding: [0xc0,0x03,0x5f,0xd6]
+```
+
+Read little-endian, that is the words `0x8b010000` and `0xd65f03c0`. A
+program that puts those eight bytes somewhere it is allowed to execute, then
+calls that address as if it were a function of type `int64_t(int64_t,
+int64_t)`, has just JIT-compiled `x + y`. Nothing wrote a `.o` file. Nothing
+ran a linker. The example below does exactly this and prints `7`:
+
+--8<-- "includes/examples/backend/d2-jit/jit_call.cpp.md"
+
+The function pointer cast near the bottom is doing real work, not only
+satisfying the type checker: it tells the calling code to follow AAPCS64,
+put `3` in `x0` and `4` in `x1`, jump to `mem`, and read the result out of
+`x0` on return. That is exactly what the two hand-written instructions
+expect, because the same convention that governs an ordinary compiled call
+also governs a call into freshly generated bytes. A JIT does not get to
+invent its own calling convention; it has to honor the one the calling code
+already assumes.
+
+## Why an ordinary buffer will not run
+
+Ask why this needs `mmap` and `mprotect` at all, rather than `new
+std::byte[8]`, and the answer is a deliberate limit on what memory can do.
+Ordinary heap memory is readable and writable but not executable: the
+processor's memory-management unit tags each page with permission bits, and
+a page without the executable bit raises a fault the instant the processor
+tries to fetch an instruction from it. This is not an accident of some
+particular allocator; it is a security boundary called **W^X** ("write xor
+execute"), and it exists because of what happens without it. If an attacker
+can get arbitrary bytes into a region of memory that is simultaneously
+writable and executable, those bytes *are* an exploit: no return-oriented
+tricks or gadget-chaining required, just write, then jump. Every mainstream
+operating system now refuses to hand out that combination on purpose. Eli
+Bendersky's introduction to JIT compilation states the rule plainly: a page
+of memory is "either writable or executable, but never both at the same
+time."[^bendersky]
+
+A JIT's whole job is to write code and then run it, so it has to cross that
+boundary without ever holding both permissions at once. The general shape,
+on Linux and on any POSIX system that does not add extra restrictions, is
+two calls: `mmap` a region as readable and writable, copy the instruction
+bytes in, then `mprotect` the same region to readable and executable. Between
+those two calls the memory is writable-only; after the second call it is
+executable-only. At no instant does it hold both bits. `jit_call.cpp` above
+follows exactly this sequence, and it is enough, on this book's machine, for
+a small unsigned command-line tool.
+
+<figure class="vx-figure">
+<svg viewBox="0 0 760 320" role="img" aria-labelledby="d2-cycle-title d2-cycle-desc">
+<title id="d2-cycle-title">The W^X cycle a JIT repeats for every variant</title>
+<desc id="d2-cycle-desc">Four boxes in a row: allocate, mapped read and write only; write bytes, the instruction words are copied in while still read and write only; mprotect to read and execute, the page can no longer be written; invalidate the instruction cache, then call. A curved arrow labeled "a new variant: mprotect back to read and write" loops from the call box back to the write-bytes box, showing the cycle an auto-tuner repeats for each candidate it times.</desc>
+<g class="vx-seq" style="--vx-i: 0; --vx-n: 4">
+<rect class="vx-box" x="20" y="40" width="150" height="72" rx="6"/>
+<text class="vx-text" x="95" y="68" text-anchor="middle" font-weight="600">Allocate</text>
+<text class="vx-mono" x="95" y="90" text-anchor="middle" font-size="12">PROT_READ|WRITE</text>
+<text class="vx-text-muted" x="95" y="106" text-anchor="middle" font-size="11">mmap</text>
+</g>
+<g class="vx-seq" style="--vx-i: 1; --vx-n: 4">
+<rect class="vx-box" x="215" y="40" width="150" height="72" rx="6"/>
+<text class="vx-text" x="290" y="68" text-anchor="middle" font-weight="600">Write bytes</text>
+<text class="vx-mono" x="290" y="90" text-anchor="middle" font-size="12">still RW-only</text>
+<text class="vx-text-muted" x="290" y="106" text-anchor="middle" font-size="11">memcpy</text>
+</g>
+<g class="vx-seq" style="--vx-i: 2; --vx-n: 4">
+<rect class="vx-box-accent" x="410" y="40" width="150" height="72" rx="6"/>
+<text class="vx-text" x="485" y="68" text-anchor="middle" font-weight="600">mprotect → RX</text>
+<text class="vx-mono" x="485" y="90" text-anchor="middle" font-size="12">PROT_READ|EXEC</text>
+<text class="vx-text-muted" x="485" y="106" text-anchor="middle" font-size="11">never RW and RX together</text>
+</g>
+<g class="vx-seq" style="--vx-i: 3; --vx-n: 4">
+<rect class="vx-box" x="605" y="40" width="140" height="72" rx="6"/>
+<text class="vx-text" x="675" y="63" text-anchor="middle" font-weight="600">Invalidate</text>
+<text class="vx-text" x="675" y="80" text-anchor="middle" font-weight="600">icache, call</text>
+<text class="vx-text-muted" x="675" y="100" text-anchor="middle" font-size="11">safe to run</text>
+</g>
+<line class="vx-line" x1="170" y1="76" x2="215" y2="76"/>
+<line class="vx-line" x1="365" y1="76" x2="410" y2="76"/>
+<line class="vx-line" x1="560" y1="76" x2="605" y2="76"/>
+<path class="vx-flow vx-travel" style="--vx-distance: 640px" d="M 675 112 C 675 230, 290 230, 290 112"/>
+<text class="vx-text-muted" x="480" y="255" text-anchor="middle" font-size="12">a new variant: mprotect back to RW, then repeat</text>
+</svg>
+<figcaption>Figure 1. The cycle every JIT-generated instruction goes through: allocate the buffer once, then write, protect, invalidate and call it, in that order, every single time the bytes change. An auto-tuner that times several kernel variants runs this whole loop once per variant, on the same buffer.</figcaption>
+</figure>
+
+??? check "A program allocates memory with `mmap(..., PROT_READ | PROT_WRITE | PROT_EXEC, ...)` in one call, skipping `mprotect` entirely. What is wrong with this, even if it happens to run?"
+
+    It asks for a page that is writable and executable at the same time,
+    which is exactly the combination W^X exists to prevent. Some systems
+    still grant it, but relying on that is both a security hole (any bug
+    that lets an attacker control the buffer's contents becomes arbitrary
+    code execution) and non-portable: Apple Silicon rejects this combination
+    outright rather than merely discouraging it.
+
+## Apple Silicon tightens the rule further
+
+Apple's own porting guide for JIT compilers goes further than "never both at
+once": on Apple Silicon, "an app cannot create memory that's both writable
+and executable"[^apple-jit] *at all*, through the ordinary `mmap`/`mprotect`
+pair, once the app is the kind of signed, hardened-runtime binary that ships
+to users. Instead of toggling one memory-mapped region's protection bits with
+`mprotect`, the documented pattern uses a special flag, `MAP_JIT`, on the
+`mmap` call, and then flips the mapping between writable and executable with
+`pthread_jit_write_protect_np(0)` and `pthread_jit_write_protect_np(1)`,
+*per thread*, rather than through the virtual-memory system at all. A shipped
+app that wants this needs the `com.apple.security.cs.allow-jit` entitlement
+under the hardened runtime.[^apple-entitlement] After writing new
+instructions, Apple's guide adds one more required step, `sys_icache_invalidate`,
+covered in the next section.
+
+That extra machinery is scoped to signed, entitled apps, and it is worth
+confirming rather than assuming. On this book's machine (an Apple M4 Pro
+running macOS 27, Apple clang 21, checked 2026-09-24), a plain command-line
+tool built with `mmap(..., MAP_JIT, ...)` and
+`pthread_jit_write_protect_np` mapped and wrote its buffer without
+complaint, but the process was killed by a bus error the instant it tried to
+*call* into that page: the entitlement above is what is missing, not
+anything about the bytes or the protection bits. The same tool, built with
+the plain `mmap`/`mprotect` pair from the previous section and no `MAP_JIT`
+in sight, called its generated code with no error at all. The two mechanisms
+are not interchangeable in general: a production JIT distributed through
+Apple's hardened runtime has to use `MAP_JIT` and carry the entitlement, and
+`jit_call.cpp` on this page takes the plain route only because it is an
+unsigned, un-entitled command-line example. Either way, the invariant from
+the previous section holds: whichever mechanism a program uses, the memory
+it runs is never both writable and executable at the same instant.
+
+??? check "Why does `pthread_jit_write_protect_np` take effect per thread rather than for the whole process?"
+
+    So that one thread can be generating and writing new code while another
+    thread keeps calling already-finished code in the same mapping, without
+    either thread waiting on a process-wide permission change. A JIT that
+    compiles on a background thread while the main thread runs earlier
+    output depends on exactly this.
+
+## Keeping the instruction cache honest
+
+`mprotect` and `MAP_JIT` answer "is this page allowed to run instructions."
+They do not answer a separate question: has the processor's own hardware
+already cached something else for this address? Modern processors, AArch64
+included, keep separate caches for instructions and for data, and a write
+through the data path does not automatically appear on the instruction
+path.[^armarm] If code at some address ran once, then new bytes are written
+to that same address and the page becomes executable again, a core can still
+fetch the *old*, cached instructions instead of the new ones, because
+nothing told its instruction cache that the address changed underneath it.
+
+The fix is an explicit instruction-cache invalidation, one call, after every
+write and before the corresponding call. Apple's guide names
+`sys_icache_invalidate` for this.[^apple-jit] Portable code, including code
+that has to work on Linux as well, can instead call the compiler builtin
+`__builtin___clear_cache(start, end)`, which GCC's manual documents as
+flushing the instruction cache "on targets that need it" and doing nothing
+on targets, such as x86-64, where instruction and data caches are already
+kept coherent by the hardware.[^gcc-clearcache] `jit_call.cpp` calls it
+right after `mprotect`, before the first call into the buffer, and it costs
+nothing to call on a target where it is unnecessary.
+
+## Rewriting: what a JIT gives you that a file never does
+
+The cycle in Figure 1 says "repeat" for a reason: nothing about the buffer in
+`jit_call.cpp` is used up after one call. The same address can hold a
+completely different function a moment later, as long as every write goes
+through the same allocate-once, write/protect/invalidate-every-time sequence.
+`jit_recompile.cpp` does this twice on one buffer: it writes `add x0, x0,
+x1; ret`, calls it, then overwrites the identical address with `sub x0, x0,
+x1; ret` (`llvm-mc` gives this the encoding `0xcb010000`, one bit different
+from `add`'s `0x8b010000`) and calls the same function pointer again.
+
+--8<-- "includes/examples/backend/d2-jit/jit_recompile.cpp.md"
+
+The second call reads `3 - 4`, not `3 + 4`, because the write/protect/
+invalidate cycle ran again before it. Skip any one step of that cycle on the
+second write, and the failure is exactly the kind that is hard to catch by
+inspection: the mprotect-to-RW step missing raises an immediate permission
+fault, which is at least loud, but the invalidate step missing can let the
+core run stale, already-cached instructions and silently return the *first*
+variant's answer instead of the second's, on a machine where those
+instructions happened to already be cached and no fault occurs at all.
+
+This is the concrete version of the point made [in the introduction](#a-function-that-did-not-exist-a-moment-ago):
+recompiling by writing a new object file, relinking, and starting a new
+process also works, but it means paying a linker and a process launch for
+every single variant. A JIT pays the much smaller cost of one
+`mprotect`/invalidate cycle instead, on a buffer that already exists, in a
+process that is already warmed up and holding whatever state led to wanting
+a new variant in the first place, such as a set of timed inputs.
+
+## LLVM's own JIT, briefly
+
+Everything above hand-encodes machine words directly, which is honest about
+the mechanism but not how a real compiler's JIT usually works. LLVM ships
+its own JIT infrastructure, **ORC** (On-Request Compilation), currently at
+its second design, ORCv2. Its top-level entry points, `LLJIT` for eager
+compilation and `LLLazyJIT` for compiling functions only when first called,
+take LLVM IR or a COFF, ELF or Mach-O *object file* and handle allocation,
+protection, symbol resolution and, through its lower layer JITLink, the
+relocations from [B3](b3-object-files.md#relocations-the-holes-themselves)
+in memory instead of on disk.[^orcv2] The point is the same shortcut this
+chapter has been building by hand: ORC still produces an object file's worth
+of relocated code, but it never writes that object file to a filesystem or
+hands it to an external linker process; JITLink resolves the relocations
+directly into the memory ORC has already allocated and protected. LLVM's own
+Kaleidoscope tutorial walks through wiring a JIT into a toy language's
+front end step by step, starting from "evaluate this expression the moment
+it is parsed" and building up to functions and mutable variables.[^kal4]
+
+??? check "ORC's `LLLazyJIT` compiles a function only the first time it is called, not when the module is loaded. What does this trade away, compared to compiling everything eagerly at load time?"
+
+    Predictability of *when* the cost of compiling any given function is
+    paid: the very first call to a lazily compiled function is slower than
+    every later call, because that first call is also doing the compilation.
+    In exchange, a program that only ever calls a fraction of its functions
+    never pays to compile the rest at all.
+
+## For Vortex
+
+!!! vortex "Exercise"
+
+    **Build a standalone JIT harness, separate from the compiler's normal
+    pipeline.** Write a small utility, in its own translation unit, that
+    takes a byte buffer of already-encoded instructions (words you hand-write
+    for now, the way `jit_call.cpp` does) and:
+
+    1. allocates a page-sized buffer with the write/protect/invalidate cycle
+       from this chapter, checked against a real assertion that the buffer's
+       current protection is never `PROT_WRITE | PROT_EXEC` together, on
+       whichever platform you build on first;
+    2. exposes a way to write a new set of bytes into that same buffer and
+       call it again, matching `jit_recompile.cpp`'s pattern;
+    3. calls the buffer through a function pointer whose C++ type matches
+       AAPCS64's argument and return registers
+       ([A4](a4-calling-conventions.md#where-arguments-go-two-counters-not-one))
+       for a small, fixed signature you choose, such as
+       `int64_t(int64_t, int64_t)`.
+
+    Then write a test with two parts. First, a **differential** check: run
+    the same small arithmetic expression (nothing fancier than the kernel
+    `2 + 3 * 4` from [stage 6](../compiler/guide/stage-6-first-machine-code.md))
+    both through your harness, hand-encoding the instructions once by
+    working out their bytes with `llvm-mc -show-encoding` the way this
+    chapter did, and through your compiler's normal, non-JIT path, and assert
+    the two answers match. Second, a **W^X regression** test: deliberately
+    call your buffer's execute step without having called its protect step
+    first, and assert that this either fails the assertion from step 1 or
+    faults, on every platform your harness targets, rather than silently
+    succeeding on some and not others.
+
+    **Not yet.** Do not connect this harness to Vortex's own code generator:
+    it hand-encodes fixed instruction sequences you write for the exercise,
+    the way this chapter's examples do, not output from your back end. Do
+    not attempt to JIT a whole Vortex program, or the matrix-multiply kernel
+    from [stage 10](../compiler/guide/stage-10-matrix-multiplication.md#the-program-the-milestone-asks-for);
+    that is a project for whenever auto-tuning itself is in scope, which the
+    roadmap places after v0.1. Do not try to make the harness thread-safe or
+    reusable across multiple buffers yet; one buffer, one thread, is enough
+    to prove the mechanism.
+
+    **Done when** the differential test passes on your machine's own
+    platform, and the W^X regression test fails loudly (not silently, and
+    not only sometimes) when you comment out the protect-before-execute step
+    to check that your test would actually have caught the bug it is named
+    for.
+
+## Key ideas
+
+!!! recap "You can now answer"
+
+    - **What makes a JIT different from B1 through B4's path?** It generates code into its own process's memory and calls it directly, with no object file written to disk and no separate linker process.
+    - **Why can a page never be both writable and executable at once?** Because that combination turns any bug that lets an attacker control the buffer's bytes into arbitrary code execution; W^X removes the combination rather than trusting every writer to behave.
+    - **What two steps does a plain `mmap`/`mprotect` JIT never do at the same instant?** Write to the page and execute it. The page is RW while bytes go in, then `mprotect` switches it to RX before the first call.
+    - **What does Apple Silicon add beyond `mprotect`?** `MAP_JIT`, per-thread toggling with `pthread_jit_write_protect_np`, and, for a signed app under the hardened runtime, the `com.apple.security.cs.allow-jit` entitlement, without which a call into the mapping fails even though writing to it succeeds.
+    - **Why does a freshly written instruction sometimes need an explicit cache invalidation before it runs correctly?** Instruction and data caches on AArch64 are not automatically kept coherent; a write through the data path can leave a core's instruction fetch reading stale, previously cached bytes at that address.
+    - **What does ORCv2's `LLLazyJIT` add beyond `LLJIT`?** It compiles each function the first time it is called rather than at load time, trading a slower first call for never compiling functions that are never used.
+
+## Where this comes back
+
+!!! next "You will use this again in"
+
+    - [P15. Choosing parameters: models or search](../optimize/p15-choosing-parameters.md): *timed kernel variants*, *a code buffer that can hold a new candidate every iteration*
+    - [P16. Capstone: the ladder, measured](../optimize/p16-capstone.md): *measuring a variant in-process instead of relaunching for each one*
+    - [D3. Reading real back ends](d3-real-backends.md): *small, embedded JITs and interpreter loops in real compilers*
+
+## Sources and further reading
+
+[^bendersky]: Eli Bendersky, "How to JIT - an introduction", 5 November 2013: the `mmap`/`mprotect` pattern and the "writable or executable, but never both" rule. <https://eli.thegreenplace.net/2013/11/05/how-to-jit-an-introduction>
+[^apple-jit]: Apple, "Porting just-in-time compilers to Apple silicon", Apple Developer Documentation: `MAP_JIT`, `pthread_jit_write_protect_np` and `sys_icache_invalidate`. <https://developer.apple.com/documentation/apple-silicon/porting-just-in-time-compilers-to-apple-silicon>
+[^apple-entitlement]: Apple, `com.apple.security.cs.allow-jit` entitlement reference, Apple Developer Documentation. <https://developer.apple.com/documentation/bundleresources/entitlements/com.apple.security.cs.allow-jit>
+[^armarm]: Arm, *Arm Architecture Reference Manual for A-profile architecture* (DDI 0487): instruction and data cache coherency and the requirement for explicit maintenance after self-modifying or newly generated code. <https://developer.arm.com/documentation/ddi0487/latest>
+[^gcc-clearcache]: GCC, "Other Builtins", GCC online documentation: `__builtin___clear_cache`, described as flushing the instruction cache on targets that need it and doing nothing where it is unnecessary. <https://gcc.gnu.org/onlinedocs/gcc/Other-Builtins.html>
+[^orcv2]: LLVM Project, "ORCv2", LLVM documentation: `LLJIT`, `LLLazyJIT` and JITLink's in-memory relocation of COFF, ELF and Mach-O objects. <https://llvm.org/docs/ORCv2.html>
+[^kal4]: LLVM Project, "My First Language Frontend with LLVM Tutorial", chapter 4, "Adding JIT and Optimizer Support". <https://llvm.org/docs/tutorial/MyFirstLanguageFrontend/LangImpl04.html>
+[^llvm-mc]: LLVM Project, `llvm-mc` command guide: `-show-encoding`, used throughout this chapter to check every hand-written instruction word before it appears on the page. <https://llvm.org/docs/CommandGuide/llvm-mc.html>

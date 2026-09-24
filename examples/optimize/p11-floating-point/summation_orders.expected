@@ -1,0 +1,4 @@
+exact      = 16877215
+sequential = 16777216  (error 99999)
+pairwise   = 16877210  (error 5)
+kahan      = 16877216  (error -1)

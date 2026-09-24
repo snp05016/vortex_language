@@ -1,0 +1,86 @@
+; ModuleID = 'runtime_checks.ll'
+source_filename = "runtime_checks.ll"
+
+define void @axpy_may_alias(ptr %y, ptr %x, float %a) {
+entry:
+  %scevgep = getelementptr i8, ptr %y, i64 256
+  %scevgep1 = getelementptr i8, ptr %x, i64 256
+  %bound0 = icmp ult ptr %y, %scevgep1
+  %bound1 = icmp ult ptr %x, %scevgep
+  %found.conflict = and i1 %bound0, %bound1
+  br i1 %found.conflict, label %loop, label %vector.ph
+
+vector.ph:                                        ; preds = %entry
+  %broadcast.splatinsert = insertelement <4 x float> poison, float %a, i64 0
+  %broadcast.splat = shufflevector <4 x float> %broadcast.splatinsert, <4 x float> poison, <4 x i32> zeroinitializer
+  br label %vector.body
+
+vector.body:                                      ; preds = %vector.body, %vector.ph
+  %index = phi i64 [ 0, %vector.ph ], [ %index.next, %vector.body ]
+  %0 = add i64 %index, 0
+  %1 = getelementptr inbounds float, ptr %x, i64 %0
+  %2 = getelementptr inbounds float, ptr %y, i64 %0
+  %3 = getelementptr inbounds float, ptr %1, i32 0
+  %wide.load = load <4 x float>, ptr %3, align 4, !alias.scope !0
+  %4 = getelementptr inbounds float, ptr %2, i32 0
+  %wide.load2 = load <4 x float>, ptr %4, align 4, !alias.scope !3, !noalias !0
+  %5 = fmul <4 x float> %broadcast.splat, %wide.load
+  %6 = fadd <4 x float> %wide.load2, %5
+  store <4 x float> %6, ptr %4, align 4, !alias.scope !3, !noalias !0
+  %index.next = add nuw i64 %index, 4
+  %7 = icmp eq i64 %index.next, 64
+  br i1 %7, label %done, label %vector.body, !llvm.loop !5
+
+loop:                                             ; preds = %entry, %loop
+  %i = phi i64 [ %i.next, %loop ], [ 0, %entry ]
+  %px = getelementptr inbounds float, ptr %x, i64 %i
+  %py = getelementptr inbounds float, ptr %y, i64 %i
+  %xv = load float, ptr %px, align 4
+  %yv = load float, ptr %py, align 4
+  %t = fmul float %a, %xv
+  %s = fadd float %yv, %t
+  store float %s, ptr %py, align 4
+  %i.next = add nuw nsw i64 %i, 1
+  %more = icmp ult i64 %i.next, 64
+  br i1 %more, label %loop, label %done, !llvm.loop !8
+
+done:                                             ; preds = %vector.body, %loop
+  ret void
+}
+
+define void @axpy_noalias(ptr noalias %y, ptr %x, float %a) {
+entry:
+  %broadcast.splatinsert = insertelement <4 x float> poison, float %a, i64 0
+  %broadcast.splat = shufflevector <4 x float> %broadcast.splatinsert, <4 x float> poison, <4 x i32> zeroinitializer
+  br label %vector.body
+
+vector.body:                                      ; preds = %vector.body, %entry
+  %index = phi i64 [ 0, %entry ], [ %index.next, %vector.body ]
+  %0 = add i64 %index, 0
+  %1 = getelementptr inbounds float, ptr %x, i64 %0
+  %2 = getelementptr inbounds float, ptr %y, i64 %0
+  %3 = getelementptr inbounds float, ptr %1, i32 0
+  %wide.load = load <4 x float>, ptr %3, align 4
+  %4 = getelementptr inbounds float, ptr %2, i32 0
+  %wide.load1 = load <4 x float>, ptr %4, align 4
+  %5 = fmul <4 x float> %broadcast.splat, %wide.load
+  %6 = fadd <4 x float> %wide.load1, %5
+  store <4 x float> %6, ptr %4, align 4
+  %index.next = add nuw i64 %index, 4
+  %7 = icmp eq i64 %index.next, 64
+  br i1 %7, label %done, label %vector.body, !llvm.loop !9
+
+done:                                             ; preds = %vector.body
+  ret void
+}
+
+!0 = !{!1}
+!1 = distinct !{!1, !2}
+!2 = distinct !{!2, !"LVerDomain"}
+!3 = !{!4}
+!4 = distinct !{!4, !2}
+!5 = distinct !{!5, !6, !7}
+!6 = !{!"llvm.loop.isvectorized", i32 1}
+!7 = !{!"llvm.loop.unroll.runtime.disable"}
+!8 = distinct !{!8, !6}
+!9 = distinct !{!9, !6, !7}

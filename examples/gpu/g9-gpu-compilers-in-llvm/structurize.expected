@@ -1,0 +1,23 @@
+; ModuleID = 'structurize.ll'
+source_filename = "structurize.ll"
+
+define i32 @lane_select(i32 %lane) {
+entry:
+  %take_then = icmp sle i32 %lane, 0
+  br i1 %take_then, label %else, label %Flow
+
+Flow:                                             ; preds = %else, %entry
+  %0 = phi i32 [ 20, %else ], [ undef, %entry ]
+  %1 = phi i1 [ false, %else ], [ true, %entry ]
+  br i1 %1, label %then, label %merge
+
+then:                                             ; preds = %Flow
+  br label %merge
+
+else:                                             ; preds = %entry
+  br label %Flow
+
+merge:                                            ; preds = %then, %Flow
+  %r = phi i32 [ %0, %Flow ], [ 10, %then ]
+  ret i32 %r
+}

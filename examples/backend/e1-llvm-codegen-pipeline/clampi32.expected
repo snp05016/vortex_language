@@ -1,0 +1,11 @@
+; ModuleID = 'clampi32.ll'
+source_filename = "clampi32.ll"
+
+define i32 @clampi32(i32 %x, i32 %lo, i32 %hi) {
+entry:
+  %below = icmp slt i32 %x, %lo
+  %raised = select i1 %below, i32 %lo, i32 %x
+  %above = icmp sgt i32 %raised, %hi
+  %clamped = select i1 %above, i32 %hi, i32 %raised
+  ret i32 %clamped
+}

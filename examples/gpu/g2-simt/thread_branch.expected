@@ -1,0 +1,19 @@
+module attributes {gpu.container_module} {
+  gpu.module @kernels {
+    gpu.func @classify(%arg0: memref<32xi32>) kernel {
+      %0 = gpu.thread_id  x
+      %c16 = arith.constant 16 : index
+      %1 = arith.cmpi ult, %0, %c16 : index
+      %c0_i32 = arith.constant 0 : i32
+      %c1_i32 = arith.constant 1 : i32
+      %2 = scf.if %1 -> (i32) {
+        scf.yield %c0_i32 : i32
+      } else {
+        scf.yield %c1_i32 : i32
+      }
+      memref.store %2, %arg0[%0] : memref<32xi32>
+      gpu.return
+    }
+  }
+}
+

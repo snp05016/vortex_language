@@ -1,0 +1,12 @@
+generic model
+  load: start 0, finish 4
+  mul: start 4, finish 7
+  add: start 7, finish 8
+  store: start 8, finish 9
+  total: 9 cycles
+fast-multiply model
+  load: start 0, finish 4
+  mul: start 4, finish 5
+  add: start 5, finish 6
+  store: start 6, finish 7
+  total: 7 cycles

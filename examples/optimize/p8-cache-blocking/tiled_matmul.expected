@@ -1,0 +1,5 @@
+tile  3, k increasing: same bits
+tile  4, k increasing: same bits
+tile  5, k increasing: same bits
+tile 12, k increasing: same bits
+tile  4, k decreasing: different bits

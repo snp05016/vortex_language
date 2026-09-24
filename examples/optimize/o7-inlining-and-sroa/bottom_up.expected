@@ -1,0 +1,17 @@
+size before: 58
+component: sq
+component: norm
+  inline sq into norm: norm grows to 5
+  inline sq into norm: norm grows to 7
+  delete sq: no callers left
+component: eval apply
+  keep eval -> apply: recursive
+  inline norm into eval: eval grows to 17
+  keep apply -> eval: recursive
+component: report
+component: main
+  keep main -> eval: recursive
+  keep main -> report: too big
+  inline norm into main: main grows to 12
+  delete norm: no callers left
+size after: 67

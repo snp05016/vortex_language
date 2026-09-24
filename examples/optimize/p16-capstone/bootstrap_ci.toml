@@ -1,0 +1,4 @@
+follows = [
+  "https://github.com/google/benchmark/blob/main/docs/reducing_variance.md",
+  "https://doi.org/10.1145/2464157.2464160",
+]

@@ -1,0 +1,17 @@
+; ModuleID = 'addrspaces.ll'
+source_filename = "addrspaces.ll"
+
+; Function Attrs: convergent
+declare void @barrier() #0
+
+define i32 @stage_and_combine(ptr addrspace(1) %g, ptr addrspace(3) %s) {
+entry:
+  %gv = load i32, ptr addrspace(1) %g, align 4
+  store i32 %gv, ptr addrspace(3) %s, align 4
+  call void @barrier()
+  %sv = load i32, ptr addrspace(3) %s, align 4
+  %sum = add i32 %gv, %sv
+  ret i32 %sum
+}
+
+attributes #0 = { convergent }

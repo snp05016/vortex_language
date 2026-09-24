@@ -1,0 +1,5 @@
+sequence length: 4
+block size: 2
+naive score buffer: 32 bytes
+tiled score buffer: 16 bytes
+outputs match within tolerance: yes

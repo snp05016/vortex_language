@@ -1,0 +1,4 @@
+follows = [
+  "https://en.cppreference.com/w/cpp/container/span.html",
+  "https://doi.org/10.1145/103162.103163",
+]

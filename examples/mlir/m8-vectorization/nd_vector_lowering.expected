@@ -1,0 +1,6 @@
+module {
+  llvm.func @identity(%arg0: !llvm.array<2 x vector<2xf32>>) -> !llvm.array<2 x vector<2xf32>> {
+    llvm.return %arg0 : !llvm.array<2 x vector<2xf32>>
+  }
+}
+

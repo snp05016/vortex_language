@@ -1,0 +1,2 @@
+flags = ["--transform-interpreter", "--verify-diagnostics"]
+follows = ["https://mlir.llvm.org/docs/Dialects/Transform/"]

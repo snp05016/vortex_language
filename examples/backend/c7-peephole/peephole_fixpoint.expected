@@ -1,0 +1,16 @@
+Before (6 instructions):
+  mov x1, x1
+  mul x2, x3, 8
+  str s0, x0, 0
+  str s1, x0, 4
+  str s2, x0, 8
+  ldr s2, x0, 8
+Rewrites:
+  removed a self-move (x1, x1)
+  strength-reduced a multiply by 8 into a shift by 3
+  paired two stores into one stp
+  dropped a redundant reload of s2
+After (3 instructions):
+  lsl x2, x3, 3
+  stp s0, s1, x0, 0
+  str s2, x0, 8

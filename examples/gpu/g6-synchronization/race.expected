@@ -1,0 +1,3 @@
+expected: 6
+without synchronization: 3
+with atomic increments:  6

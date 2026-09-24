@@ -1,0 +1,16 @@
+; ModuleID = 'poison_absorb.ll'
+source_filename = "poison_absorb.ll"
+
+define i1 @and_false(i32 %x) {
+  ret i1 false
+}
+
+define i1 @or_true(i32 %x) {
+  ret i1 true
+}
+
+define i32 @select_unused(i1 %c, i32 %x) {
+  %ovf_val = xor i32 %x, -2147483648
+  %r = select i1 %c, i32 %x, i32 %ovf_val
+  ret i32 %r
+}

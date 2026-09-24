@@ -1,0 +1,2 @@
+match: yes
+loads per multiply-add: (mr+nr)/(mr*nr) = 8/16

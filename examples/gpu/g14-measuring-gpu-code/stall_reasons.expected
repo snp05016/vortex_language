@@ -1,0 +1,5 @@
+issue rate: 25% (5 of 20 sampled cycles)
+stall reasons, by share of sampled cycles:
+     50%  waiting on a memory reply
+     15%  eligible, but not selected
+     10%  waiting at a barrier

@@ -1,0 +1,5 @@
+uniform: every lane takes branch 0               1 pass(es)
+parity: lane_id % 2                              2 pass(es)
+4-way switch: lane_id % 4                        4 pass(es)
+every lane its own branch: lane_id              32 pass(es)
+boundary guard: lane_id < 6 (6 of 32 in range)   2 pass(es)

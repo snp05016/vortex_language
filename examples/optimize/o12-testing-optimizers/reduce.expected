@@ -1,0 +1,9 @@
+removed line: x = 5
+removed line: y = x + 1
+removed line: print(y)
+removed line: z = 9
+removed line: w = z * 2
+removed line: print(w)
+minimized from 8 to 2 lines:
+  x = -3
+  divide_by_two(x)

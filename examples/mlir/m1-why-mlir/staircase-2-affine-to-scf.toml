@@ -1,0 +1,5 @@
+flags = ["--lower-affine"]
+follows = [
+  "https://mlir.llvm.org/docs/Dialects/Affine/",
+  "https://mlir.llvm.org/docs/Passes/#-lower-affine",
+]

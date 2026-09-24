@@ -1,0 +1,11 @@
+index used once:
+  v0 = input
+  v1 = input
+  v4 = load [v0 + v1 << 2]
+index used twice:
+  v0 = input
+  v1 = input
+  v2 = v1 << 2
+  v3 = v0 + v2
+  v4 = load [v3]
+  v5 = load [v2]

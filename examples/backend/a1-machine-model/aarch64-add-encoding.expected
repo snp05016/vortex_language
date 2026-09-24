@@ -1,0 +1,2 @@
+add x0, x1, x2         -> 20 00 02 8b (word 0x8b020020)
+add x5, x6, x7         -> c5 00 07 8b (word 0x8b0700c5)

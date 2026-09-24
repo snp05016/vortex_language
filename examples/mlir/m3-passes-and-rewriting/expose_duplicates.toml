@@ -1,0 +1,5 @@
+flags = ["--canonicalize", "--cse"]
+follows = [
+  "https://mlir.llvm.org/docs/Canonicalization/",
+  "https://mlir.llvm.org/docs/Passes/",
+]

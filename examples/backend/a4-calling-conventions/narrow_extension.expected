@@ -1,0 +1,6 @@
+standard convention: register = 0x123400fb
+  masked to the narrow width first: -5
+  widened without masking:          305398011
+apple convention:    register = 0xfffffffb
+  masked to the narrow width first: -5
+  widened without masking:          -5

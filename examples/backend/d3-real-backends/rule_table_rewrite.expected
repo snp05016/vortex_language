@@ -1,0 +1,10 @@
+mul-by-one beside a constant product:
+  pass 0: (add (mul x 1) (mul 2 3))
+  pass 1: (add x 6)
+  pass 2: (add x 6)
+  fixpoint after 2 passes
+add-zero feeding a multiply-by-zero:
+  pass 0: (mul (add x 0) 0)
+  pass 1: 0
+  pass 2: 0
+  fixpoint after 2 passes

@@ -1,0 +1,6 @@
+Searching 54 single instructions, by increasing program length...
+Found a 3-instruction program computing x * 10 (mod 256):
+  r0 = r0 << 1
+  r1 = r0 << 2
+  r0 = r0 + r1
+Verified against all 256 possible 8-bit inputs.

@@ -1,0 +1,10 @@
+recompute cost 1 instruction:
+  uses 1: reload 2, rematerialize 1 -> rematerialize
+  uses 2: reload 3, rematerialize 2 -> rematerialize
+  uses 4: reload 5, rematerialize 4 -> rematerialize
+  uses 8: reload 9, rematerialize 8 -> rematerialize
+recompute cost 2 instructions:
+  uses 1: reload 2, rematerialize 2 -> tie
+  uses 2: reload 3, rematerialize 4 -> reload
+  uses 4: reload 5, rematerialize 8 -> reload
+  uses 8: reload 9, rematerialize 16 -> reload

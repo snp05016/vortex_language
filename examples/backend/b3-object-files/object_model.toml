@@ -1,0 +1,4 @@
+follows = [
+  "https://llvm.org/docs/LangRef.html#global-variables",
+  "https://llvm.org/docs/LangRef.html#functions",
+]

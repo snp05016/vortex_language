@@ -1,0 +1,8 @@
+n = 64, flops = 524288
+schedule         tile      bytes   flops/byte
+naive               -    1081344        0.485
+tiled               4     294912        1.778
+tiled               8     163840        3.200
+tiled              16      98304        5.333
+tiled              32      65536        8.000
+compulsory          n      49152       10.667

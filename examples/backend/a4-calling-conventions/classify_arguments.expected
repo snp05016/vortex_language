@@ -1,0 +1,22 @@
+AAPCS64:
+  a      -> x0
+  b      -> x1
+  c      -> x2
+  alpha  -> v0
+  beta   -> v1
+  p0     -> x3
+  p1     -> x4
+  p2     -> x5
+  p3     -> x6
+  p4     -> x7
+SysV AMD64:
+  a      -> rdi
+  b      -> rsi
+  c      -> rdx
+  alpha  -> xmm0
+  beta   -> xmm1
+  p0     -> rcx
+  p1     -> r8
+  p2     -> r9
+  p3     -> [sp+0]
+  p4     -> [sp+8]

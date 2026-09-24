@@ -1,0 +1,5 @@
+platforms = ["macos-arm64", "linux-arm64"]
+follows = [
+  "https://dwarfstd.org/dwarf5std.html",
+  "https://llvm.org/docs/SourceLevelDebugging.html",
+]

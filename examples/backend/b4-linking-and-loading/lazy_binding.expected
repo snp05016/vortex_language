@@ -1,0 +1,7 @@
+call print: PLT stub -> GOT slot (unresolved) -> resolver
+  resolver finds print, rewrites the GOT slot, jumps to it
+call print: PLT stub -> GOT slot (resolved) -> print, directly
+call sqrt_impl: PLT stub -> GOT slot (unresolved) -> resolver
+  resolver finds sqrt_impl, rewrites the GOT slot, jumps to it
+call sqrt_impl: PLT stub -> GOT slot (resolved) -> sqrt_impl, directly
+call print: PLT stub -> GOT slot (resolved) -> print, directly

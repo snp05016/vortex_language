@@ -1,0 +1,9 @@
+  (recomputing sorted)
+  (recomputing sum)
+before: sorted=1 sum=10
+running add_one (preserves: sorted)
+  (recomputing sum)
+after add_one: sorted=1 sum=14
+running reverse (preserves: sum)
+  (recomputing sorted)
+after reverse: sorted=0 sum=14

@@ -1,0 +1,6 @@
+flags = ["-passes=sroa"]
+follows = [
+  "https://github.com/llvm/llvm-project/blob/release/18.x/llvm/lib/Transforms/Scalar/SROA.cpp",
+  "https://llvm.org/docs/Passes.html#sroa-scalar-replacement-of-aggregates",
+  "https://llvm.org/docs/Frontend/PerformanceTips.html#use-of-allocas",
+]

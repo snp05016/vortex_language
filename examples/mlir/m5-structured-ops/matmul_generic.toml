@@ -1,0 +1,2 @@
+flags = ["--convert-linalg-to-affine-loops"]
+follows = ["https://mlir.llvm.org/docs/Dialects/Linalg/"]

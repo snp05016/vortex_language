@@ -1,0 +1,7 @@
+# Runs StructurizeCFG directly, the pass that legalizes an arbitrary
+# reducible CFG into SPIR-V's required structured form.
+flags = ["-passes=structurizecfg"]
+follows = [
+  "https://raw.githubusercontent.com/llvm/llvm-project/main/llvm/lib/Transforms/Scalar/StructurizeCFG.cpp",
+  "https://llvm.org/docs/SPIRVUsage.html",
+]

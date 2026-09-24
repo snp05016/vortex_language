@@ -1,0 +1,35 @@
+--- !Analysis
+Pass:            loop-vectorize
+Name:            InterleavingNotBeneficialAndDisabled
+Function:        scale_all
+Args:
+  - String:          the cost-model indicates that interleaving is not beneficial and is explicitly disabled or interleave count is set to 1
+...
+--- !Passed
+Pass:            loop-vectorize
+Name:            Vectorized
+Function:        scale_all
+Args:
+  - String:          'vectorized '
+  - String:          ''
+  - String:          'loop (vectorization width: '
+  - VectorizationFactor: '4'
+  - String:          ', interleaved count: '
+  - InterleaveCount: '1'
+  - String:          ')'
+...
+--- !Analysis
+Pass:            ''
+Name:            CantComputeNumberOfIterations
+Function:        bump_all
+Args:
+  - String:          'loop not vectorized: '
+  - String:          could not determine number of loop iterations
+...
+--- !Missed
+Pass:            loop-vectorize
+Name:            MissedDetails
+Function:        bump_all
+Args:
+  - String:          loop not vectorized
+...

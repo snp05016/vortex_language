@@ -1,0 +1,16 @@
+module {
+  func.func @scale_rows(%arg0: memref<4x3xf32>, %arg1: f32) {
+    %c0 = arith.constant 0 : index
+    %c1 = arith.constant 1 : index
+    %c3 = arith.constant 3 : index
+    scf.forall (%arg2) in (4) {
+      scf.for %arg3 = %c0 to %c3 step %c1 {
+        %0 = memref.load %arg0[%arg2, %arg3] : memref<4x3xf32>
+        %1 = arith.mulf %0, %arg1 : f32
+        memref.store %1, %arg0[%arg2, %arg3] : memref<4x3xf32>
+      }
+    }
+    return
+  }
+}
+

@@ -1,0 +1,5 @@
+checking the linear-scan assignment:
+  0 conflict(s)
+checking a broken assignment (g moved to r2):
+  conflict: c and g both in r2, ranges [3,9] and [8,12]
+  1 conflict(s)

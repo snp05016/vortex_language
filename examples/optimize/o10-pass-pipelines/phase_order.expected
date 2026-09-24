@@ -1,0 +1,7 @@
+; ModuleID = 'phase_order.ll'
+source_filename = "phase_order.ll"
+
+define i32 @caller() {
+entry:
+  ret i32 20
+}

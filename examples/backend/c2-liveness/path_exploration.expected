@@ -1,0 +1,6 @@
+var   path-exploration visits   blocks marked live-in   matches fixed point
+x0                         5  {1,2,3,4}     yes
+i1                         6  {2,3,4}       yes
+acc1                       4  {2,3}         yes
+combined fixed point: 18 block visits over its passes
+path exploration, summed over all three variables: 15 visits

@@ -1,0 +1,25 @@
+program:
+  p = &x
+  q = &y
+  r = p
+  r = q
+  s = &r
+  t = *s
+  u = &z
+  *s = u
+Andersen (subsets):
+  p -> {x}
+  q -> {y}
+  r -> {x, y, z}
+  s -> {r}
+  t -> {x, y, z}
+  u -> {z}
+  *p and *q may alias: no
+Steensgaard (unification):
+  p -> {x, y, z}
+  q -> {x, y, z}
+  r -> {x, y, z}
+  s -> {r}
+  t -> {x, y, z}
+  u -> {x, y, z}
+  *p and *q may alias: yes

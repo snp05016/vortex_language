@@ -1,0 +1,4 @@
+follows = [
+  "https://people.eecs.berkeley.edu/~kubitron/cs252/handouts/papers/RooflineVyNoYellow.pdf",
+  "https://suif.stanford.edu/papers/lam-asplos91.pdf",
+]

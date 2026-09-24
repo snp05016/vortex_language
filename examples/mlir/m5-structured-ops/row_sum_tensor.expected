@@ -1,0 +1,13 @@
+#map = affine_map<(d0, d1) -> (d0, d1)>
+#map1 = affine_map<(d0, d1) -> (d0)>
+module {
+  func.func @row_sum(%arg0: tensor<3x4xf32>, %arg1: tensor<3xf32>) -> tensor<3xf32> {
+    %0 = linalg.generic {indexing_maps = [#map, #map1], iterator_types = ["parallel", "reduction"]} ins(%arg0 : tensor<3x4xf32>) outs(%arg1 : tensor<3xf32>) {
+    ^bb0(%in: f32, %out: f32):
+      %1 = arith.addf %out, %in : f32
+      linalg.yield %1 : f32
+    } -> tensor<3xf32>
+    return %0 : tensor<3xf32>
+  }
+}
+

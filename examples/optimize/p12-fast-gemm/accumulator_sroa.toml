@@ -1,0 +1,5 @@
+flags = ["-passes=sroa"]
+follows = [
+  "https://github.com/llvm/llvm-project/blob/release/18.x/llvm/lib/Transforms/Scalar/SROA.cpp",
+  "https://github.com/llvm/llvm-project/blob/release/18.x/llvm/lib/Passes/PassBuilderPipelines.cpp",
+]

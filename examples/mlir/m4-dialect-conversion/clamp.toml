@@ -1,0 +1,7 @@
+flags = ["--convert-arith-to-llvm", "--convert-func-to-llvm", "--reconcile-unrealized-casts"]
+follows = [
+  "https://mlir.llvm.org/docs/DialectConversion/",
+  "https://mlir.llvm.org/docs/Dialects/ArithOps/",
+  "https://mlir.llvm.org/docs/Dialects/Func/",
+  "https://mlir.llvm.org/docs/Dialects/LLVM/",
+]

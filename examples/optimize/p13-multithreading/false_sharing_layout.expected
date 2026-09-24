@@ -1,0 +1,2 @@
+packed[0] and packed[1] can share a cache line: yes
+padded[0] and padded[1] can share a cache line: no

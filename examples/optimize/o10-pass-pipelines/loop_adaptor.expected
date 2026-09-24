@@ -1,0 +1,30 @@
+; ModuleID = 'loop_adaptor.ll'
+source_filename = "loop_adaptor.ll"
+
+define void @scale_by_square(ptr noalias %out, float %k, i32 %n, i1 %use_alt) {
+entry:
+  br i1 %use_alt, label %alt, label %header.preheader
+
+alt:                                              ; preds = %entry
+  br label %header.preheader
+
+header.preheader:                                 ; preds = %entry, %alt
+  %ksq = fmul float %k, %k
+  br label %header
+
+header:                                           ; preds = %header.preheader, %body
+  %i = phi i32 [ %next, %body ], [ 0, %header.preheader ]
+  %cmp = icmp slt i32 %i, %n
+  br i1 %cmp, label %body, label %exit
+
+body:                                             ; preds = %header
+  %gep.out = getelementptr inbounds float, ptr %out, i32 %i
+  %old = load float, ptr %gep.out, align 4
+  %scaled = fmul float %old, %ksq
+  store float %scaled, ptr %gep.out, align 4
+  %next = add nsw i32 %i, 1
+  br label %header
+
+exit:                                             ; preds = %header
+  ret void
+}

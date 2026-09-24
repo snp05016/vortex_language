@@ -1,0 +1,9 @@
+abbrev 1  compile_unit
+abbrev 2  fn average3
+abbrev 3    param a
+abbrev 4    local sum
+abbrev 2  fn clamp
+abbrev 3    param value
+abbrev 4    local result
+abbrev 5    local unused_tmp
+8 DIEs, 5 distinct abbreviations

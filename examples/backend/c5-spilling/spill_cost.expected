@@ -1,0 +1,4 @@
+loop_bound   cost 2
+row_base     cost 31
+accumulator  cost 22
+spill: loop_bound

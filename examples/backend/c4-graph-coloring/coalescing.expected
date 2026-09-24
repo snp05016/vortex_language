@@ -1,0 +1,6 @@
+Low-degree neighbors:
+  Briggs's test: safe to coalesce p and q
+  merged graph is 3-colorable: yes
+High-degree neighbors:
+  Briggs's test: unsafe to coalesce a and b
+  merged graph is 3-colorable: no

@@ -1,0 +1,3 @@
+sum_scalar   = 4d989680
+sum_auto     = 4d989680  same_as_scalar=yes
+sum_reassoc  = 4d989681  same_as_scalar=no

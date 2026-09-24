@@ -1,0 +1,2 @@
+flags = ["-passes=instcombine"]
+follows = ["https://llvm.org/docs/LangRef.html#freeze-instruction"]

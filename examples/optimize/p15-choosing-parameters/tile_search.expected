@@ -1,0 +1,5 @@
+grid:   81 evaluated, 49 feasible, best bi=256 bk=256 cost=4160
+random: 12 evaluated, 9 feasible, best bi=256 bk=128 cost=4224
+model:  7 evaluated, best bi=256 bk=256 cost=4160
+model matches grid optimum: true
+random matches grid optimum: false

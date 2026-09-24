@@ -1,0 +1,5 @@
+kernel                             compute%  memory%  verdict
+barely-launched kernel                   4%       3%  latency bound: read occupancy and stalls, not this report
+transpose without shared memory         12%      71%  memory bound
+unrolled elementwise math               88%      15%  compute bound
+tuned tiled kernel                      91%      84%  near the speed of light

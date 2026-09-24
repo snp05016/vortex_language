@@ -1,0 +1,9 @@
+# char is signed on macOS arm64 and on Linux x86-64, but unsigned on a
+# plain Linux arm64 target (checked locally with
+# `clang -E -dM -target aarch64-unknown-linux-gnu` for __CHAR_UNSIGNED__,
+# Apple clang 21, September 2026), so this example is skipped there rather
+# than given a second, different .expected file.
+platforms = ["macos-arm64", "linux-x86_64"]
+follows = [
+  "https://developer.apple.com/documentation/xcode/writing-arm64-code-for-apple-platforms",
+]

@@ -1,0 +1,2 @@
+block tile 64 x 64, warp tile 32 x 32, thread tile 8 x 4
+warps: 4, outputs covered exactly once: 4096 of 4096

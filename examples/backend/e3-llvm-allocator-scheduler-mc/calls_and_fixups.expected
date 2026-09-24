@@ -1,0 +1,16 @@
+; ModuleID = 'calls_and_fixups.ll'
+source_filename = "calls_and_fixups.ll"
+
+declare void @external_sink(i32)
+
+define void @internal_helper(i32 %x) {
+entry:
+  call void @external_sink(i32 %x)
+  ret void
+}
+
+define void @caller(i32 %n) {
+entry:
+  call void @internal_helper(i32 %n)
+  ret void
+}

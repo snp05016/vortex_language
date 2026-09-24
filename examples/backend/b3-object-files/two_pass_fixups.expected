@@ -1,0 +1,6 @@
+addr  instruction
+   0  SET R0, 1
+   1  JMP skip  -> 3
+   2  SET R0, 99
+   3  JMP start -> 0
+   4  HALT

@@ -1,0 +1,5 @@
+flags = ["-passes=loop-mssa(licm)"]
+follows = [
+  "https://llvm.org/docs/NewPassManager.html",
+  "https://llvm.org/docs/Passes.html",
+]

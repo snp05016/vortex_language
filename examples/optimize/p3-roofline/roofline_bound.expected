@@ -1,0 +1,6 @@
+peak = 17.6 GFlop/s, bandwidth = 15.0 GB/s, ridge = 1.173 flops/byte
+naive       intensity= 0.485 bound= 7.275 GFlop/s (memory-bound)
+tiled t=4   intensity= 1.778 bound=17.600 GFlop/s (compute-bound)
+tiled t=8   intensity= 3.200 bound=17.600 GFlop/s (compute-bound)
+tiled t=16  intensity= 5.333 bound=17.600 GFlop/s (compute-bound)
+tiled t=32  intensity= 8.000 bound=17.600 GFlop/s (compute-bound)

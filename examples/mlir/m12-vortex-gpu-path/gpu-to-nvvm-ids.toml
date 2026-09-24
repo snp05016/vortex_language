@@ -1,0 +1,6 @@
+flags = ["--convert-gpu-to-nvvm"]
+follows = [
+  "https://mlir.llvm.org/docs/Dialects/GPU/",
+  "https://mlir.llvm.org/docs/Dialects/NVVMDialect/",
+  "https://mlir.llvm.org/docs/Passes/#-convert-gpu-to-nvvm",
+]

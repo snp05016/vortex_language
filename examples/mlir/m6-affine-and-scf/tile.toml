@@ -1,0 +1,5 @@
+flags = ["--pass-pipeline=builtin.module(func.func(affine-loop-tile{tile-size=2}))"]
+follows = [
+  "https://mlir.llvm.org/docs/Dialects/Affine/",
+  "https://mlir.llvm.org/docs/Passes/#-affine-loop-tile",
+]

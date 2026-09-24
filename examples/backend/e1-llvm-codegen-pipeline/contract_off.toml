@@ -1,0 +1,5 @@
+# The chapter shows this IR next to the assembly llc -O2 emits for it: two
+# separate instructions, because nothing marks the fadd as safe to fuse.
+follows = [
+  "https://llvm.org/docs/LangRef.html#fast-math-flags",
+]

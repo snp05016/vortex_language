@@ -1,0 +1,11 @@
+-- one address --
+t1 = madd i, 4, j
+t2 = ldr [a, t1, lsl #2]
+2 instructions, dp cost 2
+-- two addresses --
+t1 = madd i, 4, j
+t2 = ldr [a, t1, lsl #2]
+t3 = madd k, 4, l
+t4 = ldr [b, t3, lsl #2]
+t5 = add t2, t4
+5 instructions, dp cost 5

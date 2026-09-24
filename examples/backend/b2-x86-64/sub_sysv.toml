@@ -1,0 +1,9 @@
+# x86-64 SysV assembly: assembled on Linux x86-64, skipped elsewhere.
+# There is no x86-64 machine in this matrix (Rosetta is being retired, see
+# the chapter text), so this file is checked only by the linux-x86_64 runner.
+platforms = ["linux-x86_64"]
+follows = [
+  "https://gitlab.com/x86-psABIs/x86-64-ABI",
+  "https://sourceware.org/binutils/docs/as/Type.html",
+  "https://sourceware.org/binutils/docs/as/Size.html",
+]

@@ -1,0 +1,3 @@
+t1 = madd i, 4, j
+t2 = ldr [a, t1, lsl #2]
+2 instructions

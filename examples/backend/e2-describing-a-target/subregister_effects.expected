@@ -1,0 +1,10 @@
+writing RL_LO (bits 0..8)
+  R: partly defined
+  RH: unaffected
+  RL: partly defined
+  RL_HI: unaffected
+writing RH (bits 16..32)
+  R: partly defined
+  RL: unaffected
+  RL_HI: unaffected
+  RL_LO: unaffected

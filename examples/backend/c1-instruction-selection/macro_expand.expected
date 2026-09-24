@@ -1,0 +1,6 @@
+t1 = mul i, 4
+t2 = add t1, j
+t3 = shl t2, 2
+t4 = add a, t3
+t5 = load [t4]
+5 instructions

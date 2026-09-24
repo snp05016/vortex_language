@@ -1,0 +1,3 @@
+# Single-pass code generation with a value stack, in the style TCC's
+# developer guide describes for its expression compiler.
+follows = ["https://bellard.org/tcc/tcc-doc.html"]

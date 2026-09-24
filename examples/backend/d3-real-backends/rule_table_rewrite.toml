@@ -1,0 +1,3 @@
+# A rule table applied to a fixpoint, in the style of Go's generated rule
+# matcher for SSA lowering and simplification.
+follows = ["https://github.com/golang/go/blob/master/src/cmd/compile/internal/ssa/README.md"]

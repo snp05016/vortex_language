@@ -1,0 +1,4 @@
+follows = [
+  "https://www.cs.utexas.edu/~flame/pubs/GotoTOMS_revision.pdf",
+  "https://www.cs.utexas.edu/~flame/pubs/blis1_toms_rev3.pdf",
+]

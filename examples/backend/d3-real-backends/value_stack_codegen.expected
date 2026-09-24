@@ -1,0 +1,6 @@
+expr: 2 + 3 * 4
+  result: 14
+expr: x * 3 + (4 - 1)
+  t0 = x * 3
+  t1 = t0 + 3
+  result: t1

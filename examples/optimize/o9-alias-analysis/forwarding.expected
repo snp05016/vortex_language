@@ -1,0 +1,37 @@
+; ModuleID = 'forwarding.ll'
+source_filename = "forwarding.ll"
+
+define i32 @unknown(ptr %p, ptr %q) {
+  store i32 1, ptr %p, align 4
+  store i32 2, ptr %q, align 4
+  %v = load i32, ptr %p, align 4
+  ret i32 %v
+}
+
+define i32 @neighbours(ptr %a) {
+  %second = getelementptr inbounds i32, ptr %a, i64 1
+  store i32 1, ptr %a, align 4
+  store i32 2, ptr %second, align 4
+  ret i32 1
+}
+
+define i32 @local(ptr %q) {
+  %slot = alloca i32, align 4
+  store i32 1, ptr %slot, align 4
+  store i32 2, ptr %q, align 4
+  ret i32 1
+}
+
+define i32 @promised(ptr noalias %p, ptr %q) {
+  store i32 1, ptr %p, align 4
+  store i32 2, ptr %q, align 4
+  ret i32 1
+}
+
+define i32 @overlap(ptr %a) {
+  %middle = getelementptr inbounds i8, ptr %a, i64 2
+  store i32 1, ptr %a, align 4
+  store i16 2, ptr %middle, align 2
+  %v = load i32, ptr %a, align 4
+  ret i32 %v
+}

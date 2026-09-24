@@ -1,0 +1,5 @@
+flags = ["-passes=loop(loop-rotate),irce,simplifycfg,dce"]
+follows = [
+  "https://github.com/llvm/llvm-project/blob/release/18.x/llvm/lib/Transforms/Scalar/InductiveRangeCheckElimination.cpp",
+  "https://llvm.org/docs/LoopTerminology.html",
+]

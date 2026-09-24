@@ -1,0 +1,7 @@
+# Apple's @PAGE/@PAGEOFF operators are Darwin-only assembler syntax; Linux's
+# GNU as spells the same idea differently, so this file is checked only on
+# the platform it was written for.
+platforms = ["macos-arm64"]
+follows = [
+  "https://developer.apple.com/documentation/xcode/writing-arm64-code-for-apple-platforms",
+]

@@ -1,0 +1,23 @@
+8x8 block tile, 2x2 warps of 2x2 lanes:
+
+warp id, by output element:
+0 0 0 0 1 1 1 1 
+0 0 0 0 1 1 1 1 
+0 0 0 0 1 1 1 1 
+0 0 0 0 1 1 1 1 
+2 2 2 2 3 3 3 3 
+2 2 2 2 3 3 3 3 
+2 2 2 2 3 3 3 3 
+2 2 2 2 3 3 3 3 
+
+lane id within its warp:
+0 0 1 1 0 0 1 1 
+0 0 1 1 0 0 1 1 
+2 2 3 3 2 2 3 3 
+2 2 3 3 2 2 3 3 
+0 0 1 1 0 0 1 1 
+0 0 1 1 0 0 1 1 
+2 2 3 3 2 2 3 3 
+2 2 3 3 2 2 3 3 
+
+16 threads own 64 elements, 4 each

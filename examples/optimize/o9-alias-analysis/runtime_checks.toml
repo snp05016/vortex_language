@@ -1,0 +1,5 @@
+flags = ["-passes=loop-vectorize,simplifycfg", "-force-vector-width=4", "-force-vector-interleave=1"]
+follows = [
+  "https://llvm.org/docs/Vectorizers.html#runtime-checks-of-pointers",
+  "https://releases.llvm.org/18.1.8/docs/LangRef.html#noalias-and-alias-scope-metadata",
+]

@@ -1,0 +1,9 @@
+; ModuleID = 'contract_off.ll'
+source_filename = "contract_off.ll"
+
+define float @madd(float %a, float %b, float %c) {
+entry:
+  %m = fmul float %a, %b
+  %s = fadd float %m, %c
+  ret float %s
+}

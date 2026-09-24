@@ -1,0 +1,4 @@
+a*b + c, two roundings = 1p-22
+fma(a, b, c), one rounding = 1.000002p-22
+equal: false
+ulps apart: 1

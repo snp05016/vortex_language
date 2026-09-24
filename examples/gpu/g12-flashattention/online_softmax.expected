@@ -1,0 +1,4 @@
+elements: 6
+two-pass reads of the input: 12
+online reads of the input: 6
+outputs match within tolerance: yes

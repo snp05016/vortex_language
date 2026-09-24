@@ -1,0 +1,6 @@
+flags = ["-passes=inline", "-disable-output", "-pass-remarks-output=-"]
+follows = [
+  "https://github.com/llvm/llvm-project/blob/release/18.x/llvm/lib/Analysis/InlineCost.cpp",
+  "https://github.com/llvm/llvm-project/blob/release/18.x/llvm/include/llvm/Analysis/InlineCost.h",
+  "https://github.com/llvm/llvm-project/blob/release/18.x/llvm/lib/Analysis/InlineAdvisor.cpp",
+]

@@ -1,0 +1,6 @@
+7            ref=7    sim=7    PASS
+7 + 2        ref=9    sim=9    PASS
+7 - 2        ref=5    sim=-5   FAIL
+7 * 2        ref=14   sim=14   PASS
+(7 - 2) * 3  ref=15   sim=-15  FAIL
+3/5 passed

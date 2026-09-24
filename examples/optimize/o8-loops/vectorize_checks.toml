@@ -1,0 +1,6 @@
+flags = ["-passes=loop(loop-rotate),loop-vectorize", "-force-vector-width=4", "-force-vector-interleave=1", "-disable-output", "-pass-remarks-output=-"]
+follows = [
+  "https://github.com/llvm/llvm-project/blob/release/18.x/llvm/lib/Analysis/LoopAccessAnalysis.cpp",
+  "https://github.com/llvm/llvm-project/blob/release/18.x/llvm/lib/Transforms/Vectorize/LoopVectorize.cpp",
+  "https://llvm.org/docs/Remarks.html",
+]

@@ -1,0 +1,44 @@
+; ModuleID = 'inline_then_sroa.ll'
+source_filename = "inline_then_sroa.ll"
+
+define float @walk(i32 %steps) {
+entry:
+  br label %test
+
+test:                                             ; preds = %body, %entry
+  %pos.sroa.0.0 = phi float [ 0.000000e+00, %entry ], [ %x.i, %body ]
+  %pos.sroa.4.0 = phi float [ 0.000000e+00, %entry ], [ %y.i, %body ]
+  %i.0 = phi i32 [ 0, %entry ], [ %iv.next, %body ]
+  %more = icmp slt i32 %i.0, %steps
+  br i1 %more, label %body, label %done
+
+body:                                             ; preds = %test
+  call void @llvm.experimental.noalias.scope.decl(metadata !0)
+  call void @llvm.experimental.noalias.scope.decl(metadata !3)
+  call void @llvm.experimental.noalias.scope.decl(metadata !5)
+  %x.i = fadd float %pos.sroa.0.0, 1.000000e+00
+  %y.i = fadd float %pos.sroa.4.0, 5.000000e-01
+  %iv.next = add nsw i32 %i.0, 1
+  br label %test
+
+done:                                             ; preds = %test
+  %sum = fadd float %pos.sroa.0.0, %pos.sroa.4.0
+  ret float %sum
+}
+
+; Function Attrs: nocallback nofree nounwind willreturn memory(argmem: readwrite)
+declare void @llvm.memcpy.p0.p0.i64(ptr noalias nocapture writeonly, ptr noalias nocapture readonly, i64, i1 immarg) #0
+
+; Function Attrs: nocallback nofree nosync nounwind willreturn memory(inaccessiblemem: readwrite)
+declare void @llvm.experimental.noalias.scope.decl(metadata) #1
+
+attributes #0 = { nocallback nofree nounwind willreturn memory(argmem: readwrite) }
+attributes #1 = { nocallback nofree nosync nounwind willreturn memory(inaccessiblemem: readwrite) }
+
+!0 = !{!1}
+!1 = distinct !{!1, !2, !"add: %out"}
+!2 = distinct !{!2, !"add"}
+!3 = !{!4}
+!4 = distinct !{!4, !2, !"add: %a"}
+!5 = !{!6}
+!6 = distinct !{!6, !2, !"add: %b"}

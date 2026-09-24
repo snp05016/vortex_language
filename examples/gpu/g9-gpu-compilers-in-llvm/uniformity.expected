@@ -1,0 +1,6 @@
+tid    entry  divergent
+base   entry  uniform
+cond   entry  divergent
+a_then then   divergent
+a_else else   divergent
+r      merge  divergent

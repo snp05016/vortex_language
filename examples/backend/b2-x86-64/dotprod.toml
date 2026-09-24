@@ -1,0 +1,8 @@
+# Plain C++: the interesting part is the assembly clang writes for the
+# loop, read with -O2 -S (natively for AArch64, with -target
+# x86_64-unknown-linux-gnu for x86-64) or through the Compiler Explorer link.
+follows = [
+  "https://gitlab.com/x86-psABIs/x86-64-ABI",
+  "https://developer.arm.com/documentation/ddi0602/2026-06/Base-Instructions/LDR--immediate---Load-register--immediate--",
+  "https://godbolt.org/",
+]
