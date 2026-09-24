@@ -1,0 +1,18 @@
+; ModuleID = 'early_cse.ll'
+source_filename = "early_cse.ll"
+
+define i32 @reuse(i1 %c, i32 %x, i32 %y) {
+entry:
+  %a = mul i32 %x, %y
+  br i1 %c, label %then, label %join
+
+then:                                             ; preds = %entry
+  %s = add i32 %a, 1
+  br label %join
+
+join:                                             ; preds = %then, %entry
+  %m = phi i32 [ %s, %then ], [ %a, %entry ]
+  %t = add i32 %a, 1
+  %r = mul i32 %m, %t
+  ret i32 %r
+}

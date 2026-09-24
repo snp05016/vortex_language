@@ -9,7 +9,7 @@
 | Chapter | What it covers | Status |
 | --- | --- | --- |
 | [M1. Why MLIR](m1-why-mlir.md) | One infrastructure for many IR levels: dialects and progressive lowering. | Being written |
-| [M2. Reading MLIR](m2-reading-mlir.md) | Operations, regions, blocks, values, types, attributes and dialects, read with mlir-opt. | Being written |
+| [M2. Reading MLIR](m2-reading-mlir.md) | Operations, regions, blocks, values, types, attributes and dialects, read with mlir-opt. | Published |
 | [M3. Passes and pattern rewriting](m3-passes-and-rewriting.md) | The pass manager, canonicalization and greedy rewrite patterns. | Being written |
 | [M4. Dialect conversion and lowering to LLVM](m4-dialect-conversion.md) | Conversion targets, type converters, and the path to the llvm dialect. | Being written |
 | [M5. Structured ops: linalg, tensor and memref](m5-structured-ops.md) | linalg.generic, indexing maps and iterator types, tensors against buffers. | Being written |

@@ -1,0 +1,16 @@
+x + 0.0  ==>  x
+  wrong at x = -0: 0 becomes -0
+x + (-0.0)  ==>  x
+  correct on every sample
+x - x  ==>  0.0
+  wrong at x = inf: NaN becomes 0
+x / 2.0  ==>  x * 0.5
+  correct on every sample
+x / 10.0  ==>  x * 0.1
+  wrong at x = 9: 0.9 becomes 0.90000004
+(x + y) + z  ==>  x + (y + z)
+  wrong at x = 1, y = 1e+08, z = -1e+08: 0 becomes 1
+(x + y) + z  ==>  the same sum in double, rounded once
+  wrong at x = 1, y = 1e+08, z = -1e+08: 0 becomes 1
+x * y + z  ==>  fma(x, y, z)
+  wrong at x = 1.0002441, y = 1.0002441, z = -1.0004883: 0 becomes 5.9604645e-08

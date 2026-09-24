@@ -16,7 +16,7 @@
 
 | Chapter | What it covers | Status |
 | --- | --- | --- |
-| [G4. Memory performance: coalescing and bank conflicts](g4-memory-performance.md) | Coalesced access, shared-memory bank conflicts and vector loads, with transpose as the case study. | Being written |
+| [G4. Memory performance: coalescing and bank conflicts](g4-memory-performance.md) | Coalesced access, shared-memory bank conflicts and vector loads, with transpose as the case study. | Published |
 | [G5. Occupancy and latency hiding](g5-occupancy.md) | Occupancy, register pressure, and when lower occupancy wins. | Being written |
 | [G6. Synchronization, atomics and reductions](g6-synchronization.md) | Barriers, memory scopes, atomics, shuffles and deterministic sums. | Being written |
 

@@ -1,0 +1,8 @@
+DF(A) = { }
+DF(B) = { B }
+DF(C) = { B F }
+DF(D) = { B F }
+DF(E) = { B }
+DF(F) = { }
+count: phis at B F
+total: phis at B

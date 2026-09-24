@@ -8,10 +8,10 @@
 
 | Chapter | What it covers | Status |
 | --- | --- | --- |
-| [O1. The optimizer's contract](o1-optimizer-contract.md) | What an optimization may and may not change, how to prove a transformation correct, and how a compiler reports what it did (optimization remarks). | Being written |
-| [O2. Control-flow graphs and dominance](o2-cfg-and-dominance.md) | Basic blocks, edges, dominators and the dominator tree: the map every later analysis walks. | Being written |
-| [O3. SSA form: construction and destruction](o3-ssa.md) | Static single assignment, phi nodes, building SSA from a CFG and taking it apart again. | Being written |
-| [O4. Dataflow analysis](o4-dataflow.md) | Lattices, transfer functions and fixed points: the general machine behind liveness, reaching definitions and constant propagation. | Being written |
+| [O1. The optimizer's contract](o1-optimizer-contract.md) | What an optimization may and may not change, how to prove a transformation correct, and how a compiler reports what it did (optimization remarks). | Published |
+| [O2. Control-flow graphs and dominance](o2-cfg-and-dominance.md) | Basic blocks, edges, dominators and the dominator tree: the map every later analysis walks. | Published |
+| [O3. SSA form: construction and destruction](o3-ssa.md) | Static single assignment, phi nodes, building SSA from a CFG and taking it apart again. | Published |
+| [O4. Dataflow analysis](o4-dataflow.md) | Lattices, transfer functions and fixed points: the general machine behind liveness, reaching definitions and constant propagation. | Published |
 | [O5. Constants and dead code](o5-constants-and-dead-code.md) | Constant folding and propagation, sparse conditional constant propagation, and aggressive dead code elimination. | Being written |
 | [O6. Redundancy: CSE, GVN, PRE and LICM](o6-redundancy.md) | Finding work the program repeats and doing it once: common subexpressions, value numbering, partial redundancy and loop-invariant code motion. | Being written |
 | [O7. Calls and aggregates: inlining and SROA](o7-inlining-and-sroa.md) | When to copy a function body into its caller, and how splitting structs and small arrays into scalars lets later passes see through them. | Being written |

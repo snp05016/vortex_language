@@ -1,0 +1,8 @@
+B0  instructions 0-1  successors: B1
+B1  instructions 2-2  successors: B2 B5
+B2  instructions 3-4  successors: B3 B4
+B3  instructions 5-5  successors: B4
+B4  instructions 6-7  successors: B1
+B5  instructions 8-8  successors:
+B6  instructions 9-10  successors:
+unreachable: B6
