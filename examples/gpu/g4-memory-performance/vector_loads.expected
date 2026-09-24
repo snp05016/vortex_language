@@ -1,0 +1,40 @@
+; ModuleID = 'vector_loads.ll'
+source_filename = "vector_loads.ll"
+
+@square = global [64 x [64 x float]] zeroinitializer, align 16
+@padded = global [32 x [33 x float]] zeroinitializer, align 16
+
+define <4 x float> @quad_square(i64 %i, i64 %q) {
+  %j0 = shl nuw nsw i64 %q, 2
+  %p0 = getelementptr inbounds [64 x [64 x float]], ptr @square, i64 0, i64 %i, i64 %j0
+  %1 = load <4 x float>, ptr %p0, align 16
+  %a01 = extractelement <4 x float> %1, i32 0
+  %a12 = extractelement <4 x float> %1, i32 1
+  %a23 = extractelement <4 x float> %1, i32 2
+  %a34 = extractelement <4 x float> %1, i32 3
+  %v0 = insertelement <4 x float> poison, float %a01, i64 0
+  %v1 = insertelement <4 x float> %v0, float %a12, i64 1
+  %v2 = insertelement <4 x float> %v1, float %a23, i64 2
+  %v3 = insertelement <4 x float> %v2, float %a34, i64 3
+  ret <4 x float> %v3
+}
+
+define <4 x float> @quad_padded(i64 %i, i64 %q) {
+  %j0 = shl nuw nsw i64 %q, 2
+  %j1 = add nuw nsw i64 %j0, 1
+  %j2 = add nuw nsw i64 %j0, 2
+  %j3 = add nuw nsw i64 %j0, 3
+  %p0 = getelementptr inbounds [32 x [33 x float]], ptr @padded, i64 0, i64 %i, i64 %j0
+  %p1 = getelementptr inbounds [32 x [33 x float]], ptr @padded, i64 0, i64 %i, i64 %j1
+  %p2 = getelementptr inbounds [32 x [33 x float]], ptr @padded, i64 0, i64 %i, i64 %j2
+  %p3 = getelementptr inbounds [32 x [33 x float]], ptr @padded, i64 0, i64 %i, i64 %j3
+  %a0 = load float, ptr %p0, align 4
+  %a1 = load float, ptr %p1, align 4
+  %a2 = load float, ptr %p2, align 4
+  %a3 = load float, ptr %p3, align 4
+  %v0 = insertelement <4 x float> poison, float %a0, i64 0
+  %v1 = insertelement <4 x float> %v0, float %a1, i64 1
+  %v2 = insertelement <4 x float> %v1, float %a2, i64 2
+  %v3 = insertelement <4 x float> %v2, float %a3, i64 3
+  ret <4 x float> %v3
+}

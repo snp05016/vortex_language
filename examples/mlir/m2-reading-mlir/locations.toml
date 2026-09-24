@@ -1,0 +1,5 @@
+flags = ["--mlir-print-debuginfo", "--mlir-print-local-scope"]
+follows = [
+  "https://mlir.llvm.org/docs/Tutorials/Toy/Ch-2/",
+  "https://mlir.llvm.org/docs/Dialects/Builtin/",
+]

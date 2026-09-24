@@ -1,0 +1,10 @@
+one f32 per lane, unless noted         sectors bytes moved bytes used
+stride 1: lane t reads word t                4         128        128
+stride 1, starting 16 bytes in               5         160        128
+reversed: lane t reads word 31 - t           4         128        128
+stride 2                                     8         256        128
+stride 4                                    16         512        128
+stride 8                                    32        1024        128
+stride 64: down a column, 64-wide rows      32        1024        128
+every lane reads word 5                      1          32          4
+16 bytes per lane (float4), stride 1        16         512        512

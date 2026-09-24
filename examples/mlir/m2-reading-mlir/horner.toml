@@ -1,0 +1,6 @@
+flags = ["--mlir-print-op-generic"]
+follows = [
+  "https://mlir.llvm.org/docs/LangRef/",
+  "https://mlir.llvm.org/docs/Dialects/SCFDialect/",
+  "https://mlir.llvm.org/docs/Dialects/ArithOps/",
+]

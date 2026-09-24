@@ -1,0 +1,6 @@
+version                 sectors read sectors written bytes moved shared passes
+copy (the speed limit)           512             512       32768             0
+naive transpose                  512            4096      147456             0
+tiled, 32 x 32 tile              512             512       32768          4224
+tiled, 32 x 33 tile              512             512       32768           256
+every transpose is exact, bit for bit: true

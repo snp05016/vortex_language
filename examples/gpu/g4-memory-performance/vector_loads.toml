@@ -1,0 +1,5 @@
+flags = ["-passes=infer-alignment,load-store-vectorizer"]
+follows = [
+  "https://github.com/llvm/llvm-project/blob/release/18.x/llvm/lib/Transforms/Vectorize/LoadStoreVectorizer.cpp",
+  "https://docs.nvidia.com/cuda/parallel-thread-execution/index.html#addresses-as-operands",
+]
