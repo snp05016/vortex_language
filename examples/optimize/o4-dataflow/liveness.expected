@@ -1,0 +1,11 @@
+round robin, postorder          12 visits in 2 passes
+round robin, reverse postorder  18 visits in 3 passes
+worklist, seeded in postorder    8 visits
+same sets from all three: yes
+block  live-in          live-out
+A      {}               {count, total}
+B      {count, total}   {count, total}
+C      {count, total}   {count, total}
+D      {count, total}   {count, total}
+E      {count, total}   {count, total}
+F      {total}          {}

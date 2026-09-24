@@ -1,0 +1,11 @@
+read x in unsealed header: phi v2, no operands yet
+read y in unsealed header: phi v3, no operands yet
+seal header: phi v2 for x gets v0 v6
+seal header: phi v3 for y gets v1 v3, so it is trivial: v1 replaces it
+after the loop: x is v2, y is v1
+ entry: v0 = 0
+ entry: v1 = 5
+header: v2 = phi v0 v6
+header: v4 = less v2 v1
+  body: v5 = 1
+  body: v6 = add v2 v5

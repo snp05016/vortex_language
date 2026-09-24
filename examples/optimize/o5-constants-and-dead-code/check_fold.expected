@@ -1,0 +1,20 @@
+; ModuleID = 'check_fold.ll'
+source_filename = "check_fold.ll"
+
+; Function Attrs: noreturn
+declare void @report_bounds(i32, i32) #0
+
+define float @first(ptr %values) {
+entry:
+  br label %join
+
+join:                                             ; preds = %entry
+  br label %read
+
+read:                                             ; preds = %join
+  %p = getelementptr inbounds float, ptr %values, i64 0
+  %x = load float, ptr %p, align 4
+  ret float %x
+}
+
+attributes #0 = { noreturn }

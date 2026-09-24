@@ -1,0 +1,6 @@
+flags = ["-passes=mem2reg"]
+follows = [
+  "https://llvm.org/docs/tutorial/MyFirstLanguageFrontend/LangImpl07.html",
+  "https://llvm.org/docs/Frontend/PerformanceTips.html",
+  "https://llvm.org/docs/Passes.html",
+]

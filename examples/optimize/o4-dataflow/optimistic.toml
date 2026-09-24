@@ -1,0 +1,5 @@
+flags = ["-passes=sccp"]
+follows = [
+  "https://llvm.org/docs/Passes.html",
+  "https://github.com/llvm/llvm-project/blob/release/18.x/llvm/include/llvm/Analysis/ValueLattice.h",
+]

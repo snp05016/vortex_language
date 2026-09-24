@@ -1,0 +1,17 @@
+instruction                 use counts   marking
+s0 = 0                      kept         kept
+t0 = 0                      kept         deleted
+i0 = 0                      kept         kept
+i1 = phi(i0, i2)            kept         kept
+s1 = phi(s0, s2)            kept         kept
+t1 = phi(t0, t2)            kept         deleted
+c = i1 < 10                 kept         kept
+if c goto body else exit    kept         kept
+s2 = s1 + i1                kept         kept
+t2 = t1 + 1                 kept         deleted
+i2 = i1 + 1                 kept         kept
+big = s1 > 100              kept         deleted
+if big goto note else done  kept         goto done
+msg = s1 * 2                deleted      deleted
+print(s1)                   kept         kept
+return                      kept         kept

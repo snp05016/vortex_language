@@ -1,0 +1,4 @@
+follows = [
+  "https://pfalcon.github.io/ssabook/latest/book-full.pdf",
+  "https://github.com/llvm/llvm-project/blob/release/18.x/llvm/lib/CodeGen/PHIElimination.cpp",
+]

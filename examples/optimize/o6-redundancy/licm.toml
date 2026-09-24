@@ -1,0 +1,5 @@
+flags = ["-passes=licm"]
+follows = [
+  "https://llvm.org/docs/Passes.html",
+  "https://github.com/llvm/llvm-project/blob/release/18.x/llvm/lib/Transforms/Scalar/LICM.cpp",
+]

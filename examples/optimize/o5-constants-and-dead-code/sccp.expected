@@ -1,0 +1,15 @@
+value     every edge    executable edges
+from_end  0             0
+index0    0             0
+index1    63            no value
+index2    top           0
+ok        top           1
+x         top           top
+
+every edge:
+  edges used: start->A A->B A->C B->C C->D C->R
+  never reached: none
+
+executable edges:
+  edges used: start->A A->C C->D
+  never reached: B R

@@ -1,0 +1,3 @@
+copies at the end of each predecessor      prints 4
+copy in a new block on the split edge      prints 3
+phi isolated: predecessors write d         prints 3

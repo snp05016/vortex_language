@@ -1,0 +1,8 @@
+(a, b) := (b, a)
+  meaning                                             a=2 b=1
+  in listed order a = b; b = a                        a=2 b=2
+  sequentialized  t = b; b = a; a = t                 a=2 b=1
+(a, b, c, d) := (b, c, a, a)
+  meaning                                             a=2 b=3 c=1 d=1
+  in listed order a = b; b = c; c = a; d = a          a=2 b=3 c=2 d=2
+  sequentialized  d = a; t = b; b = c; c = a; a = t   a=2 b=3 c=1 d=1

@@ -1,0 +1,88 @@
+; ModuleID = 'licm.ll'
+source_filename = "licm.ll"
+
+define void @scale_row(ptr noalias %out, ptr %src, ptr %factor, i64 %row, i64 %n) {
+entry:
+  %any = icmp sgt i64 %n, 0
+  br i1 %any, label %loop.preheader, label %done
+
+loop.preheader:                                   ; preds = %entry
+  %base = mul i64 %row, %n
+  %f = load float, ptr %factor, align 4
+  br label %loop
+
+loop:                                             ; preds = %loop.preheader, %loop
+  %j = phi i64 [ %j.next, %loop ], [ 0, %loop.preheader ]
+  %idx = add i64 %base, %j
+  %p = getelementptr float, ptr %src, i64 %idx
+  %x = load float, ptr %p, align 4
+  %y = fmul float %x, %f
+  %q = getelementptr float, ptr %out, i64 %j
+  store float %y, ptr %q, align 4
+  %j.next = add i64 %j, 1
+  %more = icmp slt i64 %j.next, %n
+  br i1 %more, label %loop, label %done.loopexit
+
+done.loopexit:                                    ; preds = %loop
+  br label %done
+
+done:                                             ; preds = %done.loopexit, %entry
+  ret void
+}
+
+define void @scale_row_may_alias(ptr %out, ptr %src, ptr %factor, i64 %row, i64 %n) {
+entry:
+  %any = icmp sgt i64 %n, 0
+  br i1 %any, label %loop.preheader, label %done
+
+loop.preheader:                                   ; preds = %entry
+  %base = mul i64 %row, %n
+  br label %loop
+
+loop:                                             ; preds = %loop.preheader, %loop
+  %j = phi i64 [ %j.next, %loop ], [ 0, %loop.preheader ]
+  %idx = add i64 %base, %j
+  %p = getelementptr float, ptr %src, i64 %idx
+  %x = load float, ptr %p, align 4
+  %f = load float, ptr %factor, align 4
+  %y = fmul float %x, %f
+  %q = getelementptr float, ptr %out, i64 %j
+  store float %y, ptr %q, align 4
+  %j.next = add i64 %j, 1
+  %more = icmp slt i64 %j.next, %n
+  br i1 %more, label %loop, label %done.loopexit
+
+done.loopexit:                                    ; preds = %loop
+  br label %done
+
+done:                                             ; preds = %done.loopexit, %entry
+  ret void
+}
+
+define void @sum_into(ptr noalias %acc, ptr %x, i64 %n) {
+entry:
+  %any = icmp sgt i64 %n, 0
+  br i1 %any, label %loop.preheader, label %done
+
+loop.preheader:                                   ; preds = %entry
+  %acc.promoted = load float, ptr %acc, align 4
+  br label %loop
+
+loop:                                             ; preds = %loop.preheader, %loop
+  %new1 = phi float [ %new, %loop ], [ %acc.promoted, %loop.preheader ]
+  %k = phi i64 [ %k.next, %loop ], [ 0, %loop.preheader ]
+  %p = getelementptr float, ptr %x, i64 %k
+  %v = load float, ptr %p, align 4
+  %new = fadd float %new1, %v
+  %k.next = add i64 %k, 1
+  %more = icmp slt i64 %k.next, %n
+  br i1 %more, label %loop, label %done.loopexit
+
+done.loopexit:                                    ; preds = %loop
+  %new.lcssa = phi float [ %new, %loop ]
+  store float %new.lcssa, ptr %acc, align 4
+  br label %done
+
+done:                                             ; preds = %done.loopexit, %entry
+  ret void
+}
