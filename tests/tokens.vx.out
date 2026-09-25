@@ -1,0 +1,193 @@
+Tokenizing /Users/saumya/vortex/tests/tokens.vx
+
+Token kind: fn, Location: 0-2
+Token kind: token_test, Location: 3-13
+Token kind: (, Location: 13-14
+Token kind: value, Location: 14-19
+Token kind: :, Location: 19-20
+Token kind: f32, Location: 21-24
+Token kind: ,, Location: 24-25
+Token kind: enabled, Location: 26-33
+Token kind: :, Location: 33-34
+Token kind: bool, Location: 35-39
+Token kind: ), Location: 39-40
+Token kind: ->, Location: 41-43
+Token kind: void, Location: 44-48
+Token kind: {, Location: 49-50
+Token kind: let, Location: 55-58
+Token kind: integer, Location: 59-66
+Token kind: =, Location: 67-68
+Token kind: 42, Location: 69-71
+Token kind: ;, Location: 71-72
+Token kind: let, Location: 77-80
+Token kind: binary, Location: 81-87
+Token kind: =, Location: 88-89
+Token kind: 0b1010, Location: 90-96
+Token kind: ;, Location: 96-97
+Token kind: let, Location: 102-105
+Token kind: decimal, Location: 106-113
+Token kind: =, Location: 114-115
+Token kind: 3.14, Location: 116-120
+Token kind: ;, Location: 120-121
+Token kind: let, Location: 126-129
+Token kind: scientific, Location: 130-140
+Token kind: =, Location: 141-142
+Token kind: 1.5e+4, Location: 143-149
+Token kind: ;, Location: 149-150
+Token kind: let, Location: 155-158
+Token kind: message, Location: 159-166
+Token kind: =, Location: 167-168
+Token kind: "hello\nVortex", Location: 169-184
+Token kind: ;, Location: 184-185
+Token kind: let, Location: 190-193
+Token kind: letter, Location: 194-200
+Token kind: =, Location: 201-202
+Token kind: 'V', Location: 203-206
+Token kind: ;, Location: 206-207
+Token kind: let, Location: 212-215
+Token kind: escaped, Location: 216-223
+Token kind: =, Location: 224-225
+Token kind: '\n', Location: 226-230
+Token kind: ;, Location: 230-231
+Token kind: let, Location: 236-239
+Token kind: flag, Location: 240-244
+Token kind: =, Location: 245-246
+Token kind: true, Location: 247-251
+Token kind: &&, Location: 252-254
+Token kind: false, Location: 255-260
+Token kind: ||, Location: 261-263
+Token kind: !, Location: 264-265
+Token kind: false, Location: 265-270
+Token kind: ;, Location: 270-271
+Token kind: value, Location: 276-281
+Token kind: +=, Location: 282-284
+Token kind: 2.0, Location: 285-288
+Token kind: ;, Location: 288-289
+Token kind: value, Location: 294-299
+Token kind: -=, Location: 300-302
+Token kind: 1.0, Location: 303-306
+Token kind: ;, Location: 306-307
+Token kind: value, Location: 312-317
+Token kind: *=, Location: 318-320
+Token kind: 3.0, Location: 321-324
+Token kind: ;, Location: 324-325
+Token kind: value, Location: 330-335
+Token kind: /=, Location: 336-338
+Token kind: 4.0, Location: 339-342
+Token kind: ;, Location: 342-343
+Token kind: integer, Location: 348-355
+Token kind: %=, Location: 356-358
+Token kind: 2, Location: 359-360
+Token kind: ;, Location: 360-361
+Token kind: let, Location: 366-369
+Token kind: inclusive, Location: 370-379
+Token kind: =, Location: 380-381
+Token kind: 0, Location: 382-383
+Token kind: ..=, Location: 383-386
+Token kind: 10, Location: 386-388
+Token kind: ;, Location: 388-389
+Token kind: let, Location: 394-397
+Token kind: exclusive, Location: 398-407
+Token kind: =, Location: 408-409
+Token kind: 0, Location: 410-411
+Token kind: .., Location: 411-413
+Token kind: 10, Location: 413-415
+Token kind: ;, Location: 415-416
+Token kind: }, Location: 417-418
+
+ Debugging tokens:
+KW_FN, Location: [0, 2], Text: fn
+IDENTIFIER, Location: [3, 10], Text: token_test
+PUNC_LPAREN, Location: [13, 1], Text: (
+IDENTIFIER, Location: [14, 5], Text: value
+PUNC_COLON, Location: [19, 1], Text: :
+KW_F32, Location: [21, 3], Text: f32
+PUNC_COMMA, Location: [24, 1], Text: ,
+IDENTIFIER, Location: [26, 7], Text: enabled
+PUNC_COLON, Location: [33, 1], Text: :
+KW_BOOL, Location: [35, 4], Text: bool
+PUNC_RPAREN, Location: [39, 1], Text: )
+PUNC_ARROW, Location: [41, 2], Text: ->
+KW_VOID, Location: [44, 4], Text: void
+PUNC_LBRACE, Location: [49, 1], Text: {
+KW_LET, Location: [55, 3], Text: let
+IDENTIFIER, Location: [59, 7], Text: integer
+OP_ASSIGN, Location: [67, 1], Text: =
+LIT_INT, Location: [69, 2], Text: 42
+PUNC_SEMICOLON, Location: [71, 1], Text: ;
+KW_LET, Location: [77, 3], Text: let
+IDENTIFIER, Location: [81, 6], Text: binary
+OP_ASSIGN, Location: [88, 1], Text: =
+LIT_INT, Location: [90, 6], Text: 0b1010
+PUNC_SEMICOLON, Location: [96, 1], Text: ;
+KW_LET, Location: [102, 3], Text: let
+IDENTIFIER, Location: [106, 7], Text: decimal
+OP_ASSIGN, Location: [114, 1], Text: =
+LIT_FLOAT, Location: [116, 4], Text: 3.14
+PUNC_SEMICOLON, Location: [120, 1], Text: ;
+KW_LET, Location: [126, 3], Text: let
+IDENTIFIER, Location: [130, 10], Text: scientific
+OP_ASSIGN, Location: [141, 1], Text: =
+LIT_FLOAT, Location: [143, 6], Text: 1.5e+4
+PUNC_SEMICOLON, Location: [149, 1], Text: ;
+KW_LET, Location: [155, 3], Text: let
+IDENTIFIER, Location: [159, 7], Text: message
+OP_ASSIGN, Location: [167, 1], Text: =
+LIT_STRING, Location: [169, 15], Text: "hello\nVortex"
+PUNC_SEMICOLON, Location: [184, 1], Text: ;
+KW_LET, Location: [190, 3], Text: let
+IDENTIFIER, Location: [194, 6], Text: letter
+OP_ASSIGN, Location: [201, 1], Text: =
+LIT_CHAR, Location: [203, 3], Text: 'V'
+PUNC_SEMICOLON, Location: [206, 1], Text: ;
+KW_LET, Location: [212, 3], Text: let
+IDENTIFIER, Location: [216, 7], Text: escaped
+OP_ASSIGN, Location: [224, 1], Text: =
+LIT_CHAR, Location: [226, 4], Text: '\n'
+PUNC_SEMICOLON, Location: [230, 1], Text: ;
+KW_LET, Location: [236, 3], Text: let
+IDENTIFIER, Location: [240, 4], Text: flag
+OP_ASSIGN, Location: [245, 1], Text: =
+LIT_TRUE, Location: [247, 4], Text: true
+OP_LOGICAL_AND, Location: [252, 2], Text: &&
+LIT_FALSE, Location: [255, 5], Text: false
+OP_LOGICAL_OR, Location: [261, 2], Text: ||
+OP_LOGICAL_NOT, Location: [264, 1], Text: !
+LIT_FALSE, Location: [265, 5], Text: false
+PUNC_SEMICOLON, Location: [270, 1], Text: ;
+IDENTIFIER, Location: [276, 5], Text: value
+OP_PLUS_ASSIGN, Location: [282, 2], Text: +=
+LIT_FLOAT, Location: [285, 3], Text: 2.0
+PUNC_SEMICOLON, Location: [288, 1], Text: ;
+IDENTIFIER, Location: [294, 5], Text: value
+OP_MINUS_ASSIGN, Location: [300, 2], Text: -=
+LIT_FLOAT, Location: [303, 3], Text: 1.0
+PUNC_SEMICOLON, Location: [306, 1], Text: ;
+IDENTIFIER, Location: [312, 5], Text: value
+OP_MULTIPLY_ASSIGN, Location: [318, 2], Text: *=
+LIT_FLOAT, Location: [321, 3], Text: 3.0
+PUNC_SEMICOLON, Location: [324, 1], Text: ;
+IDENTIFIER, Location: [330, 5], Text: value
+OP_DIVIDE_ASSIGN, Location: [336, 2], Text: /=
+LIT_FLOAT, Location: [339, 3], Text: 4.0
+PUNC_SEMICOLON, Location: [342, 1], Text: ;
+IDENTIFIER, Location: [348, 7], Text: integer
+OP_MODULO_ASSIGN, Location: [356, 2], Text: %=
+LIT_INT, Location: [359, 1], Text: 2
+PUNC_SEMICOLON, Location: [360, 1], Text: ;
+KW_LET, Location: [366, 3], Text: let
+IDENTIFIER, Location: [370, 9], Text: inclusive
+OP_ASSIGN, Location: [380, 1], Text: =
+LIT_INT, Location: [382, 1], Text: 0
+PUNC_INCL_RANGE, Location: [383, 3], Text: ..=
+LIT_INT, Location: [386, 2], Text: 10
+PUNC_SEMICOLON, Location: [388, 1], Text: ;
+KW_LET, Location: [394, 3], Text: let
+IDENTIFIER, Location: [398, 9], Text: exclusive
+OP_ASSIGN, Location: [408, 1], Text: =
+LIT_INT, Location: [410, 1], Text: 0
+PUNC_RANGE, Location: [411, 2], Text: ..
+LIT_INT, Location: [413, 2], Text: 10
+PUNC_SEMICOLON, Location: [415, 1], Text: ;
+PUNC_RBRACE, Location: [417, 1], Text: }
+EOF_TOKEN, Location: [419, 0], Text: 

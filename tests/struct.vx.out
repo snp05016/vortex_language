@@ -1,0 +1,77 @@
+Tokenizing /Users/saumya/vortex/tests/struct.vx
+
+Token kind: struct, Location: 2-8
+Token kind: {, Location: 8-9
+Token kind: let, Location: 12-15
+Token kind: x, Location: 16-17
+Token kind: :, Location: 17-18
+Token kind: i32, Location: 19-22
+Token kind: ;, Location: 22-23
+Token kind: let, Location: 25-28
+Token kind: y, Location: 29-30
+Token kind: :, Location: 30-31
+Token kind: i64, Location: 32-35
+Token kind: ;, Location: 35-36
+Token kind: }, Location: 37-38
+Token kind: s, Location: 39-40
+Token kind: ;, Location: 40-41
+Token kind: fn, Location: 44-46
+Token kind: main, Location: 47-51
+Token kind: (, Location: 51-52
+Token kind: ), Location: 52-53
+Token kind: {, Location: 53-54
+Token kind: s, Location: 56-57
+Token kind: h1, Location: 58-60
+Token kind: ;, Location: 60-61
+Token kind: h1, Location: 63-65
+Token kind: ., Location: 65-66
+Token kind: x, Location: 66-67
+Token kind: =, Location: 68-69
+Token kind: 5, Location: 70-71
+Token kind: ;, Location: 71-72
+Token kind: h2, Location: 74-76
+Token kind: ., Location: 76-77
+Token kind: y, Location: 77-78
+Token kind: =, Location: 79-80
+Token kind: 3404030430340, Location: 81-94
+Token kind: ;, Location: 94-95
+Token kind: }, Location: 96-97
+
+ Debugging tokens:
+KW_STRUCT, Location: [2, 6], Text: struct
+PUNC_LBRACE, Location: [8, 1], Text: {
+KW_LET, Location: [12, 3], Text: let
+IDENTIFIER, Location: [16, 1], Text: x
+PUNC_COLON, Location: [17, 1], Text: :
+KW_I32, Location: [19, 3], Text: i32
+PUNC_SEMICOLON, Location: [22, 1], Text: ;
+KW_LET, Location: [25, 3], Text: let
+IDENTIFIER, Location: [29, 1], Text: y
+PUNC_COLON, Location: [30, 1], Text: :
+IDENTIFIER, Location: [32, 3], Text: i64
+PUNC_SEMICOLON, Location: [35, 1], Text: ;
+PUNC_RBRACE, Location: [37, 1], Text: }
+IDENTIFIER, Location: [39, 1], Text: s
+PUNC_SEMICOLON, Location: [40, 1], Text: ;
+KW_FN, Location: [44, 2], Text: fn
+IDENTIFIER, Location: [47, 4], Text: main
+PUNC_LPAREN, Location: [51, 1], Text: (
+PUNC_RPAREN, Location: [52, 1], Text: )
+PUNC_LBRACE, Location: [53, 1], Text: {
+IDENTIFIER, Location: [56, 1], Text: s
+IDENTIFIER, Location: [58, 2], Text: h1
+PUNC_SEMICOLON, Location: [60, 1], Text: ;
+IDENTIFIER, Location: [63, 2], Text: h1
+PUNC_DOT, Location: [65, 1], Text: .
+IDENTIFIER, Location: [66, 1], Text: x
+OP_ASSIGN, Location: [68, 1], Text: =
+LIT_INT, Location: [70, 1], Text: 5
+PUNC_SEMICOLON, Location: [71, 1], Text: ;
+IDENTIFIER, Location: [74, 2], Text: h2
+PUNC_DOT, Location: [76, 1], Text: .
+IDENTIFIER, Location: [77, 1], Text: y
+OP_ASSIGN, Location: [79, 1], Text: =
+LIT_INT, Location: [81, 13], Text: 3404030430340
+PUNC_SEMICOLON, Location: [94, 1], Text: ;
+PUNC_RBRACE, Location: [96, 1], Text: }
+EOF_TOKEN, Location: [98, 0], Text: 
