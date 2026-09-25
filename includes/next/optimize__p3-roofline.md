@@ -8,3 +8,12 @@
     - [P16. Capstone: the ladder, measured](p16-capstone.md): *roofline model*
     - [A. The machine: G1. Throughput machines](../gpu/g1-throughput-machines.md): *roofline model*
     - [D. Matmul and friends: G10. The GPU matmul ladder](../gpu/g10-matmul-ladder.md): *roofline model*
+
+??? info "Concept map for this page"
+
+    ```mermaid
+    flowchart LR
+      c_roofline_model["roofline model"]
+      c_cache_line["cache line"]
+      c_cache_line --> c_roofline_model
+    ```

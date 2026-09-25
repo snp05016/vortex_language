@@ -8,3 +8,42 @@
     - [B. A first native back end: B1. The simplest back end that works](../../backend/b1-simplest-backend.md): *intermediate representation*, *instruction*, *assembly language*, *runtime library* and 1 more
     - [B. A first native back end: B4. Linking and loading](../../backend/b4-linking-and-loading.md): *object file*, *linker*, *executable*, *runtime library* and 1 more
     - [C. Software stack: G9. GPU compilers inside LLVM](../../gpu/g9-gpu-compilers-in-llvm.md): *intermediate representation*, *lowering*, *back end*, *target* and 5 more
+
+??? info "Concept map for this page"
+
+    ```mermaid
+    flowchart LR
+      c_intermediate_representation["intermediate representation"]
+      c_lowering["lowering"]
+      c_front_end["front end"]
+      c_back_end["back end"]
+      c_target["target"]
+      c_instruction["instruction"]
+      c_register["register"]
+      c_assembly_language["assembly language"]
+      c_object_file["object file"]
+      c_linker["linker"]
+      c_executable["executable"]
+      c_runtime_library["runtime library"]
+      c_standard_output["standard output"]
+      c_static_single_assignment["static single assignment form"]
+      c_phi["phi"]
+      c_pass["pass"]
+      c_toolchain["toolchain"]
+      c_nanopass["nanopass"]
+      c_bytecode["bytecode"]
+      c_front_end --> c_intermediate_representation
+      c_intermediate_representation --> c_lowering
+      c_front_end --> c_back_end
+      c_instruction --> c_register
+      c_instruction --> c_assembly_language
+      c_object_file --> c_linker
+      c_executable --> c_linker
+      c_executable --> c_runtime_library
+      c_intermediate_representation --> c_static_single_assignment
+      c_static_single_assignment --> c_phi
+      c_linker --> c_toolchain
+      c_assembly_language --> c_toolchain
+      c_pass --> c_nanopass
+      c_instruction --> c_bytecode
+    ```

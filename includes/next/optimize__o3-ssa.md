@@ -7,3 +7,16 @@
     - [O10. Pass managers and pipelines](o10-pass-pipelines.md): *mem2reg*
     - [CPU performance: P12. Anatomy of a fast GEMM](p12-fast-gemm.md): *mem2reg*
     - [Case studies: A4. LLVM IR back end](../project/case-studies/llvm-backend.md): *mem2reg*
+
+??? info "Concept map for this page"
+
+    ```mermaid
+    flowchart LR
+      c_mem2reg["mem2reg"]
+      c_register["register"]
+      c_static_single_assignment["static single assignment form"]
+      c_sroa["SROA"]
+      c_static_single_assignment --> c_mem2reg
+      c_register --> c_mem2reg
+      c_mem2reg --> c_sroa
+    ```

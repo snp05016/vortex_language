@@ -6,3 +6,16 @@
     - [D. Matmul and friends: G10. The GPU matmul ladder](g10-matmul-ladder.md): *occupancy*
     - [D. Matmul and friends: G12. Fusion case study: FlashAttention](g12-flashattention.md): *occupancy*
     - [E. Measurement and beyond: G14. Measuring GPU code](g14-measuring-gpu-code.md): *occupancy*
+
+??? info "Concept map for this page"
+
+    ```mermaid
+    flowchart LR
+      c_occupancy["occupancy"]
+      c_warp["warp"]
+      c_register_spilling["register spilling"]
+      c_speed_of_light_report["speed of light report"]
+      c_warp --> c_occupancy
+      c_register_spilling --> c_occupancy
+      c_occupancy --> c_speed_of_light_report
+    ```

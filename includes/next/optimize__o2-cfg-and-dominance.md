@@ -8,3 +8,37 @@
     - [O6. Redundancy: CSE, GVN, PRE and LICM](o6-redundancy.md): *dominator tree*, *natural loop*
     - [O8. Loops: structure, induction variables and bounds checks](o8-loops.md): *dominator tree*, *natural loop*
     - [O9. Memory: alias analysis and MemorySSA](o9-alias-analysis.md): *dominator tree*, *dominance frontier*, *natural loop*
+
+??? info "Concept map for this page"
+
+    ```mermaid
+    flowchart LR
+      c_dominator_tree["dominator tree"]
+      c_dominance_frontier["dominance frontier"]
+      c_natural_loop["natural loop"]
+      c_phi["phi"]
+      c_static_single_assignment["static single assignment form"]
+      c_back_edge["back edge"]
+      c_basic_block["basic block"]
+      c_control_flow_graph["control-flow graph"]
+      c_dataflow_analysis["dataflow analysis"]
+      c_value_numbering["value numbering"]
+      c_induction_variable["induction variable"]
+      c_loop_simplify_form["loop simplify form"]
+      c_control_flow_graph --> c_dominator_tree
+      c_basic_block --> c_dominator_tree
+      c_dominator_tree --> c_dominance_frontier
+      c_static_single_assignment --> c_dominance_frontier
+      c_phi --> c_dominance_frontier
+      c_back_edge --> c_natural_loop
+      c_dominator_tree --> c_natural_loop
+      c_static_single_assignment --> c_phi
+      c_basic_block --> c_control_flow_graph
+      c_control_flow_graph --> c_dataflow_analysis
+      c_dominator_tree --> c_dataflow_analysis
+      c_static_single_assignment --> c_value_numbering
+      c_dominator_tree --> c_value_numbering
+      c_natural_loop --> c_induction_variable
+      c_static_single_assignment --> c_induction_variable
+      c_natural_loop --> c_loop_simplify_form
+    ```

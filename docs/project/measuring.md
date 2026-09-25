@@ -701,8 +701,9 @@ Each timed sample carries at least these fields:
 | `seconds` | Time for one call, or for one batch with the batch size recorded |
 | `gate` | Result of the correctness check for this launch |
 
-**Continuous integration** (CI), the checks GitHub runs on every pushed
-change, will not produce timings. Each GitHub-hosted runner, other than the
+[Continuous integration](testing.md#what-is-in-place-today) (CI), the checks
+GitHub runs on every pushed change, will not produce timings. Each
+GitHub-hosted runner, other than the
 single-CPU kind, is a new virtual machine,[^gh-runners] so the hardware under
 a job is neither chosen nor recorded by the project. The plan is for CI to
 run the correctness gate and a short smoke run of the harness on every

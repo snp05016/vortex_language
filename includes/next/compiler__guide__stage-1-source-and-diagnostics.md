@@ -8,3 +8,38 @@
     - [8. Data in memory](stage-8-data-in-memory.md): *character*, *byte*, *UTF-8*, *offset* and 1 more
     - [11. Release](stage-11-release.md): *source file*, *source span*, *diagnostic*, *category*
     - [Project: Implementation roadmap](../../roadmap.md): *source file*, *character*, *UTF-8*, *source span* and 1 more
+
+??? info "Concept map for this page"
+
+    ```mermaid
+    flowchart LR
+      c_source_file["source file"]
+      c_character["character"]
+      c_byte["byte"]
+      c_encoding["encoding"]
+      c_utf_8["UTF-8"]
+      c_offset["offset"]
+      c_line_and_column["line and column"]
+      c_source_span["source span"]
+      c_diagnostic["diagnostic"]
+      c_category["category"]
+      c_primary_span["primary span"]
+      c_note["note"]
+      c_marker["marker"]
+      c_source_manager["source manager"]
+      c_character --> c_byte
+      c_character --> c_encoding
+      c_byte --> c_encoding
+      c_encoding --> c_utf_8
+      c_source_file --> c_offset
+      c_offset --> c_line_and_column
+      c_offset --> c_source_span
+      c_source_file --> c_diagnostic
+      c_diagnostic --> c_category
+      c_diagnostic --> c_primary_span
+      c_source_span --> c_primary_span
+      c_primary_span --> c_note
+      c_primary_span --> c_marker
+      c_source_file --> c_source_manager
+      c_line_and_column --> c_source_manager
+    ```

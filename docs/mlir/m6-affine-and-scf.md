@@ -56,7 +56,7 @@ affine.for %i = 0 to 4 {
       ...
 ```
 
-The nest runs its body once for each triple `(i, j, k)` with `0 ≤ i < 4`, `0 ≤ j < 2` and `0 ≤ k < 3`: 24 triples, in the order the loops count. That set of points, together with the order the nest visits them in, is the nest's **iteration space**. [P9](../optimize/p9-polyhedral-model.md#a-loop-nest-as-a-set-of-points) treats it as one geometric object; this chapter asks what an IR has to keep for a pass to reason about it that way.
+The nest runs its body once for each triple `(i, j, k)` with `0 ≤ i < 4`, `0 ≤ j < 2` and `0 ≤ k < 3`: 24 triples, in the order the loops count. That set of points, together with the order the nest visits them in, is the nest's iteration space ([M5](m5-structured-ops.md#a-row-sum-read-as-one-operation) gives the term). [P9](../optimize/p9-polyhedral-model.md#a-loop-nest-as-a-set-of-points) treats it as one geometric object; this chapter asks what an IR has to keep for a pass to reason about it that way.
 
 The same nest can sit at four levels of MLIR, and each level keeps less. Figure 1 lines them up.
 

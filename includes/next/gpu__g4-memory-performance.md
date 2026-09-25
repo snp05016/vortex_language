@@ -2,9 +2,32 @@
 
 !!! next "You will use this again in"
 
-    - [G5. Occupancy and latency hiding](g5-occupancy.md): *coalescing*
-    - [C. Software stack: G9. GPU compilers inside LLVM](g9-gpu-compilers-in-llvm.md): *coalescing*, *thread mapping*
-    - [D. Matmul and friends: G10. The GPU matmul ladder](g10-matmul-ladder.md): *coalescing*, *bank conflict*, *thread mapping*
-    - [D. Matmul and friends: G11. Matrix units](g11-matrix-units.md): *coalescing*
-    - [D. Matmul and friends: G13. Tile languages](g13-tile-languages.md): *coalescing*, *thread mapping*
-    - [E. Measurement and beyond: G14. Measuring GPU code](g14-measuring-gpu-code.md): *coalescing*, *bank conflict*
+    - [G5. Occupancy and latency hiding](g5-occupancy.md): *memory coalescing*
+    - [C. Software stack: G9. GPU compilers inside LLVM](g9-gpu-compilers-in-llvm.md): *memory coalescing*, *thread mapping*
+    - [D. Matmul and friends: G10. The GPU matmul ladder](g10-matmul-ladder.md): *memory coalescing*, *bank conflict*, *thread mapping*
+    - [D. Matmul and friends: G11. Matrix units](g11-matrix-units.md): *memory coalescing*
+    - [D. Matmul and friends: G13. Tile languages](g13-tile-languages.md): *memory coalescing*, *thread mapping*
+    - [E. Measurement and beyond: G14. Measuring GPU code](g14-measuring-gpu-code.md): *memory coalescing*, *bank conflict*
+
+??? info "Concept map for this page"
+
+    ```mermaid
+    flowchart LR
+      c_coalescing["memory coalescing"]
+      c_bank_conflict["bank conflict"]
+      c_thread_mapping["thread mapping"]
+      c_warp["warp"]
+      c_shared_memory["shared memory"]
+      c_tile["output tile"]
+      c_tile_program["tile program"]
+      c_speed_of_light_report["speed of light report"]
+      c_warp --> c_coalescing
+      c_shared_memory --> c_bank_conflict
+      c_coalescing --> c_thread_mapping
+      c_warp --> c_shared_memory
+      c_shared_memory --> c_tile
+      c_coalescing --> c_tile
+      c_tile --> c_tile_program
+      c_thread_mapping --> c_tile_program
+      c_coalescing --> c_speed_of_light_report
+    ```

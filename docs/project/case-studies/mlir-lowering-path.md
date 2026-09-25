@@ -1,4 +1,4 @@
-# MLIR lowering path
+# A7. MLIR lowering path
 
 <p class="page-intro">This case study will build a second route from Vortex to machine code through MLIR, where tiling, fusion and vectorization already exist as transformations on structured IR. It then compares that route with the passes Vortex builds by hand for the CPU matmul ladder. Nothing has been built yet, so every result table below is empty.</p>
 

@@ -8,3 +8,15 @@
     - [C. The classical pipeline: C7. Peephole optimization](c7-peephole.md): *addressing mode*
     - [D. Around the code: D3. Reading real back ends](d3-real-backends.md): *addressing mode*
     - [The middle end: O8. Loops: structure, induction variables and bounds checks](../optimize/o8-loops.md): *addressing mode*
+
+??? info "Concept map for this page"
+
+    ```mermaid
+    flowchart LR
+      c_addressing_mode["addressing mode"]
+      c_register["register"]
+      c_load_store_architecture["load/store architecture"]
+      c_register --> c_addressing_mode
+      c_load_store_architecture --> c_addressing_mode
+      c_register --> c_load_store_architecture
+    ```

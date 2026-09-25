@@ -5,3 +5,12 @@
     - [4. Variables and types](04-variables-and-types.md): *static typing*
     - [Specification: Specification status](../specification/index.md): *static typing*
     - [Reference: Language philosophy](../philosophy.md): *static typing*
+
+??? info "Concept map for this page"
+
+    ```mermaid
+    flowchart LR
+      c_static_typing["static typing"]
+      c_type_inference["type inference"]
+      c_static_typing --> c_type_inference
+    ```

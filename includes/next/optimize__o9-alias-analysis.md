@@ -8,3 +8,18 @@
     - [CPU performance: P12. Anatomy of a fast GEMM](p12-fast-gemm.md): *alias analysis*, *MemorySSA*
     - [CPU performance: P13. Multithreading](p13-multithreading.md): *alias analysis*, *MemorySSA*
     - [MLIR: M7. Bufferization](../mlir/m7-bufferization.md): *alias analysis*, *MemorySSA*
+
+??? info "Concept map for this page"
+
+    ```mermaid
+    flowchart LR
+      c_alias_analysis["alias analysis"]
+      c_memory_ssa["MemorySSA"]
+      c_reference["reference"]
+      c_borrow["borrow"]
+      c_static_single_assignment["static single assignment form"]
+      c_reference --> c_alias_analysis
+      c_borrow --> c_alias_analysis
+      c_static_single_assignment --> c_memory_ssa
+      c_alias_analysis --> c_memory_ssa
+    ```

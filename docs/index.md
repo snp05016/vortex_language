@@ -46,18 +46,47 @@ This program shows most of what a Vortex file contains:
 
 ## Read the documentation
 
+Two paths through this site: one for learning the language and its
+compiler, one for evaluating the project.
+
+### For learners
+
 <div class="document-index">
   <div class="document-link">
     <a href="language-tour/">Language tour</a>
-    <span>Start here. Short chapters with examples that teach you to write Vortex programs.</span>
+    <span>Start here. Short chapters with examples that teach you to write Vortex programs, each with check questions and a recap.</span>
   </div>
   <div class="document-link">
     <a href="specification/">Language specification</a>
     <span>The exact rules for syntax, types, behavior, and the errors a compiler must report. These rules are normative: a compiler must follow them to count as a correct Vortex compiler.</span>
   </div>
   <div class="document-link">
-    <a href="compiler/guide/">Building the compiler</a>
-    <span>A stage-by-stage reading guide to what the compiler needs at each step, with sources.</span>
+    <a href="compiler/guide/">Build v0.1</a>
+    <span>A stage-by-stage reading guide to what the compiler needs at each step, with a workbook to track your progress and recipes for common changes.</span>
+  </div>
+  <div class="document-link">
+    <a href="backend/">Back end</a>
+    <span>A native code generator by hand: the machine, a first back end, the classical pipeline, and how LLVM does it. Chapters A1 to E4.</span>
+  </div>
+  <div class="document-link">
+    <a href="optimize/">Optimize</a>
+    <span>How a compiler makes correct code fast, from the middle end to a fast CPU matrix multiplication. Chapters O1 to O12 and P1 to P16, plus the CPU matmul ladder.</span>
+  </div>
+  <div class="document-link">
+    <a href="gpu/">GPU</a>
+    <span>How GPUs execute, why they are fast, and a matmul ladder that puts it into practice. Chapters G1 to G15.</span>
+  </div>
+  <div class="document-link">
+    <a href="mlir/">MLIR</a>
+    <span>How MLIR represents and lowers programs, and how it could carry Vortex to GPUs. Chapters M1 to M12.</span>
+  </div>
+  <div class="document-link">
+    <a href="progress/">Your progress</a>
+    <span>Records which chapters you have opened and tells you when a review page is due. Kept in your browser only.</span>
+  </div>
+  <div class="document-link">
+    <a href="concept-map/">Concept map</a>
+    <span>Which ideas each idea needs first, drawn as one map per book.</span>
   </div>
   <div class="document-link">
     <a href="compiler/architecture/">Compiler internals</a>
@@ -66,6 +95,15 @@ This program shows most of what a Vortex file contains:
   <div class="document-link">
     <a href="language-and-compiler-cheatsheet/">Language and compiler cheat sheet</a>
     <span>A compact lookup page for language and compiler terminology.</span>
+  </div>
+</div>
+
+### For evaluators
+
+<div class="document-index">
+  <div class="document-link">
+    <a href="project/">For reviewers</a>
+    <span>What exists in the repository today, what is being built next, and where the evidence for each claim lives.</span>
   </div>
 </div>
 

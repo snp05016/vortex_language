@@ -1,4 +1,4 @@
-# ML framework bridge
+# A10. ML framework bridge
 
 <p class="page-intro">This case study will make Vortex kernels callable from PyTorch as custom operators and compare them, on the same shapes, with PyTorch's own execution, with torch.compile and with a Triton kernel. Nothing has been built yet, so every result table below is empty.</p>
 

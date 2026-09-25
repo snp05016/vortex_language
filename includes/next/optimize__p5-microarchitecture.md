@@ -8,3 +8,16 @@
     - [P16. Capstone: the ladder, measured](p16-capstone.md): *latency and throughput*
     - [A. The machine: G1. Throughput machines](../gpu/g1-throughput-machines.md): *latency and throughput*
     - [B. Performance: G5. Occupancy and latency hiding](../gpu/g5-occupancy.md): *latency and throughput*
+
+??? info "Concept map for this page"
+
+    ```mermaid
+    flowchart LR
+      c_latency_and_throughput["latency and throughput"]
+      c_register["register"]
+      c_unroll_and_jam["unroll-and-jam"]
+      c_vectorization["vectorization"]
+      c_register --> c_latency_and_throughput
+      c_latency_and_throughput --> c_unroll_and_jam
+      c_latency_and_throughput --> c_vectorization
+    ```

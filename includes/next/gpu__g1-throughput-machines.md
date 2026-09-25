@@ -7,3 +7,13 @@
     - [B. Performance: G5. Occupancy and latency hiding](g5-occupancy.md): *Little's law*
     - [E. Measurement and beyond: G14. Measuring GPU code](g14-measuring-gpu-code.md): *Little's law*
     - [E. Measurement and beyond: G15. Beyond GPUs: systolic arrays and accelerators](g15-systolic-arrays.md): *throughput-optimized design*
+
+??? info "Concept map for this page"
+
+    ```mermaid
+    flowchart LR
+      c_throughput_optimized_design["throughput-optimized design"]
+      c_littles_law["Little's law"]
+      c_warp["warp"]
+      c_throughput_optimized_design --> c_warp
+    ```

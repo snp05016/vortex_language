@@ -997,12 +997,11 @@ concepts:
 
   - id: shadowing
     term: shadowing
-    short: Declaring a name in an inner scope that an outer scope already declares; not yet decided for Vortex.
+    short: Declaring a name that another visible declaration already uses; v0.1 forbids it as a name error.
     definition: >-
-      Declaring a name in an inner scope that an outer scope already declares,
-      so that inside the inner scope the name means the new declaration.
-      Whether Vortex allows this is not yet decided, so programs should not
-      rely on it.
+      Declaring a name while another declaration of the same name is visible,
+      so that the new one would hide the old one inside its scope. Vortex v0.1
+      forbids it: such a declaration is a name error (decision 2).
     spec: >-
       Declaring a name while another declaration of the same name is visible, so
       that the new one would hide the old one. Vortex v0.1 forbids it; see
@@ -1014,7 +1013,7 @@ concepts:
       - specification/declarations.md
       - compiler/guide/stage-4-names-and-scopes.md
     recall_question: What is it called when an inner block redeclares a name that an outer block already declares, and does v0.1 allow it?
-    recall_answer: Shadowing. Whether Vortex allows it is not yet decided, so do not rely on it.
+    recall_answer: Shadowing. v0.1 forbids it; redeclaring a visible name is a name error.
 
   - id: function
     term: function
@@ -1177,7 +1176,7 @@ concepts:
       operation safe.
     spec_ref: specification/conformance.md#14-static-and-dynamic-rules
     introduced_in: language-tour/06-runtime-and-numerical-rules.md
-    requires: [run-time]
+    requires: [run-time, bounds-check, cast]
     used_in:
       - specification/conformance.md
       - specification/diagnostics.md
@@ -2440,10 +2439,11 @@ concepts:
 
   - id: compatible
     term: compatible
-    short: Allowed to be used together under the type rules; in v0.1 this usually means exactly the same type.
+    short: Allowed together under the type rules; in v0.1 this means the same type, since nothing converts automatically.
     definition: >-
-      Allowed to be used together under the type rules. Vortex v0.1 has almost
-      no automatic conversions, so compatible usually means the same type.
+      Allowed to be used together under the type rules. Vortex v0.1 has no
+      automatic conversions, so compatible means the same type once each literal
+      has taken its type.
     spec: >-
       Describes two types that are equal after literal typing. Vortex v0.1 has
       no implicit conversions, so wherever a rule requires compatible types they
@@ -2454,8 +2454,8 @@ concepts:
     requires: [type]
     used_in:
       - compiler/parser-design.md
-    recall_question: In v0.1, what does it usually take for two types to be compatible?
-    recall_answer: Being the same type, because v0.1 has almost no automatic conversions.
+    recall_question: In v0.1, what does it take for two types to be compatible?
+    recall_answer: Being the same type, because v0.1 has no automatic conversions.
 
   - id: control-flow-path
     term: control-flow path
@@ -3453,9 +3453,11 @@ concepts:
       and `f64` follow it, and v0.1 does not reorder floating-point operations
       in ways that change their results.
     spec_ref: specification/types-and-values.md#44-floating-point-values
-    introduced_in: compiler/guide/stage-9-runtime-safety.md
+    introduced_in: language-tour/06-runtime-and-numerical-rules.md
     requires: []
     used_in:
+      - compiler/guide/stage-6-first-machine-code.md
+      - compiler/guide/stage-9-runtime-safety.md
       - backend/a3-floats-and-vectors.md
       - gpu/g4-memory-performance.md
       - gpu/g5-occupancy.md
@@ -3485,9 +3487,11 @@ concepts:
     definition: >-
       Short for not a number. A special IEEE 754 value produced by operations
       such as zero divided by zero.
-    introduced_in: compiler/guide/stage-9-runtime-safety.md
+    introduced_in: language-tour/06-runtime-and-numerical-rules.md
     requires: [ieee-754]
     used_in:
+      - compiler/guide/stage-6-first-machine-code.md
+      - compiler/guide/stage-9-runtime-safety.md
       - compiler/guide/stage-11-release.md
     recall_question: Which special floating-point value does `0.0 / 0.0` produce?
     recall_answer: NaN, short for not a number.
@@ -3496,9 +3500,11 @@ concepts:
     term: infinity
     short: A special floating-point value produced, for example, by dividing a nonzero number by zero.
     definition: A special IEEE 754 value produced, for example, by dividing a nonzero number by zero.
-    introduced_in: compiler/guide/stage-9-runtime-safety.md
+    introduced_in: language-tour/06-runtime-and-numerical-rules.md
     requires: [ieee-754]
-    used_in: []
+    used_in:
+      - compiler/guide/stage-6-first-machine-code.md
+      - compiler/guide/stage-9-runtime-safety.md
     recall_question: Which special floating-point value does dividing a nonzero number by zero produce?
     recall_answer: Infinity, a special IEEE 754 value.
 
@@ -4742,7 +4748,6 @@ concepts:
     - stack-frame
     used_in:
     - backend/d2-jit.md
-    - backend/d3-real-backends.md
     - backend/e3-llvm-allocator-scheduler-mc.md
     - optimize/o3-ssa.md
     - optimize/o7-inlining-and-sroa.md
@@ -4767,7 +4772,6 @@ concepts:
     - object-file
     - linker
     used_in:
-    - backend/d3-real-backends.md
     - gpu/g8-isas-and-irs.md
     recall_question: What does a JIT skip compared with an ahead-of-time back end,
       and what must it therefore do itself?
@@ -4788,7 +4792,6 @@ concepts:
     - calling-convention
     used_in:
     - backend/e3-llvm-allocator-scheduler-mc.md
-    - backend/e4-testing-backends.md
     - gpu/g9-gpu-compilers-in-llvm.md
     - mlir/m1-why-mlir.md
     recall_question: Why does LLVM describe a target in TableGen instead of writing
@@ -5663,7 +5666,7 @@ concepts:
       thread can reach, a block''s shared scratchpad, a read-only constant pool,
       or a thread''s own private storage.'
   - id: coalescing
-    term: coalescing
+    term: memory coalescing
     short: Merging a warp's 32 addresses into as few aligned memory transactions
       as possible.
     definition: Coalescing is the hardware's merging of a warp's 32 lane addresses
@@ -5919,7 +5922,7 @@ concepts:
       values of a phi, and after a loop with a divergent exit, where lanes leave
       on different iterations.
   - id: tile
-    term: tile
+    term: output tile
     short: A rectangle of outputs held in faster memory so its inputs are read once
       and reused often.
     definition: 'A tile, in this book''s sense, is a rectangle of outputs held in

@@ -8,3 +8,19 @@
     - [P8. Cache blocking](p8-cache-blocking.md): *cache line*
     - [P12. Anatomy of a fast GEMM](p12-fast-gemm.md): *cache line*
     - [P13. Multithreading](p13-multithreading.md): *cache line*
+
+??? info "Concept map for this page"
+
+    ```mermaid
+    flowchart LR
+      c_cache_line["cache line"]
+      c_address["address"]
+      c_memory["memory"]
+      c_roofline_model["roofline model"]
+      c_tiling["tiling"]
+      c_memory --> c_cache_line
+      c_address --> c_cache_line
+      c_memory --> c_address
+      c_cache_line --> c_roofline_model
+      c_cache_line --> c_tiling
+    ```

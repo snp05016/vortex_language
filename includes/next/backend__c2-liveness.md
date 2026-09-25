@@ -8,3 +8,25 @@
     - [D. Around the code: D3. Reading real back ends](d3-real-backends.md): *live range*, *interference graph*
     - [E. How LLVM does it: E1. The LLVM code generator pipeline](e1-llvm-codegen-pipeline.md): *live range*
     - [E. How LLVM does it: E3. LLVM's allocator, scheduler and MC layer](e3-llvm-allocator-scheduler-mc.md): *live range*, *interference graph*
+
+??? info "Concept map for this page"
+
+    ```mermaid
+    flowchart LR
+      c_live_range["live range"]
+      c_interference_graph["interference graph"]
+      c_control_flow_graph["control-flow graph"]
+      c_linear_scan["linear scan"]
+      c_register_allocation["register allocation"]
+      c_graph_coloring["graph coloring"]
+      c_spilling["spilling"]
+      c_control_flow_graph --> c_live_range
+      c_live_range --> c_interference_graph
+      c_register_allocation --> c_linear_scan
+      c_live_range --> c_linear_scan
+      c_live_range --> c_register_allocation
+      c_register_allocation --> c_graph_coloring
+      c_interference_graph --> c_graph_coloring
+      c_register_allocation --> c_spilling
+      c_live_range --> c_spilling
+    ```

@@ -8,3 +8,19 @@
     - [D. Around the code: D3. Reading real back ends](d3-real-backends.md): *instruction selection*
     - [E. How LLVM does it: E1. The LLVM code generator pipeline](e1-llvm-codegen-pipeline.md): *instruction selection*
     - [E. How LLVM does it: E2. Describing a target](e2-describing-a-target.md): *instruction selection*
+
+??? info "Concept map for this page"
+
+    ```mermaid
+    flowchart LR
+      c_instruction_selection["instruction selection"]
+      c_intermediate_representation["intermediate representation"]
+      c_macro_expansion["macro expansion"]
+      c_peephole_optimization["peephole optimization"]
+      c_tablegen["TableGen"]
+      c_intermediate_representation --> c_instruction_selection
+      c_macro_expansion --> c_instruction_selection
+      c_intermediate_representation --> c_macro_expansion
+      c_instruction_selection --> c_peephole_optimization
+      c_instruction_selection --> c_tablegen
+    ```

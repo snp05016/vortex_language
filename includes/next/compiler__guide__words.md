@@ -5,3 +5,18 @@
     - [Project: Implementation roadmap](../../roadmap.md): *vertical slice*
     - [Compiler internals: Parser design](../parser-design.md): *vertical slice*
     - [Compiler internals: AST learning guide](../ast-guide.md): *vertical slice*
+
+??? info "Concept map for this page"
+
+    ```mermaid
+    flowchart LR
+      c_tree_walk_interpreter["tree-walk interpreter"]
+      c_vertical_slice["vertical slice"]
+      c_compiler["compiler"]
+      c_abstract_syntax_tree["abstract syntax tree"]
+      c_node["node"]
+      c_abstract_syntax_tree --> c_tree_walk_interpreter
+      c_node --> c_tree_walk_interpreter
+      c_compiler --> c_vertical_slice
+      c_node --> c_abstract_syntax_tree
+    ```

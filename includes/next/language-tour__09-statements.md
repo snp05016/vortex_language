@@ -8,3 +8,35 @@
     - [Build v0.1: 3. The parser and the syntax tree](../compiler/guide/stage-3-parser-and-tree.md): *statement*, *block*, *assignment*
     - [Build v0.1: 7. Functions and control flow](../compiler/guide/stage-7-functions-and-control-flow.md): *statement*, *block*, *loop variable*
     - [Compiler internals: Parser design](../compiler/parser-design.md): *statement*, *block*, *assignment*, *loop variable*
+
+??? info "Concept map for this page"
+
+    ```mermaid
+    flowchart LR
+      c_statement["statement"]
+      c_block["block"]
+      c_assignment["assignment"]
+      c_loop_variable["loop variable"]
+      c_local_variable["local variable"]
+      c_mutable["mutable"]
+      c_expression["expression"]
+      c_range["range"]
+      c_function["function"]
+      c_scope["scope"]
+      c_control_flow_path["control-flow path"]
+      c_early_return["early return"]
+      c_expression --> c_statement
+      c_statement --> c_block
+      c_statement --> c_assignment
+      c_mutable --> c_assignment
+      c_range --> c_loop_variable
+      c_local_variable --> c_loop_variable
+      c_local_variable --> c_mutable
+      c_expression --> c_range
+      c_block --> c_function
+      c_block --> c_scope
+      c_function --> c_control_flow_path
+      c_statement --> c_control_flow_path
+      c_function --> c_early_return
+      c_statement --> c_early_return
+    ```

@@ -116,7 +116,7 @@ The two tables teach different things. At n = 2048 the naive row is 0.500, the "
 
 ### Which cache, which bytes
 
-The model rests on an assumption about the cache, and at the stage 10 size the assumption fails on the machine this book was written on. The three 64 &times; 64 f32 matrices take 48 KiB together. [P2](p2-memory-hierarchy.md) read this M4 Pro's L1 data cache size on its performance cores as 128 KiB, with `sysctl`, on 2026-09-23. The whole problem fits in L1, so on that machine the naive loop's DRAM traffic is the compulsory 49,152 bytes on its first call, whatever its loop order.
+The model rests on an assumption about the cache, and at the stage 10 size the assumption fails on the machine this book was written on. The three 64 &times; 64 f32 matrices take 48 KiB together. [P2](p2-memory-hierarchy.md) read this M4 Pro's L1 data cache size on its performance cores as 128 KiB, with `sysctl`, on 2026-09-24. The whole problem fits in L1, so on that machine the naive loop's DRAM traffic is the compulsory 49,152 bytes on its first call, whatever its loop order.
 
 That does not make the naive row wrong. It makes it a statement about a machine and a problem size, which is what operational intensity always is. At n = 2048 the matrices take 48 MiB, three times the 16 MiB L2 that P2 measured, and there the naive row's assumption is the realistic one. The paper makes the same point: kernels such as dense matrix work and FFT have an intensity that grows with problem size.[^roofline-3cs] The section [Which roof](#which-roof) returns to what bounds the small kernel instead.
 

@@ -6,3 +6,12 @@
     - [C. The classical pipeline: C7. Peephole optimization](c7-peephole.md): *fused multiply-add*
     - [CPU performance: P11. Floating point under optimization](../optimize/p11-floating-point.md): *fused multiply-add*
     - [CPU performance: P12. Anatomy of a fast GEMM](../optimize/p12-fast-gemm.md): *fused multiply-add*
+
+??? info "Concept map for this page"
+
+    ```mermaid
+    flowchart LR
+      c_fused_multiply_add["fused multiply-add"]
+      c_ieee_754["IEEE 754"]
+      c_ieee_754 --> c_fused_multiply_add
+    ```

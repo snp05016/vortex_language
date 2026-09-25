@@ -25,8 +25,11 @@ project for building compilers.
 ## What exists today
 
 The specification defines the v0.1 language, with 56 open or conflicting
-questions settled by the [language decisions](../decisions/index.md). The
-compiler implements only the start of it. Its repository holds:
+questions settled by the [language decisions](../decisions/index.md) and a
+stable identifier on each of its 382 normative rules
+([details](../specification/index.md#rule-identifiers)), so a test or a
+guide page can point at one exact rule. The compiler implements only the
+start of it. Its repository holds:
 
 - a **lexer**, which splits source text into **tokens** (the words and symbols
   of the language), with its tests;
@@ -63,15 +66,19 @@ the syntax-tree definitions.[^c-074a41d][^c-cb8f5cd]
 
 1. **The compiler, one milestone at a time,** in the order of the table
    above: first finishing milestones 0 to 3, then 4 to 11. Each milestone has
-   a chapter in the [compiler guide](../compiler/guide/index.md).
-2. **Four books.** [Optimize](../optimize/index.md),
+   a chapter in the [compiler guide](../compiler/guide/index.md), now written
+   end to end, with a [workbook](../compiler/workbook.md) and five
+   [recipes](../compiler/recipes/add-a-token.md) for common changes.
+2. **Four books, finished.** [Optimize](../optimize/index.md),
    [Back end](../backend/index.md), [GPU](../gpu/index.md) and
    [MLIR](../mlir/index.md) teach the ideas behind the work planned after
-   v0.1. They are outlines for now, and each chapter is published when it is
-   finished. By the project's rule, their code examples are small standalone
-   programs, never Vortex compiler code.
+   v0.1. Every chapter is now written; each book's overview page lists them.
+   By the project's rule, their code examples are small standalone programs,
+   never Vortex compiler code. The compiler work they describe has not
+   started; see the case studies below.
 3. **Ten case studies.** Each will report one piece of the work after v0.1,
-   with its commits, CI runs and results. They are listed below.
+   with its commits, CI runs and results. They are listed below, and were
+   checked against the finished books for accurate background links.
 
 ## Case studies
 

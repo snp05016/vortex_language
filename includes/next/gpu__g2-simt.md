@@ -8,3 +8,31 @@
     - [B. Performance: G6. Synchronization, atomics and reductions](g6-synchronization.md): *warp*, *SIMT*, *divergence*
     - [C. Software stack: G7. Programming models tour](g7-programming-models.md): *warp*, *SIMT*
     - [D. Matmul and friends: G11. Matrix units](g11-matrix-units.md): *warp*, *SIMT*, *divergence*
+
+??? info "Concept map for this page"
+
+    ```mermaid
+    flowchart LR
+      c_warp["warp"]
+      c_simt["SIMT"]
+      c_divergence["divergence"]
+      c_throughput_optimized_design["throughput-optimized design"]
+      c_shared_memory["shared memory"]
+      c_coalescing["memory coalescing"]
+      c_occupancy["occupancy"]
+      c_convergent_operation["convergent operation"]
+      c_structured_control_flow["structured control flow"]
+      c_uniformity["uniformity"]
+      c_matrix_unit["matrix unit"]
+      c_throughput_optimized_design --> c_warp
+      c_warp --> c_simt
+      c_warp --> c_divergence
+      c_simt --> c_divergence
+      c_warp --> c_shared_memory
+      c_warp --> c_coalescing
+      c_warp --> c_occupancy
+      c_divergence --> c_convergent_operation
+      c_divergence --> c_structured_control_flow
+      c_divergence --> c_uniformity
+      c_warp --> c_matrix_unit
+    ```

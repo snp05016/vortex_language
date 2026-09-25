@@ -3,6 +3,16 @@
 !!! next "You will use this again in"
 
     - [E3. LLVM's allocator, scheduler and MC layer](e3-llvm-allocator-scheduler-mc.md): *TableGen*
-    - [E4. Testing back ends](e4-testing-backends.md): *TableGen*
     - [C. Software stack: G9. GPU compilers inside LLVM](../gpu/g9-gpu-compilers-in-llvm.md): *TableGen*
     - [MLIR: M1. Why MLIR](../mlir/m1-why-mlir.md): *TableGen*
+
+??? info "Concept map for this page"
+
+    ```mermaid
+    flowchart LR
+      c_tablegen["TableGen"]
+      c_calling_convention["calling convention"]
+      c_instruction_selection["instruction selection"]
+      c_instruction_selection --> c_tablegen
+      c_calling_convention --> c_tablegen
+    ```

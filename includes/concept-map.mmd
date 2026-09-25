@@ -51,6 +51,9 @@ flowchart LR
     c_run_time["run time"]
     c_runtime_check["runtime check"]
     c_runtime_error["runtime error"]
+    c_ieee_754["IEEE 754"]
+    c_nan["NaN"]
+    c_infinity["infinity"]
     c_slice["slice"]
     c_vector["vector"]
     c_tensor["tensor"]
@@ -206,9 +209,6 @@ flowchart LR
     c_saturating["saturating"]
     c_undefined_behavior["undefined behavior"]
     c_proven_safe["proven safe"]
-    c_ieee_754["IEEE 754"]
-    c_nan["NaN"]
-    c_infinity["infinity"]
     c_boundary_case["boundary case"]
     c_matrix["matrix"]
     c_row_and_column["row, column"]
@@ -234,7 +234,7 @@ flowchart LR
     c_tree_walk_interpreter["tree-walk interpreter"]
     c_vertical_slice["vertical slice"]
   end
-  subgraph book_other["Other pages"]
+  subgraph book_backend["Back end"]
     c_load_store_architecture["load/store architecture"]
     c_register_memory_architecture["register-memory architecture"]
     c_addressing_mode["addressing mode"]
@@ -258,6 +258,8 @@ flowchart LR
     c_debug_information["debug information"]
     c_jit_compilation["JIT compilation"]
     c_tablegen["TableGen"]
+  end
+  subgraph book_optimize["Optimize"]
     c_optimizer_contract["optimizer's contract"]
     c_optimization_remark["optimization remark"]
     c_dominator_tree["dominator tree"]
@@ -282,6 +284,8 @@ flowchart LR
     c_tiling["tiling"]
     c_unroll_and_jam["unroll-and-jam"]
     c_vectorization["vectorization"]
+  end
+  subgraph book_gpu["GPU"]
     c_throughput_optimized_design["throughput-optimized design"]
     c_littles_law["Little's law"]
     c_warp["warp"]
@@ -290,7 +294,7 @@ flowchart LR
     c_shared_memory["shared memory"]
     c_register_spilling["register spilling"]
     c_address_space["address space"]
-    c_coalescing["coalescing"]
+    c_coalescing["memory coalescing"]
     c_bank_conflict["bank conflict"]
     c_thread_mapping["thread mapping"]
     c_occupancy["occupancy"]
@@ -301,12 +305,14 @@ flowchart LR
     c_virtual_instruction_set["virtual instruction set"]
     c_structured_control_flow["structured control flow"]
     c_uniformity["uniformity"]
-    c_tile["tile"]
+    c_tile["output tile"]
     c_matrix_unit["matrix unit"]
     c_kernel_fusion["kernel fusion"]
     c_tile_program["tile program"]
     c_speed_of_light_report["speed of light report"]
     c_systolic_array["systolic array"]
+  end
+  subgraph book_mlir["MLIR"]
     c_dialect["dialect"]
     c_progressive_lowering["progressive lowering"]
     c_operation["operation"]
@@ -390,7 +396,11 @@ flowchart LR
   c_declaration --> c_field
   c_compile_time --> c_run_time
   c_run_time --> c_runtime_check
+  c_bounds_check --> c_runtime_check
+  c_cast --> c_runtime_check
   c_runtime_check --> c_runtime_error
+  c_ieee_754 --> c_nan
+  c_ieee_754 --> c_infinity
   c_array --> c_slice
   c_reference --> c_slice
   c_array --> c_vector
@@ -582,8 +592,6 @@ flowchart LR
   c_dynamic_rule --> c_undefined_behavior
   c_well_formed --> c_undefined_behavior
   c_runtime_check --> c_proven_safe
-  c_ieee_754 --> c_nan
-  c_ieee_754 --> c_infinity
   c_test_case --> c_boundary_case
   c_array --> c_matrix
   c_rank --> c_matrix

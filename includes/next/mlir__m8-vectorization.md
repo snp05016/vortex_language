@@ -3,3 +3,14 @@
 !!! next "You will use this again in"
 
     - [M9. Schedules as IR: the transform dialect](m9-transform-dialect.md): *virtual vector*
+
+??? info "Concept map for this page"
+
+    ```mermaid
+    flowchart LR
+      c_virtual_vector["virtual vector"]
+      c_memref["memref"]
+      c_operation["operation"]
+      c_operation --> c_virtual_vector
+      c_memref --> c_virtual_vector
+    ```

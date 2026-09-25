@@ -8,3 +8,29 @@
     - [D. Matmul and friends: G11. Matrix units](../../gpu/g11-matrix-units.md): *matrix*, *matrix multiplication*, *dot product*, *inner dimension* and 2 more
     - [D. Matmul and friends: G12. Fusion case study: FlashAttention](../../gpu/g12-flashattention.md): *matrix*, *dot product*, *tolerance*
     - [E. Measurement and beyond: G15. Beyond GPUs: systolic arrays and accelerators](../../gpu/g15-systolic-arrays.md): *matrix*, *matrix multiplication*, *dot product*, *loop nest*
+
+??? info "Concept map for this page"
+
+    ```mermaid
+    flowchart LR
+      c_matrix["matrix"]
+      c_row_and_column["row, column"]
+      c_square_matrix["square matrix"]
+      c_rectangular_matrix["rectangular matrix"]
+      c_matrix_multiplication["matrix multiplication"]
+      c_dot_product["dot product"]
+      c_inner_dimension["inner dimension"]
+      c_known_answer["known answer"]
+      c_tolerance["tolerance"]
+      c_naive["naive"]
+      c_loop_nest["loop nest"]
+      c_array["array"]
+      c_array --> c_matrix
+      c_matrix --> c_row_and_column
+      c_row_and_column --> c_square_matrix
+      c_row_and_column --> c_rectangular_matrix
+      c_matrix --> c_matrix_multiplication
+      c_dot_product --> c_matrix_multiplication
+      c_matrix_multiplication --> c_inner_dimension
+      c_row_and_column --> c_inner_dimension
+    ```

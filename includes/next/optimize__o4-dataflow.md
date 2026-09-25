@@ -8,3 +8,17 @@
     - [O8. Loops: structure, induction variables and bounds checks](o8-loops.md): *dataflow analysis*
     - [O9. Memory: alias analysis and MemorySSA](o9-alias-analysis.md): *dataflow analysis*
     - [CPU performance: P9. The polyhedral model](p9-polyhedral-model.md): *dataflow analysis*
+
+??? info "Concept map for this page"
+
+    ```mermaid
+    flowchart LR
+      c_dataflow_analysis["dataflow analysis"]
+      c_control_flow_graph["control-flow graph"]
+      c_dominator_tree["dominator tree"]
+      c_dead_code_elimination["dead-code elimination"]
+      c_control_flow_graph --> c_dataflow_analysis
+      c_dominator_tree --> c_dataflow_analysis
+      c_control_flow_graph --> c_dominator_tree
+      c_dataflow_analysis --> c_dead_code_elimination
+    ```

@@ -54,6 +54,8 @@ nav:
   - Home: index.md
   - Learn:
       - Start the tour: language-tour/README.md
+      - Your progress: progress.md
+      - Concept map: concept-map.md
       - 1. Syntax philosophy: language-tour/01-syntax-philosophy.md
       - 2. Basic source rules: language-tour/02-basic-source-rules.md
       - 3. Hello world and main: language-tour/03-hello-world.md
@@ -231,7 +233,7 @@ nav:
       - Case studies:
           - Overview: project/case-studies/index.md
           - A1. CPU matmul ladder: project/case-studies/cpu-matmul-ladder.md
-          - A2. Benchmark harness: project/case-studies/benchmark-harness.md
+          - "A2. Measurement methodology and performance CI": project/case-studies/benchmark-harness.md
           - A3. Differential testing: project/case-studies/differential-testing.md
           - A4. LLVM IR back end: project/case-studies/llvm-backend.md
           - A5. Upstream contributions: project/case-studies/upstream-contributions.md
@@ -290,11 +292,13 @@ validation:
 
 extra_css:
   - stylesheets/extra.css
+  - stylesheets/progress.css
   - https://cdn.jsdelivr.net/npm/katex@0.18.9/dist/katex.min.css
 
 extra_javascript:
   - javascripts/theme.js
   - javascripts/katex.js
   - javascripts/workbook.js
+  - javascripts/progress.js
   - https://cdn.jsdelivr.net/npm/katex@0.18.9/dist/katex.min.js
   - https://cdn.jsdelivr.net/npm/katex@0.18.9/dist/contrib/auto-render.min.js

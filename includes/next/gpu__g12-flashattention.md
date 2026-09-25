@@ -8,3 +8,15 @@
     - [MLIR: M7. Bufferization](../mlir/m7-bufferization.md): *kernel fusion*
     - [MLIR: M9. Schedules as IR: the transform dialect](../mlir/m9-transform-dialect.md): *kernel fusion*
     - [MLIR: M11. End-to-end ML compilers](../mlir/m11-ml-compilers.md): *kernel fusion*
+
+??? info "Concept map for this page"
+
+    ```mermaid
+    flowchart LR
+      c_kernel_fusion["kernel fusion"]
+      c_shared_memory["shared memory"]
+      c_tile["output tile"]
+      c_tile --> c_kernel_fusion
+      c_shared_memory --> c_kernel_fusion
+      c_shared_memory --> c_tile
+    ```

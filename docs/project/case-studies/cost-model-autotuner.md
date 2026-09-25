@@ -1,4 +1,4 @@
-# Cost model and autotuner
+# A9. Cost model and autotuner
 
 <p class="page-intro">This case study will test whether a performance model can choose good tile and unroll parameters for the matrix multiplication Vortex generates, by comparing the model's predictions and choices with a measured search over the same parameters. Nothing has been built yet, so every result table below is empty.</p>
 
@@ -68,7 +68,7 @@ learned model could fix.
 | Part | What it does | Done when | Taught in |
 | --- | --- | --- | --- |
 | Machine facts | Reads cache sizes, cache-line size and core counts from the host instead of hard-coding them | The compiler prints the facts it used in its performance remarks | [P2](../../optimize/p2-memory-hierarchy.md) |
-| Roofline | Measures peak arithmetic throughput and memory bandwidth, and from them the **ridge point**, the arithmetic intensity at which a kernel stops being limited by memory[^roofline] | Both are measured under the protocol, with confidence intervals | [P3](../../optimize/p3-roofline.md) |
+| Roofline | Measures peak arithmetic throughput and memory bandwidth, and from them the [ridge point](../measuring.md#the-roofline-as-context)[^roofline] | Both are measured under the protocol, with confidence intervals | [P3](../../optimize/p3-roofline.md) |
 | Analytical model | Predicts run time for each parameter choice from the roofline and a cache model, and picks the choice it predicts to be fastest | It prints a prediction for every candidate, labelled as an estimate | [P8](../../optimize/p8-cache-blocking.md), [P12](../../optimize/p12-fast-gemm.md), [P15](../../optimize/p15-choosing-parameters.md) |
 | Safe search space | Keeps only variants whose results are bitwise identical to the strict reference | A test runs every candidate and compares its output | [P11](../../optimize/p11-floating-point.md), [P14](../../optimize/p14-algorithms-and-schedules.md) |
 | Autotuner | Runs a grid or random search under a fixed budget, timed by the harness | Every measurement lands in a CSV file | [P15](../../optimize/p15-choosing-parameters.md), [P16](../../optimize/p16-capstone.md) |

@@ -222,10 +222,14 @@ front-end rule gets skipped.
 Every stage page has the same parts, in the same order, so you always know
 where to look.
 
+- **Before you start, remember.** A few questions on earlier ideas the stage
+  builds on, each with a link to where it was taught.
+- **In this stage.** The stage's goals, in a few lines.
 - **What this stage is for.** A plain description of the stage's job.
 - **Words for this stage.** The new terms, each explained in a sentence or two.
-- **The picture.** At least one figure, often animated, showing the stage at
-  work.
+- **The stage's ideas.** The sections that teach the stage's work, with at
+  least one figure (often animated), short C++ examples that solve a smaller,
+  different problem, and check questions to answer before you open them.
 - **What you need to have.** The things the stage must provide before you move
   on.
 - **What you do not need yet.** Things that are tempting to build now but
@@ -233,6 +237,8 @@ where to look.
 - **How you know it is finished.** The evidence, matched to the roadmap
   milestone.
 - **Traps.** Mistakes that are easy to make at this stage.
+- **Key ideas.** Questions you can now answer, each with a one-line answer.
+- **Where this comes back.** The later pages that use the stage's ideas.
 - **How others teach this stage.** Where to read about the same stage in
   Kaleidoscope, *Crafting Interpreters* and other sources.
 

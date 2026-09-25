@@ -3,8 +3,18 @@
 !!! next "You will use this again in"
 
     - [D2. JIT compilation](d2-jit.md): *debug information*
-    - [D3. Reading real back ends](d3-real-backends.md): *debug information*
     - [E. How LLVM does it: E3. LLVM's allocator, scheduler and MC layer](e3-llvm-allocator-scheduler-mc.md): *debug information*
     - [The middle end: O3. SSA form: construction and destruction](../optimize/o3-ssa.md): *debug information*
     - [The middle end: O7. Calls and aggregates: inlining and SROA](../optimize/o7-inlining-and-sroa.md): *debug information*
     - [Case studies: A6. Native AArch64 back end](../project/case-studies/native-aarch64-backend.md): *debug information*
+
+??? info "Concept map for this page"
+
+    ```mermaid
+    flowchart LR
+      c_debug_information["debug information"]
+      c_source_span["source span"]
+      c_stack_frame["stack frame"]
+      c_source_span --> c_debug_information
+      c_stack_frame --> c_debug_information
+    ```

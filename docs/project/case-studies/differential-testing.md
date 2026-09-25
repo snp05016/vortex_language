@@ -11,13 +11,15 @@ and run through every execution path the compiler offers, do all paths agree
 on the output, the exit status and the runtime error, and what do the
 disagreements reveal?
 
-**Differential testing** runs the same program through two or more
-implementations that should agree and treats any disagreement as a bug in one
-of them. The rule that decides whether a result is right is called the
-**oracle**; here the oracle is agreement between paths. **Fuzzing** feeds a
+[Differential testing](../testing.md#the-test-pyramid) runs the same program
+through two or more implementations that should agree and treats any
+disagreement as a bug in one of them. The rule that decides whether a result
+is right is called the [oracle](../testing.md#the-test-pyramid); here the
+oracle is agreement between paths.
+[Coverage-guided fuzzing](../testing.md#coverage-guided-fuzzing) feeds a
 program large numbers of generated inputs to find crashes and hangs.
-**Test-case reduction** shrinks a failing input to the smallest one that still
-fails, so that a person can see the bug.
+[Test-case reduction](../testing.md#test-case-reduction) shrinks a failing
+input to the smallest one that still fails, so that a person can see the bug.
 
 When the work is done, this section will hold one sentence of this form:
 
@@ -88,7 +90,7 @@ step.
 
 **Front-end fuzzing.** The lexer, parser and type checker must never crash or
 hang on any input, and every rejected input must get a diagnostic. A
-**coverage-guided** fuzzer mutates its inputs toward code they have not yet
+coverage-guided fuzzer mutates its inputs toward code they have not yet
 reached. libFuzzer is one: it runs inside the program under test and needs a
 matching Clang version.[^libfuzzer] Its documentation also says that its
 original authors have stopped active work on it, while important bugs still

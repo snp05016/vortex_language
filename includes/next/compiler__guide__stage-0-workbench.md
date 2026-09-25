@@ -8,3 +8,32 @@
     - [6. The first machine code](stage-6-first-machine-code.md): *driver*, *build*, *clean configuration*, *exit status* and 3 more
     - [11. Release](stage-11-release.md): *build*, *exit status*, *test*, *test case* and 5 more
     - [Project: Implementation roadmap](../../roadmap.md): *build*, *build system*, *clean configuration*, *exit status* and 6 more
+
+??? info "Concept map for this page"
+
+    ```mermaid
+    flowchart LR
+      c_driver["driver"]
+      c_build["build"]
+      c_build_system["build system"]
+      c_clean_configuration["clean configuration"]
+      c_exit_status["exit status"]
+      c_test["test"]
+      c_test_case["test case"]
+      c_valid_program["valid program"]
+      c_invalid_program["invalid program"]
+      c_expected_output["expected output"]
+      c_test_runner["test runner"]
+      c_regression["regression"]
+      c_empty_compiler["empty compiler"]
+      c_build --> c_build_system
+      c_build --> c_clean_configuration
+      c_test --> c_test_case
+      c_valid_program --> c_invalid_program
+      c_test_case --> c_expected_output
+      c_test_case --> c_test_runner
+      c_expected_output --> c_test_runner
+      c_test --> c_regression
+      c_driver --> c_empty_compiler
+      c_build --> c_empty_compiler
+    ```

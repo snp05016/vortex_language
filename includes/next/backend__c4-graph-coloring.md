@@ -6,3 +6,14 @@
     - [D. Around the code: D3. Reading real back ends](d3-real-backends.md): *graph coloring*
     - [E. How LLVM does it: E3. LLVM's allocator, scheduler and MC layer](e3-llvm-allocator-scheduler-mc.md): *graph coloring*
     - [Case studies: A6. Native AArch64 back end](../project/case-studies/native-aarch64-backend.md): *graph coloring*
+
+??? info "Concept map for this page"
+
+    ```mermaid
+    flowchart LR
+      c_graph_coloring["graph coloring"]
+      c_interference_graph["interference graph"]
+      c_register_allocation["register allocation"]
+      c_register_allocation --> c_graph_coloring
+      c_interference_graph --> c_graph_coloring
+    ```

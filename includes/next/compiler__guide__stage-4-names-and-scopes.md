@@ -8,3 +8,38 @@
     - [8. Data in memory](stage-8-data-in-memory.md): *use*, *visible*
     - [Project: Implementation roadmap](../../roadmap.md): *use*, *symbol table*
     - [Compiler internals: Parser design](../parser-design.md): *use*, *symbol table*, *name resolution*
+
+??? info "Concept map for this page"
+
+    ```mermaid
+    flowchart LR
+      c_use["use"]
+      c_visible["visible"]
+      c_lookup["lookup"]
+      c_symbol_table["symbol table"]
+      c_namespace["namespace"]
+      c_name_resolution["name resolution"]
+      c_name_error["name error"]
+      c_identifier["identifier"]
+      c_declaration["declaration"]
+      c_field["field"]
+      c_nested_scope["nested scope"]
+      c_scope["scope"]
+      c_declaration --> c_use
+      c_identifier --> c_use
+      c_scope --> c_visible
+      c_use --> c_lookup
+      c_nested_scope --> c_lookup
+      c_scope --> c_symbol_table
+      c_declaration --> c_symbol_table
+      c_field --> c_namespace
+      c_scope --> c_namespace
+      c_use --> c_name_resolution
+      c_declaration --> c_name_resolution
+      c_lookup --> c_name_resolution
+      c_name_resolution --> c_name_error
+      c_identifier --> c_declaration
+      c_declaration --> c_field
+      c_scope --> c_nested_scope
+      c_declaration --> c_scope
+    ```

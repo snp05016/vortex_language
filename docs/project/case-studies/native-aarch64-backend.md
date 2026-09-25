@@ -1,4 +1,4 @@
-# Native AArch64 back end
+# A6. Native AArch64 back end
 
 <p class="page-intro">This case study will test whether Vortex can turn its own IR into good AArch64 machine code without LLVM, and compare the result with LLVM's back end on the same kernels. It covers instruction selection, register allocation checked by an independent checker, and instruction scheduling. Nothing has been built yet, so every result table below is empty.</p>
 

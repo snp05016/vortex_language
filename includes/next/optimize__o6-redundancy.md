@@ -7,3 +7,14 @@
     - [O12. Testing an optimizer](o12-testing-optimizers.md): *value numbering*
     - [CPU performance: P5. The microarchitecture shelf](p5-microarchitecture.md): *value numbering*
     - [MLIR: M3. Passes and pattern rewriting](../mlir/m3-passes-and-rewriting.md): *value numbering*
+
+??? info "Concept map for this page"
+
+    ```mermaid
+    flowchart LR
+      c_value_numbering["value numbering"]
+      c_static_single_assignment["static single assignment form"]
+      c_dominator_tree["dominator tree"]
+      c_static_single_assignment --> c_value_numbering
+      c_dominator_tree --> c_value_numbering
+    ```

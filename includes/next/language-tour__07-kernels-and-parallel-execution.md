@@ -8,3 +8,12 @@
     - [A. The machine: G2. The SIMT execution model](../gpu/g2-simt.md): *kernel*
     - [B. Performance: G4. Memory performance: coalescing and bank conflicts](../gpu/g4-memory-performance.md): *kernel*
     - [B. Performance: G5. Occupancy and latency hiding](../gpu/g5-occupancy.md): *kernel*
+
+??? info "Concept map for this page"
+
+    ```mermaid
+    flowchart LR
+      c_kernel["kernel"]
+      c_function["function"]
+      c_function --> c_kernel
+    ```

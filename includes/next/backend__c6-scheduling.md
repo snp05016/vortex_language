@@ -8,3 +8,12 @@
     - [E. How LLVM does it: E3. LLVM's allocator, scheduler and MC layer](e3-llvm-allocator-scheduler-mc.md): *instruction scheduling*
     - [CPU performance: P5. The microarchitecture shelf](../optimize/p5-microarchitecture.md): *instruction scheduling*
     - [CPU performance: P6. Dependence analysis](../optimize/p6-dependence-analysis.md): *instruction scheduling*
+
+??? info "Concept map for this page"
+
+    ```mermaid
+    flowchart LR
+      c_instruction_scheduling["instruction scheduling"]
+      c_basic_block["basic block"]
+      c_basic_block --> c_instruction_scheduling
+    ```

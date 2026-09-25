@@ -8,3 +8,35 @@
     - [C. The classical pipeline: C2. Liveness](../../backend/c2-liveness.md): *basic block*, *control-flow graph*, *lifetime*
     - [C. The classical pipeline: C5. Spilling, splitting and rematerialization](../../backend/c5-spilling.md): *stack frame*, *lifetime*
     - [C. Software stack: G9. GPU compilers inside LLVM](../../gpu/g9-gpu-compilers-in-llvm.md): *calling convention*, *basic block*, *control-flow graph*, *branch* and 1 more
+
+??? info "Concept map for this page"
+
+    ```mermaid
+    flowchart LR
+      c_caller["caller"]
+      c_callee["callee"]
+      c_return_value["return value"]
+      c_call_stack["call stack"]
+      c_stack_frame["stack frame"]
+      c_calling_convention["calling convention"]
+      c_basic_block["basic block"]
+      c_control_flow_graph["control-flow graph"]
+      c_edge["edge"]
+      c_branch["branch"]
+      c_back_edge["back edge"]
+      c_join_point["join point"]
+      c_early_return["early return"]
+      c_lifetime["lifetime"]
+      c_caller --> c_callee
+      c_caller --> c_return_value
+      c_call_stack --> c_stack_frame
+      c_caller --> c_calling_convention
+      c_callee --> c_calling_convention
+      c_return_value --> c_calling_convention
+      c_basic_block --> c_control_flow_graph
+      c_control_flow_graph --> c_edge
+      c_basic_block --> c_branch
+      c_edge --> c_back_edge
+      c_basic_block --> c_join_point
+      c_edge --> c_join_point
+    ```

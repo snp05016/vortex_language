@@ -333,7 +333,7 @@ The chain count explains half of the opening table. The other half needs a way t
 2. **The resource bound.** For each kind of port, count the micro-operations per trip that need it, and divide by the number of such ports.
 3. **The issue bound.** Count all micro-operations per trip, and divide by the issue width.
 
-The trip takes at least the largest of the three. The second and third are what llvm-mca reports as **Block RThroughput**, the reciprocal throughput of the loop body as if it had no loop-carried dependences.[^llvm-mca]
+The trip takes at least the largest of the three. The first two are the bounds that [C6](../backend/c6-scheduling.md#loops-the-recurrence-sets-the-pace) calls RecMII and ResMII, where they limit how closely a software pipeline can start one iteration after another. The second and third are what llvm-mca reports as **Block RThroughput**, the reciprocal throughput of the loop body as if it had no loop-carried dependences.[^llvm-mca]
 
 Take `one_chain` under the `apple-m1` model. llvm-mca prints the model's figures for each instruction: the two loads are two micro-operations each and run on the load and store pipes; `fmul` and `fadd` are one each, on the floating-point pipes, and `fadd` has a latency of 4 cycles; `subs` and `b.ne` are one each, on the integer pipes. (These figures come from LLVM's model file, which gives `fadd` on single-precision registers a latency of 4.[^cyclone])
 
@@ -484,9 +484,8 @@ Under decision 56, the stage 10 kernel's inner loop is `one_chain`: one rounded 
 !!! next "You will use this again in"
 
     - [P7. Loop transformations](p7-loop-transformations.md): *independent chains from several outputs*, *unroll-and-jam*
-    - [P10. Vectorization](p10-vectorization.md): *execution ports*, *issue width*
+    - [P10. Vectorization](p10-vectorization.md): *execution ports*, *interleave count*
     - [P12. Anatomy of a fast GEMM](p12-fast-gemm.md): *chains needed to fill the pipelines*, *register-blocked micro-kernel*
-    - [P16. Capstone: the ladder, measured](p16-capstone.md): *latency-bound and throughput-bound rungs*
     - [C6. Instruction scheduling](../backend/c6-scheduling.md): *latency*, *dependency chains*, *critical path*
     - [E2. Describing a target](../backend/e2-describing-a-target.md): *scheduling models*, *read advance*
     - [E3. LLVM's allocator, scheduler and MC layer](../backend/e3-llvm-allocator-scheduler-mc.md): *llvm-mca*, *model against measurement*

@@ -4,3 +4,12 @@
 
     - [A. The machine: G2. The SIMT execution model](../gpu/g2-simt.md): *constant expression*
     - [D. Matmul and friends: G13. Tile languages](../gpu/g13-tile-languages.md): *constant expression*
+
+??? info "Concept map for this page"
+
+    ```mermaid
+    flowchart LR
+      c_checked_operation["checked operation"]
+      c_constant_expression["constant expression"]
+      c_deciding_operand["deciding operand"]
+    ```

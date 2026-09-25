@@ -8,3 +8,16 @@
     - [C. The classical pipeline: C3. Register allocation I: linear scan](c3-linear-scan.md): *caller-saved register*, *callee-saved register*
     - [C. The classical pipeline: C4. Register allocation II: graphs and SSA](c4-graph-coloring.md): *caller-saved register*, *callee-saved register*
     - [C. The classical pipeline: C5. Spilling, splitting and rematerialization](c5-spilling.md): *caller-saved register*, *callee-saved register*
+
+??? info "Concept map for this page"
+
+    ```mermaid
+    flowchart LR
+      c_caller_saved_register["caller-saved register"]
+      c_callee_saved_register["callee-saved register"]
+      c_register["register"]
+      c_calling_convention["calling convention"]
+      c_calling_convention --> c_caller_saved_register
+      c_register --> c_caller_saved_register
+      c_caller_saved_register --> c_callee_saved_register
+    ```

@@ -8,3 +8,34 @@
     - [M9. Schedules as IR: the transform dialect](m9-transform-dialect.md): *structured operation*, *destination-passing style*, *iteration space*
     - [M11. End-to-end ML compilers](m11-ml-compilers.md): *structured operation*, *tensor value*, *destination-passing style*
     - [Case studies: A7. MLIR lowering path](../project/case-studies/mlir-lowering-path.md): *structured operation*, *tensor value*
+
+??? info "Concept map for this page"
+
+    ```mermaid
+    flowchart LR
+      c_structured_op["structured operation"]
+      c_tensor_value["tensor value"]
+      c_destination_passing_style["destination-passing style"]
+      c_iteration_space["iteration space"]
+      c_array["array"]
+      c_memref["memref"]
+      c_operation["operation"]
+      c_region["region"]
+      c_affine_dialect["affine dialect"]
+      c_bufferization["bufferization"]
+      c_operator_fusion["operator fusion"]
+      c_operation --> c_structured_op
+      c_region --> c_structured_op
+      c_memref --> c_tensor_value
+      c_array --> c_tensor_value
+      c_tensor_value --> c_destination_passing_style
+      c_structured_op --> c_destination_passing_style
+      c_structured_op --> c_iteration_space
+      c_array --> c_memref
+      c_operation --> c_region
+      c_iteration_space --> c_affine_dialect
+      c_tensor_value --> c_bufferization
+      c_memref --> c_bufferization
+      c_destination_passing_style --> c_bufferization
+      c_structured_op --> c_operator_fusion
+    ```

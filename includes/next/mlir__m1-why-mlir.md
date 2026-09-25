@@ -8,3 +8,18 @@
     - [M5. Structured ops: linalg, tensor and memref](m5-structured-ops.md): *dialect*, *progressive lowering*
     - [M8. Vectorization in MLIR](m8-vectorization.md): *dialect*
     - [M9. Schedules as IR: the transform dialect](m9-transform-dialect.md): *dialect*
+
+??? info "Concept map for this page"
+
+    ```mermaid
+    flowchart LR
+      c_dialect["dialect"]
+      c_progressive_lowering["progressive lowering"]
+      c_lowering["lowering"]
+      c_operation["operation"]
+      c_dialect_conversion["dialect conversion"]
+      c_dialect --> c_progressive_lowering
+      c_lowering --> c_progressive_lowering
+      c_dialect --> c_operation
+      c_dialect --> c_dialect_conversion
+    ```

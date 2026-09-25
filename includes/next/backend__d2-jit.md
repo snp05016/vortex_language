@@ -2,5 +2,16 @@
 
 !!! next "You will use this again in"
 
-    - [D3. Reading real back ends](d3-real-backends.md): *JIT compilation*
     - [C. Software stack: G8. ISAs and IRs](../gpu/g8-isas-and-irs.md): *JIT compilation*
+
+??? info "Concept map for this page"
+
+    ```mermaid
+    flowchart LR
+      c_jit_compilation["JIT compilation"]
+      c_linker["linker"]
+      c_object_file["object file"]
+      c_object_file --> c_jit_compilation
+      c_linker --> c_jit_compilation
+      c_object_file --> c_linker
+    ```

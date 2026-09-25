@@ -7,3 +7,21 @@
     - [M8. Vectorization in MLIR](m8-vectorization.md): *rewrite pattern*
     - [M9. Schedules as IR: the transform dialect](m9-transform-dialect.md): *rewrite pattern*
     - [Case studies: A7. MLIR lowering path](../project/case-studies/mlir-lowering-path.md): *rewrite pattern*
+
+??? info "Concept map for this page"
+
+    ```mermaid
+    flowchart LR
+      c_pass_manager["pass manager"]
+      c_rewrite_pattern["rewrite pattern"]
+      c_canonicalization["canonicalization"]
+      c_pass["pass"]
+      c_operation["operation"]
+      c_transform_dialect["transform dialect"]
+      c_pass --> c_pass_manager
+      c_operation --> c_pass_manager
+      c_operation --> c_rewrite_pattern
+      c_rewrite_pattern --> c_canonicalization
+      c_pass --> c_canonicalization
+      c_rewrite_pattern --> c_transform_dialect
+    ```

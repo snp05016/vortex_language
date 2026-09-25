@@ -8,3 +8,43 @@
     - [Build v0.1: 5. Types and language rules](../compiler/guide/stage-5-types-and-rules.md): *type*, *primitive type*, *local variable*, *initializer* and 9 more
     - [Build v0.1: 8. Data in memory](../compiler/guide/stage-8-data-in-memory.md): *type*, *mutable*, *array*, *dimension* and 3 more
     - [Compiler internals: Parser design](../compiler/parser-design.md): *type*, *primitive type*, *type annotation*, *mutable* and 5 more
+
+??? info "Concept map for this page"
+
+    ```mermaid
+    flowchart LR
+      c_type["type"]
+      c_primitive_type["primitive type"]
+      c_type_annotation["type annotation"]
+      c_local_variable["local variable"]
+      c_initializer["initializer"]
+      c_type_inference["type inference"]
+      c_default_type["default type"]
+      c_mutable["mutable"]
+      c_void["void"]
+      c_array["array"]
+      c_element_type["element type"]
+      c_dimension["dimension"]
+      c_shape["shape"]
+      c_struct["struct"]
+      c_named_type["named type"]
+      c_reference["reference"]
+      c_addressable["addressable"]
+      c_type --> c_primitive_type
+      c_type --> c_type_annotation
+      c_local_variable --> c_initializer
+      c_type --> c_type_inference
+      c_initializer --> c_type_inference
+      c_primitive_type --> c_default_type
+      c_type_inference --> c_default_type
+      c_local_variable --> c_mutable
+      c_type --> c_void
+      c_type --> c_array
+      c_array --> c_element_type
+      c_array --> c_dimension
+      c_dimension --> c_shape
+      c_type --> c_struct
+      c_struct --> c_named_type
+      c_mutable --> c_reference
+      c_reference --> c_addressable
+    ```

@@ -8,3 +8,20 @@
     - [D. Around the code: D3. Reading real back ends](d3-real-backends.md): *macro expansion*, *differential testing*
     - [E. How LLVM does it: E4. Testing back ends](e4-testing-backends.md): *differential testing*
     - [The middle end: O1. The optimizer's contract](../optimize/o1-optimizer-contract.md): *differential testing*
+
+??? info "Concept map for this page"
+
+    ```mermaid
+    flowchart LR
+      c_macro_expansion["macro expansion"]
+      c_differential_testing["differential testing"]
+      c_test["test"]
+      c_instruction["instruction"]
+      c_intermediate_representation["intermediate representation"]
+      c_instruction_selection["instruction selection"]
+      c_intermediate_representation --> c_macro_expansion
+      c_instruction --> c_macro_expansion
+      c_test --> c_differential_testing
+      c_intermediate_representation --> c_instruction_selection
+      c_macro_expansion --> c_instruction_selection
+    ```

@@ -8,3 +8,17 @@
     - [D. Matmul and friends: G11. Matrix units](g11-matrix-units.md): *barrier*, *convergent operation*
     - [D. Matmul and friends: G12. Fusion case study: FlashAttention](g12-flashattention.md): *barrier*, *atomic operation*
     - [MLIR: M12. Designing Vortex's GPU path](../mlir/m12-vortex-gpu-path.md): *barrier*, *atomic operation*, *convergent operation*
+
+??? info "Concept map for this page"
+
+    ```mermaid
+    flowchart LR
+      c_barrier["barrier"]
+      c_atomic_operation["atomic operation"]
+      c_convergent_operation["convergent operation"]
+      c_divergence["divergence"]
+      c_shared_memory["shared memory"]
+      c_shared_memory --> c_barrier
+      c_divergence --> c_convergent_operation
+      c_barrier --> c_convergent_operation
+    ```

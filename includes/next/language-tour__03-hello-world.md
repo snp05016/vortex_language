@@ -8,3 +8,10 @@
     - [Build v0.1: 4. Names and scopes](../compiler/guide/stage-4-names-and-scopes.md): *entry point*
     - [Build v0.1: 6. The first machine code](../compiler/guide/stage-6-first-machine-code.md): *entry point*
     - [C. Software stack: G7. Programming models tour](../gpu/g7-programming-models.md): *entry point*
+
+??? info "Concept map for this page"
+
+    ```mermaid
+    flowchart LR
+      c_entry_point["entry point"]
+    ```

@@ -7,3 +7,13 @@
     - [MLIR: M1. Why MLIR](../mlir/m1-why-mlir.md): *structured control flow*
     - [MLIR: M6. Loops: affine and scf](../mlir/m6-affine-and-scf.md): *structured control flow*
     - [MLIR: M12. Designing Vortex's GPU path](../mlir/m12-vortex-gpu-path.md): *structured control flow*
+
+??? info "Concept map for this page"
+
+    ```mermaid
+    flowchart LR
+      c_virtual_instruction_set["virtual instruction set"]
+      c_structured_control_flow["structured control flow"]
+      c_divergence["divergence"]
+      c_divergence --> c_structured_control_flow
+    ```

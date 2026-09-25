@@ -3,3 +3,15 @@
 !!! next "You will use this again in"
 
     - [The middle end: O9. Memory: alias analysis and MemorySSA](../optimize/o9-alias-analysis.md): *borrow*
+
+??? info "Concept map for this page"
+
+    ```mermaid
+    flowchart LR
+      c_borrow["borrow"]
+      c_implicit_dereference["implicit dereference"]
+      c_place["place"]
+      c_referent["referent"]
+      c_alias_analysis["alias analysis"]
+      c_borrow --> c_alias_analysis
+    ```

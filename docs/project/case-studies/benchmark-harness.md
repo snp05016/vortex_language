@@ -33,9 +33,11 @@ turns a timing into evidence.
 The research literature shows how careful people get this wrong. Mytkowicz
 and colleagues surveyed 133 papers from four major systems and compiler
 conferences and found that none of those with experimental results
-adequately considered **measurement bias**, an error that comes from the
-experimental setup rather than from the thing being measured.[^mytk] A
-harness that controls for it is more convincing than any single fast number.
+adequately considered [measurement bias](../measuring.md#why-one-run-is-not-a-result),
+the push in one direction, from the experimental setup, that the
+[measuring page](../measuring.md#why-one-run-is-not-a-result) defines.[^mytk]
+A harness that controls for it is more convincing than any single fast
+number.
 
 ## What to build
 

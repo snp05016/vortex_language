@@ -7,3 +7,21 @@
     - [P10. Vectorization](p10-vectorization.md): *loop-carried dependence*
     - [P13. Multithreading](p13-multithreading.md): *loop-carried dependence*
     - [MLIR: M8. Vectorization in MLIR](../mlir/m8-vectorization.md): *loop-carried dependence*
+
+??? info "Concept map for this page"
+
+    ```mermaid
+    flowchart LR
+      c_loop_carried_dependence["loop-carried dependence"]
+      c_natural_loop["natural loop"]
+      c_induction_variable["induction variable"]
+      c_tiling["tiling"]
+      c_unroll_and_jam["unroll-and-jam"]
+      c_vectorization["vectorization"]
+      c_natural_loop --> c_loop_carried_dependence
+      c_induction_variable --> c_loop_carried_dependence
+      c_natural_loop --> c_induction_variable
+      c_loop_carried_dependence --> c_tiling
+      c_loop_carried_dependence --> c_unroll_and_jam
+      c_loop_carried_dependence --> c_vectorization
+    ```

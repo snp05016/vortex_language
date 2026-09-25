@@ -4,3 +4,10 @@
 
     - [G8. ISAs and IRs](g8-isas-and-irs.md): *single source*
     - [D. Matmul and friends: G13. Tile languages](g13-tile-languages.md): *single source*
+
+??? info "Concept map for this page"
+
+    ```mermaid
+    flowchart LR
+      c_single_source["single source"]
+    ```

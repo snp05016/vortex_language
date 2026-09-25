@@ -545,7 +545,7 @@ The second example applies each transformation once legally and once illegally, 
 
 ## Unrolling
 
-**Loop unrolling** copies a loop's body several times and steps the loop by that many: unrolled by 4, the `k` loop runs 16 times, each doing the work of `k` to `k + 3`. The increment, compare and branch run a quarter as often, and the instruction scheduler ([C6](../backend/c6-scheduling.md)) sees four bodies at once. When the factor does not divide the **trip count**, the number of iterations, the leftover iterations need a **remainder loop**, or a few straight-line copies when the trip count is a known constant. A Vortex compiler usually knows it: `a..b` runs `b − a` times when `a < b` ([decision 13](../decisions/statements.md#d13)), and the stage 10 bounds are constants.
+**Loop unrolling** copies a loop's body several times and steps the loop by that many: unrolled by 4, the `k` loop runs 16 times, each doing the work of `k` to `k + 3`. The increment, compare and branch run a quarter as often, and the instruction scheduler ([C6](../backend/c6-scheduling.md)) sees four bodies at once. When the factor does not divide the trip count ([O8](o8-loops.md#counting-iterations)), the leftover iterations need a **remainder loop**, or a few straight-line copies when the trip count is a known constant. A Vortex compiler usually knows it: `a..b` runs `b − a` times when `a < b` ([decision 13](../decisions/statements.md#d13)), and the stage 10 bounds are constants.
 
 Unrolling alone never regroups floating-point work: the copies still add into one `sum`, in order. That is also its limit. Each addition to `sum` waits for the one before it, and unrolling does not shorten that chain. Partial sums would, but they regroup the additions, which decision 56 forbids.
 

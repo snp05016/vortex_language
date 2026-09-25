@@ -7,3 +7,14 @@
     - [Case studies: A7. MLIR lowering path](../project/case-studies/mlir-lowering-path.md): *transform dialect*
     - [Case studies: A8. GPU matmul ladder](../project/case-studies/gpu-matmul-ladder.md): *transform dialect*
     - [Case studies: A9. Cost model and autotuner](../project/case-studies/cost-model-autotuner.md): *transform dialect*
+
+??? info "Concept map for this page"
+
+    ```mermaid
+    flowchart LR
+      c_transform_dialect["transform dialect"]
+      c_static_single_assignment["static single assignment form"]
+      c_rewrite_pattern["rewrite pattern"]
+      c_rewrite_pattern --> c_transform_dialect
+      c_static_single_assignment --> c_transform_dialect
+    ```

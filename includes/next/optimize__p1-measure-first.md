@@ -8,3 +8,10 @@
     - [P15. Choosing parameters: models or search](p15-choosing-parameters.md): *confidence interval*
     - [P16. Capstone: the ladder, measured](p16-capstone.md): *confidence interval*
     - [Project: How performance is measured](../project/measuring.md): *confidence interval*
+
+??? info "Concept map for this page"
+
+    ```mermaid
+    flowchart LR
+      c_confidence_interval["confidence interval"]
+    ```

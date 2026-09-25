@@ -708,7 +708,7 @@ table decides.
 
 !!! next "You will use this again in"
 
-    - [D3. Reading real back ends](d3-real-backends.md): *a back end on a compile-time budget*, *Cranelift as a JIT's code generator*
+    - [D3. Reading real back ends](d3-real-backends.md): *a back end on a compile-time budget*
     - [P15. Choosing parameters: models or search](../optimize/p15-choosing-parameters.md): *timing generated variants*, *search inside one process*
     - [P16. Capstone: the ladder, measured](../optimize/p16-capstone.md): *comparing two measurements*, *measuring before deciding*
 

@@ -4,3 +4,14 @@
 
     - [B. A first native back end: B1. The simplest back end that works](b1-simplest-backend.md): *frame record*
     - [D. Around the code: D1. Debug information](d1-debug-info.md): *frame record*
+
+??? info "Concept map for this page"
+
+    ```mermaid
+    flowchart LR
+      c_frame_record["frame record"]
+      c_calling_convention["calling convention"]
+      c_stack_frame["stack frame"]
+      c_stack_frame --> c_frame_record
+      c_calling_convention --> c_frame_record
+    ```

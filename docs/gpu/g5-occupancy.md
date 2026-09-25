@@ -817,7 +817,7 @@ Record the machine, the operating system or driver version, the compiler and the
     - [G12. Fusion case study: FlashAttention](g12-flashattention.md): *register budget*, *occupancy*
     - [G14. Measuring GPU code](g14-measuring-gpu-code.md): *theoretical occupancy*, *achieved occupancy*, *issue slots*
     - [C5. Spilling, splitting and rematerialization](../backend/c5-spilling.md): *register cap*, *spilling*
-    - [P15. Choosing parameters: models or search](../optimize/p15-choosing-parameters.md): *occupancy model*, *measured optimum*
+    - [P15. Choosing parameters: models or search](../optimize/p15-choosing-parameters.md): *model versus search*, *measured optimum*
     - [M12. Designing Vortex's GPU path](../mlir/m12-vortex-gpu-path.md): *target description*, *occupancy*
 
 ## Sources and further reading

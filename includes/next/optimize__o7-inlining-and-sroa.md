@@ -8,3 +8,19 @@
     - [O12. Testing an optimizer](o12-testing-optimizers.md): *inlining*, *SROA*
     - [CPU performance: P10. Vectorization](p10-vectorization.md): *inlining*
     - [CPU performance: P12. Anatomy of a fast GEMM](p12-fast-gemm.md): *inlining*, *SROA*
+
+??? info "Concept map for this page"
+
+    ```mermaid
+    flowchart LR
+      c_inlining["inlining"]
+      c_sroa["SROA"]
+      c_function_call["function call"]
+      c_aggregate["aggregate"]
+      c_mem2reg["mem2reg"]
+      c_dead_code_elimination["dead-code elimination"]
+      c_function_call --> c_inlining
+      c_dead_code_elimination --> c_inlining
+      c_mem2reg --> c_sroa
+      c_aggregate --> c_sroa
+    ```

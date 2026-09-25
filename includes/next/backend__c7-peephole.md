@@ -8,3 +8,12 @@
     - [The middle end: O11. Undefined behavior, poison and correct optimization](../optimize/o11-undefined-behavior.md): *peephole optimization*
     - [The middle end: O12. Testing an optimizer](../optimize/o12-testing-optimizers.md): *peephole optimization*
     - [MLIR: M3. Passes and pattern rewriting](../mlir/m3-passes-and-rewriting.md): *peephole optimization*
+
+??? info "Concept map for this page"
+
+    ```mermaid
+    flowchart LR
+      c_peephole_optimization["peephole optimization"]
+      c_instruction_selection["instruction selection"]
+      c_instruction_selection --> c_peephole_optimization
+    ```

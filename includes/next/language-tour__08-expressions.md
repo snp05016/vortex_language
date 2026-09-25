@@ -8,3 +8,31 @@
     - [Build v0.1: 7. Functions and control flow](../compiler/guide/stage-7-functions-and-control-flow.md): *expression*, *value*, *short-circuit evaluation*, *function call* and 2 more
     - [Build v0.1: 8. Data in memory](../compiler/guide/stage-8-data-in-memory.md): *expression*, *value*, *literal*, *function call* and 3 more
     - [Compiler internals: Parser design](../compiler/parser-design.md): *expression*, *literal*, *precedence*, *function call* and 3 more
+
+??? info "Concept map for this page"
+
+    ```mermaid
+    flowchart LR
+      c_expression["expression"]
+      c_value["value"]
+      c_literal["literal"]
+      c_precedence["precedence"]
+      c_short_circuit_evaluation["short-circuit evaluation"]
+      c_function_call["function call"]
+      c_cast["cast"]
+      c_rank["rank"]
+      c_indexing["indexing"]
+      c_bounds_check["bounds check"]
+      c_range["range"]
+      c_array["array"]
+      c_expression --> c_value
+      c_value --> c_literal
+      c_expression --> c_precedence
+      c_expression --> c_short_circuit_evaluation
+      c_expression --> c_function_call
+      c_expression --> c_cast
+      c_array --> c_indexing
+      c_expression --> c_indexing
+      c_indexing --> c_bounds_check
+      c_expression --> c_range
+    ```

@@ -6,4 +6,4 @@
 
         IEEE 754, the standard for floating-point arithmetic.
 
-        Introduced in [Build v0.1: 9. Runtime safety](../compiler/guide/stage-9-runtime-safety.md). Specification: [4. Types and values](../specification/types-and-values.md#44-floating-point-values).
+        Introduced in [Learn: 8. Runtime and numerical rules](../language-tour/06-runtime-and-numerical-rules.md). Specification: [4. Types and values](../specification/types-and-values.md#44-floating-point-values).

@@ -8,3 +8,14 @@
     - [P14. Algorithms and schedules](p14-algorithms-and-schedules.md): *vectorization*
     - [P16. Capstone: the ladder, measured](p16-capstone.md): *vectorization*
     - [MLIR: Overview](../mlir/index.md): *vectorization*
+
+??? info "Concept map for this page"
+
+    ```mermaid
+    flowchart LR
+      c_vectorization["vectorization"]
+      c_latency_and_throughput["latency and throughput"]
+      c_loop_carried_dependence["loop-carried dependence"]
+      c_loop_carried_dependence --> c_vectorization
+      c_latency_and_throughput --> c_vectorization
+    ```

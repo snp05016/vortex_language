@@ -7,3 +7,15 @@
     - [D. Around the code: D2. JIT compilation](d2-jit.md): *relocation*
     - [E. How LLVM does it: E1. The LLVM code generator pipeline](e1-llvm-codegen-pipeline.md): *relocation*
     - [E. How LLVM does it: E3. LLVM's allocator, scheduler and MC layer](e3-llvm-allocator-scheduler-mc.md): *relocation*
+
+??? info "Concept map for this page"
+
+    ```mermaid
+    flowchart LR
+      c_relocation["relocation"]
+      c_linker["linker"]
+      c_object_file["object file"]
+      c_object_file --> c_relocation
+      c_linker --> c_relocation
+      c_object_file --> c_linker
+    ```

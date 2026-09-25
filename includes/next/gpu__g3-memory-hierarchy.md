@@ -8,3 +8,27 @@
     - [C. Software stack: G7. Programming models tour](g7-programming-models.md): *shared memory*, *address space*
     - [C. Software stack: G9. GPU compilers inside LLVM](g9-gpu-compilers-in-llvm.md): *shared memory*, *address space*
     - [MLIR: M10. MLIR for GPUs](../mlir/m10-mlir-for-gpus.md): *shared memory*, *address space*
+
+??? info "Concept map for this page"
+
+    ```mermaid
+    flowchart LR
+      c_shared_memory["shared memory"]
+      c_register_spilling["register spilling"]
+      c_address_space["address space"]
+      c_warp["warp"]
+      c_bank_conflict["bank conflict"]
+      c_occupancy["occupancy"]
+      c_barrier["barrier"]
+      c_tile["output tile"]
+      c_kernel_fusion["kernel fusion"]
+      c_warp --> c_shared_memory
+      c_shared_memory --> c_address_space
+      c_shared_memory --> c_bank_conflict
+      c_warp --> c_occupancy
+      c_register_spilling --> c_occupancy
+      c_shared_memory --> c_barrier
+      c_shared_memory --> c_tile
+      c_tile --> c_kernel_fusion
+      c_shared_memory --> c_kernel_fusion
+    ```

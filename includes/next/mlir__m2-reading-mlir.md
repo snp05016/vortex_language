@@ -8,3 +8,31 @@
     - [M6. Loops: affine and scf](m6-affine-and-scf.md): *operation*, *region*, *attribute*, *block argument* and 2 more
     - [M8. Vectorization in MLIR](m8-vectorization.md): *operation*, *region*, *generic form*, *attribute* and 2 more
     - [M9. Schedules as IR: the transform dialect](m9-transform-dialect.md): *operation*, *region*, *generic form*, *attribute* and 2 more
+
+??? info "Concept map for this page"
+
+    ```mermaid
+    flowchart LR
+      c_operation["operation"]
+      c_region["region"]
+      c_generic_form["generic form"]
+      c_attribute["attribute"]
+      c_block_argument["block argument"]
+      c_isolated_from_above["isolated from above"]
+      c_memref["memref"]
+      c_verifier["verifier"]
+      c_array["array"]
+      c_reference["reference"]
+      c_phi["phi"]
+      c_basic_block["basic block"]
+      c_operation --> c_region
+      c_operation --> c_generic_form
+      c_operation --> c_attribute
+      c_region --> c_block_argument
+      c_phi --> c_block_argument
+      c_basic_block --> c_block_argument
+      c_region --> c_isolated_from_above
+      c_array --> c_memref
+      c_reference --> c_memref
+      c_operation --> c_verifier
+    ```

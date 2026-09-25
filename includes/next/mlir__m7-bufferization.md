@@ -6,3 +6,18 @@
     - [M11. End-to-end ML compilers](m11-ml-compilers.md): *bufferization*
     - [M12. Designing Vortex's GPU path](m12-vortex-gpu-path.md): *bufferization*
     - [Case studies: A7. MLIR lowering path](../project/case-studies/mlir-lowering-path.md): *bufferization*
+
+??? info "Concept map for this page"
+
+    ```mermaid
+    flowchart LR
+      c_bufferization["bufferization"]
+      c_memref["memref"]
+      c_destination_passing_style["destination-passing style"]
+      c_tensor_value["tensor value"]
+      c_tensor_value --> c_bufferization
+      c_memref --> c_bufferization
+      c_destination_passing_style --> c_bufferization
+      c_tensor_value --> c_destination_passing_style
+      c_memref --> c_tensor_value
+    ```

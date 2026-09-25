@@ -8,3 +8,22 @@
     - [C7. Peephole optimization](c7-peephole.md): *register allocation*, *linear scan*
     - [D. Around the code: D3. Reading real back ends](d3-real-backends.md): *register allocation*, *linear scan*
     - [E. How LLVM does it: E1. The LLVM code generator pipeline](e1-llvm-codegen-pipeline.md): *register allocation*, *linear scan*
+
+??? info "Concept map for this page"
+
+    ```mermaid
+    flowchart LR
+      c_register_allocation["register allocation"]
+      c_linear_scan["linear scan"]
+      c_register["register"]
+      c_live_range["live range"]
+      c_graph_coloring["graph coloring"]
+      c_spilling["spilling"]
+      c_register --> c_register_allocation
+      c_live_range --> c_register_allocation
+      c_register_allocation --> c_linear_scan
+      c_live_range --> c_linear_scan
+      c_register_allocation --> c_graph_coloring
+      c_register_allocation --> c_spilling
+      c_live_range --> c_spilling
+    ```

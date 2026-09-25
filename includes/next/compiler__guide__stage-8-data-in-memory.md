@@ -8,3 +8,32 @@
     - [A. The machine: A5. Stack frames](../../backend/a5-stack-frames.md): *alignment*, *application binary interface*
     - [B. Performance: G4. Memory performance: coalescing and bank conflicts](../../gpu/g4-memory-performance.md): *address*, *alignment*, *padding*, *layout* and 3 more
     - [D. Matmul and friends: G13. Tile languages](../../gpu/g13-tile-languages.md): *padding*, *layout*, *column-major order*
+
+??? info "Concept map for this page"
+
+    ```mermaid
+    flowchart LR
+      c_memory["memory"]
+      c_address["address"]
+      c_size["size"]
+      c_alignment["alignment"]
+      c_padding["padding"]
+      c_layout_offset["offset (within a value)"]
+      c_layout["layout"]
+      c_contiguous["contiguous"]
+      c_aggregate["aggregate"]
+      c_row_major_order["row-major order"]
+      c_column_major_order["column-major order"]
+      c_application_binary_interface["application binary interface"]
+      c_memory --> c_address
+      c_address --> c_alignment
+      c_size --> c_alignment
+      c_alignment --> c_padding
+      c_size --> c_layout
+      c_alignment --> c_layout
+      c_layout_offset --> c_layout
+      c_memory --> c_contiguous
+      c_contiguous --> c_row_major_order
+      c_row_major_order --> c_column_major_order
+      c_layout --> c_application_binary_interface
+    ```

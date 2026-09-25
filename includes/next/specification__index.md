@@ -3,3 +3,12 @@
 !!! next "You will use this again in"
 
     - [Project: Authorship and methodology](../authorship.md): *normative*
+
+??? info "Concept map for this page"
+
+    ```mermaid
+    flowchart LR
+      c_normative["normative"]
+      c_implementation_defined["implementation-defined"]
+      c_normative --> c_implementation_defined
+    ```

@@ -8,3 +8,19 @@
     - [CPU performance: P6. Dependence analysis](p6-dependence-analysis.md): *induction variable*
     - [CPU performance: P7. Loop transformations](p7-loop-transformations.md): *induction variable*
     - [CPU performance: P10. Vectorization](p10-vectorization.md): *induction variable*
+
+??? info "Concept map for this page"
+
+    ```mermaid
+    flowchart LR
+      c_induction_variable["induction variable"]
+      c_loop_simplify_form["loop simplify form"]
+      c_static_single_assignment["static single assignment form"]
+      c_natural_loop["natural loop"]
+      c_loop_carried_dependence["loop-carried dependence"]
+      c_natural_loop --> c_induction_variable
+      c_static_single_assignment --> c_induction_variable
+      c_natural_loop --> c_loop_simplify_form
+      c_natural_loop --> c_loop_carried_dependence
+      c_induction_variable --> c_loop_carried_dependence
+    ```

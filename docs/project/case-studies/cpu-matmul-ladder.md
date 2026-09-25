@@ -12,9 +12,11 @@ the same number of threads, when every step is produced by a Vortex pass from
 the unchanged source of
 [stage 10](../../compiler/guide/stage-10-matrix-multiplication.md)?
 
-Each step is a **rung**: the previous rung plus one transformation. The whole
-sequence, from the naive triple loop to the fastest version, is the
-**ladder**. A rung is **strict** when it obeys Vortex's default
+Each step is a [rung](../../optimize/ladder.md#the-kernel-that-never-changes):
+the previous rung plus one transformation. The whole sequence, from the naive
+triple loop to the fastest version, is the
+[ladder](../../optimize/ladder.md#the-kernel-that-never-changes). A rung is
+**strict** when it obeys Vortex's default
 floating-point rule, which forbids any transformation that changes a result
 the specification fixes
 ([types and values, 4.4](../../specification/types-and-values.md#44-floating-point-values)).
@@ -129,12 +131,14 @@ This section says what is specific to the ladder.
   every rung except 8, and all performance cores for rung 8. BLAS computes
   `C = α·A·B + β·C`;[^boehm] the baseline sets α and β so that it does
   exactly the work the Vortex program does.
-- **Each rung with the machine's ceilings.** The **roofline model** bounds a
-  kernel's speed by the smaller of two limits: the processor's peak
-  arithmetic rate, and the memory bandwidth multiplied by the kernel's
-  **operational intensity**, the number of floating-point operations it
-  performs per byte it moves to and from memory.[^roofline] Every rung
-  becomes a point on that chart, and a rung that helps moves its point up.
+- **Each rung with the machine's ceilings.** The
+  [roofline model](../measuring.md#the-roofline-as-context) bounds a kernel's
+  speed by the smaller of two limits: the processor's peak arithmetic rate,
+  and the memory bandwidth multiplied by the kernel's
+  [operational intensity](../measuring.md#the-roofline-as-context), as the
+  [measuring page](../measuring.md#the-roofline-as-context) defines it.[^roofline]
+  Every rung becomes a point on that chart, and a rung that helps moves its
+  point up.
 
 Two arithmetic ceilings matter here, not one. Vortex's default rule forbids
 fusing a multiply and an add, so the honest ceiling for every strict rung is
@@ -222,8 +226,10 @@ Target, written before the first run: ___
 | Ridge point | Strict peak divided by bandwidth | 1 |  | FLOP/byte |  |
 | Ridge point | Strict peak divided by bandwidth | All performance cores |  | FLOP/byte |  |
 
-The **ridge point** is the operational intensity at which a kernel stops
-being limited by memory and starts being limited by arithmetic.[^roofline]
+The [ridge point](../measuring.md#the-roofline-as-context) is the operational
+intensity at which a kernel stops being limited by memory and starts being
+limited by arithmetic, as the [measuring page](../measuring.md#the-roofline-as-context)
+defines it.[^roofline]
 
 ### Shapes
 

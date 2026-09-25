@@ -24,6 +24,12 @@
 
     Introduced in [8. Runtime and numerical rules](06-runtime-and-numerical-rules.md). Specification: [12. Glossary](../specification/glossary.md).
 
+??? question "Which special floating-point value does dividing a nonzero number by zero produce?"
+
+    Infinity, a special IEEE 754 value.
+
+    Introduced in [8. Runtime and numerical rules](06-runtime-and-numerical-rules.md).
+
 ??? question "What do we call the period while the finished executable is running?"
 
     Run time. Checks that depend on values known only then are made at run time.
@@ -54,6 +60,12 @@
 
     Introduced in [9. Planned types](05-types-planned-for-later.md).
 
+??? question "Which special floating-point value does `0.0 / 0.0` produce?"
+
+    NaN, short for not a number.
+
+    Introduced in [8. Runtime and numerical rules](06-runtime-and-numerical-rules.md).
+
 ??? question "Which planned type would view part of an array with a length known only at run time, and what do you use in v0.1 instead?"
 
     A slice, such as `&[f32]`. In v0.1 you use a reference to a fixed-size array, such as `&[f32; 4]`.
@@ -65,6 +77,12 @@
     A bounds check. It happens during compilation when the index is already known, and at run time otherwise.
 
     Introduced in [5. Expressions](08-expressions.md). Specification: [7. Arrays and shapes](../specification/arrays.md#76-indexing).
+
+??? question "Which international standard do Vortex's `f32` and `f64` follow?"
+
+    IEEE 754, the standard for floating-point arithmetic.
+
+    Introduced in [8. Runtime and numerical rules](06-runtime-and-numerical-rules.md). Specification: [4. Types and values](../specification/types-and-values.md#44-floating-point-values).
 
 ??? question "What do we call a place in the program that introduces a name, such as `let width = 128;`?"
 

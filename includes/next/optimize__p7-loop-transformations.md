@@ -8,3 +8,18 @@
     - [P13. Multithreading](p13-multithreading.md): *tiling*
     - [D. Matmul and friends: G10. The GPU matmul ladder](../gpu/g10-matmul-ladder.md): *tiling*, *unroll-and-jam*
     - [MLIR: M6. Loops: affine and scf](../mlir/m6-affine-and-scf.md): *tiling*, *unroll-and-jam*
+
+??? info "Concept map for this page"
+
+    ```mermaid
+    flowchart LR
+      c_tiling["tiling"]
+      c_unroll_and_jam["unroll-and-jam"]
+      c_cache_line["cache line"]
+      c_latency_and_throughput["latency and throughput"]
+      c_loop_carried_dependence["loop-carried dependence"]
+      c_loop_carried_dependence --> c_tiling
+      c_cache_line --> c_tiling
+      c_loop_carried_dependence --> c_unroll_and_jam
+      c_latency_and_throughput --> c_unroll_and_jam
+    ```

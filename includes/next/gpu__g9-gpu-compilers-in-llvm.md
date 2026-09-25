@@ -4,3 +4,12 @@
 
     - [D. Matmul and friends: G10. The GPU matmul ladder](g10-matmul-ladder.md): *uniformity*
     - [D. Matmul and friends: G13. Tile languages](g13-tile-languages.md): *uniformity*
+
+??? info "Concept map for this page"
+
+    ```mermaid
+    flowchart LR
+      c_uniformity["uniformity"]
+      c_divergence["divergence"]
+      c_divergence --> c_uniformity
+    ```

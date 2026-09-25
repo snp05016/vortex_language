@@ -8,3 +8,17 @@
     - [D. Around the code: D3. Reading real back ends](d3-real-backends.md): *spilling*, *rematerialization*
     - [E. How LLVM does it: E3. LLVM's allocator, scheduler and MC layer](e3-llvm-allocator-scheduler-mc.md): *spilling*, *rematerialization*
     - [The middle end: O6. Redundancy: CSE, GVN, PRE and LICM](../optimize/o6-redundancy.md): *rematerialization*
+
+??? info "Concept map for this page"
+
+    ```mermaid
+    flowchart LR
+      c_spilling["spilling"]
+      c_rematerialization["rematerialization"]
+      c_live_range["live range"]
+      c_register_allocation["register allocation"]
+      c_register_allocation --> c_spilling
+      c_live_range --> c_spilling
+      c_spilling --> c_rematerialization
+      c_live_range --> c_register_allocation
+    ```

@@ -8,3 +8,16 @@
     - [O10. Pass managers and pipelines](o10-pass-pipelines.md): *dead-code elimination*
     - [O12. Testing an optimizer](o12-testing-optimizers.md): *dead-code elimination*
     - [CPU performance: P1. Measure first](p1-measure-first.md): *dead-code elimination*
+
+??? info "Concept map for this page"
+
+    ```mermaid
+    flowchart LR
+      c_dead_code_elimination["dead-code elimination"]
+      c_static_single_assignment["static single assignment form"]
+      c_dataflow_analysis["dataflow analysis"]
+      c_inlining["inlining"]
+      c_dataflow_analysis --> c_dead_code_elimination
+      c_static_single_assignment --> c_dead_code_elimination
+      c_dead_code_elimination --> c_inlining
+    ```

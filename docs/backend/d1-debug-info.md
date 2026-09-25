@@ -555,12 +555,8 @@ The connection to Vortex is close. [Stage 9](../compiler/guide/stage-9-runtime-s
 
 !!! next "You will use this again in"
 
-    - [B4. Linking and loading](b4-linking-and-loading.md): *what the linker keeps from each object file*, *the symbol table*
     - [C5. Spilling, splitting and rematerialization](c5-spilling.md): *location lists*, *why a spilled variable's location changes*
     - [D2. JIT compilation](d2-jit.md): *unwinding and debugging code that has no object file*
-    - [D3. Reading real back ends](d3-real-backends.md): *a production compiler's CFI and line-table emission*
-    - [E3. LLVM's allocator, scheduler and MC layer](e3-llvm-allocator-scheduler-mc.md): *how the MC layer turns `.loc` and `.cfi_*` into sections*
-    - [P4. Seeing inside the CPU: counters and tools](../optimize/p4-counters-and-tools.md): *profilers that attribute samples to source lines*, *unwinding a sampled stack*
 
 ## Sources and further reading
 

@@ -6,3 +6,16 @@
     - [Build v0.1: 5. Types and language rules](../compiler/guide/stage-5-types-and-rules.md): *binding*
     - [Build v0.1: 7. Functions and control flow](../compiler/guide/stage-7-functions-and-control-flow.md): *binding*
     - [Build v0.1: 8. Data in memory](../compiler/guide/stage-8-data-in-memory.md): *binding*
+
+??? info "Concept map for this page"
+
+    ```mermaid
+    flowchart LR
+      c_binding["binding"]
+      c_standard_error["standard error"]
+      c_identifier["identifier"]
+      c_declaration["declaration"]
+      c_identifier --> c_binding
+      c_declaration --> c_binding
+      c_identifier --> c_declaration
+    ```

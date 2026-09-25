@@ -8,3 +8,33 @@
     - [Project: Implementation roadmap](../../roadmap.md): *lexer*, *token*, *token stream*
     - [Compiler internals: Architecture](../architecture.md): *lexer*, *token*, *spelling*, *token stream*
     - [Compiler internals: Parser design](../parser-design.md): *lexer*, *token*, *token kind*, *token stream*
+
+??? info "Concept map for this page"
+
+    ```mermaid
+    flowchart LR
+      c_lexer["lexer"]
+      c_token["token"]
+      c_token_kind["token kind"]
+      c_spelling["spelling"]
+      c_token_stream["token stream"]
+      c_keyword["keyword"]
+      c_whitespace["whitespace"]
+      c_longest_match["longest match"]
+      c_end_of_file_token["end-of-file token"]
+      c_lexical_error["lexical error"]
+      c_tokenizing["tokenizing"]
+      c_decoded_value["decoded value"]
+      c_token --> c_lexer
+      c_token --> c_token_kind
+      c_token --> c_spelling
+      c_token --> c_token_stream
+      c_token --> c_keyword
+      c_token --> c_whitespace
+      c_token --> c_longest_match
+      c_lexer --> c_longest_match
+      c_token_stream --> c_end_of_file_token
+      c_token --> c_lexical_error
+      c_token --> c_tokenizing
+      c_lexer --> c_tokenizing
+    ```

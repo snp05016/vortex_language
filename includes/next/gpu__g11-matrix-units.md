@@ -8,3 +8,16 @@
     - [MLIR: M8. Vectorization in MLIR](../mlir/m8-vectorization.md): *matrix unit*
     - [MLIR: M12. Designing Vortex's GPU path](../mlir/m12-vortex-gpu-path.md): *matrix unit*
     - [Case studies: A1. CPU matmul ladder](../project/case-studies/cpu-matmul-ladder.md): *matrix unit*
+
+??? info "Concept map for this page"
+
+    ```mermaid
+    flowchart LR
+      c_matrix_unit["matrix unit"]
+      c_warp["warp"]
+      c_tile["output tile"]
+      c_systolic_array["systolic array"]
+      c_tile --> c_matrix_unit
+      c_warp --> c_matrix_unit
+      c_matrix_unit --> c_systolic_array
+    ```

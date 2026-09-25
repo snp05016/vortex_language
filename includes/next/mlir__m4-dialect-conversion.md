@@ -5,3 +5,18 @@
     - [M5. Structured ops: linalg, tensor and memref](m5-structured-ops.md): *dialect conversion*
     - [M9. Schedules as IR: the transform dialect](m9-transform-dialect.md): *dialect conversion*
     - [M12. Designing Vortex's GPU path](m12-vortex-gpu-path.md): *dialect conversion*, *type converter*
+
+??? info "Concept map for this page"
+
+    ```mermaid
+    flowchart LR
+      c_dialect_conversion["dialect conversion"]
+      c_type_converter["type converter"]
+      c_pass["pass"]
+      c_dialect["dialect"]
+      c_memref["memref"]
+      c_dialect --> c_dialect_conversion
+      c_pass --> c_dialect_conversion
+      c_dialect_conversion --> c_type_converter
+      c_memref --> c_type_converter
+    ```

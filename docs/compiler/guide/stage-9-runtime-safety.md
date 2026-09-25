@@ -380,7 +380,7 @@ the same type does nothing.
 ```vortex
 // statements: valid
 let temperature: f32 = 21.8;
-let whole_degrees = i32(temperature); // 21, rounded toward zero
+let whole_degrees = i32(temperature); // 21, truncated toward zero
 ```
 
 ```vortex

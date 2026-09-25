@@ -7,9 +7,9 @@
 | --- | --- |
 | `includes/abbreviations.md` | Hover tooltips, appended to every page by `pymdownx.snippets` `auto_append` and rendered by `abbr`. |
 | `includes/remember/<page-key>.md` | "Before you start, remember": 3 to 5 prerequisite questions with hidden answers. |
-| `includes/next/<page-key>.md` | "You will use this again in": up to 6 later pages that use this page's concepts. |
+| `includes/next/<page-key>.md` | "You will use this again in": up to 6 later pages that use this page's concepts, followed by a collapsed "Concept map for this page" box (the page's own concepts, their direct prerequisites and their direct dependents, capped at `LOCAL_MAP_MAX` nodes). |
 | `includes/review/<group>.md` | Mixed recall questions for a group of pages, plus spaced questions from earlier groups. |
-| `includes/concept-map.mmd`, `includes/concept-map-<book>.mmd` | Mermaid flowcharts of the `requires` edges (whole site, and per book: `tour`, `spec`, `guide`). |
+| `includes/concept-map.mmd`, `includes/concept-map-<book>.mmd` | Mermaid flowcharts of the `requires` edges (whole site, and per book: `tour`, `spec`, `guide`, `backend`, `optimize`, `gpu`, `mlir`, plus `other` when a concept lives outside them). |
 
 `page-key` is the page path under `docs/` without `.md`, with `/` replaced by
 `__` (`compiler/guide/stage-2-lexer.md` becomes `compiler__guide__stage-2-lexer`).

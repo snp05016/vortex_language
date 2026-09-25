@@ -8,3 +8,21 @@
     - [O9. Memory: alias analysis and MemorySSA](o9-alias-analysis.md): *optimizer's contract*, *optimization remark*
     - [O10. Pass managers and pipelines](o10-pass-pipelines.md): *optimizer's contract*, *optimization remark*
     - [O12. Testing an optimizer](o12-testing-optimizers.md): *optimizer's contract*, *optimization remark*
+
+??? info "Concept map for this page"
+
+    ```mermaid
+    flowchart LR
+      c_optimizer_contract["optimizer's contract"]
+      c_optimization_remark["optimization remark"]
+      c_runtime_error["runtime error"]
+      c_pass["pass"]
+      c_undefined_behavior["undefined behavior"]
+      c_poison_value["poison value"]
+      c_runtime_error --> c_optimizer_contract
+      c_undefined_behavior --> c_optimizer_contract
+      c_optimizer_contract --> c_optimization_remark
+      c_pass --> c_optimization_remark
+      c_optimizer_contract --> c_poison_value
+      c_undefined_behavior --> c_poison_value
+    ```
