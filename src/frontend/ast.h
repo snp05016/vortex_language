@@ -99,7 +99,7 @@ private:
   // member variable to store the value of the literal
   LiteralValue value_;
 };
-/* represents an identifier expression. */
+/* represents an identifier expression., for example) a variable name */
 struct Identifier : public Expr {
 public:
   virtual ~Identifier() =
@@ -220,6 +220,7 @@ private:
   // member variable to store whether the range is inclusive
   bool is_inclusive_;
 };
+enum class PrimitiveTypeKind;
 /* represents a function call expression with arguments. */
 struct CallCastExpr : public Expr {
 public:
@@ -240,6 +241,20 @@ private:
   std::unique_ptr<Expr> function_;
   // member variable to store the arguments of the function call
   std::vector<std::unique_ptr<Expr>> arguments_;
+};
+/* represents a numeric conversion expression. */
+struct CastExpr : public Expr {
+public:
+  virtual ~CastExpr() = default;
+  CastExpr(SourceLocation location, PrimitiveTypeKind target_type,
+           std::unique_ptr<Expr> operand)
+      : Expr(location), target_type_(target_type), operand_(std::move(operand)) {}
+  PrimitiveTypeKind target_type() const { return target_type_; }
+  const Expr &operand() const { return *operand_; }
+
+private:
+  PrimitiveTypeKind target_type_;
+  std::unique_ptr<Expr> operand_;
 };
 /* represents an indexing expression that accesses an element. */
 struct IndexExpr : public Expr {
