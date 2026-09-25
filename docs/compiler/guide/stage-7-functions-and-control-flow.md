@@ -20,6 +20,16 @@ This stage stays on the right slope of the
 [overview's mountain](index.md#the-shape-of-the-whole-thing). It widens the
 thin path built in stage 6 without changing its shape.
 
+--8<-- "includes/remember/compiler__guide__stage-7-functions-and-control-flow.md"
+
+!!! goals "In this stage"
+
+    - Generate correct calls to user-defined functions, including recursive and mutually recursive ones.
+    - Turn `if`, `while` and `for` into basic blocks joined by branches.
+    - Send `break`, `continue` and early `return` to the right block, including inside nested loops.
+    - Compile `&&` and `||` as branches, so their right side runs only when it is needed.
+    - Give every local variable in a nested block the right lifetime.
+
 ## What this stage is for
 
 [Milestone 7](../../roadmap.md#milestone-7-functions-and-control-flow) lists
@@ -235,6 +245,22 @@ defined below it. Include a test for that.
 same rule makes both legal, and the call stack handles them without any
 special case, because each call gets its own frame.
 
+The example below has nothing to do with Vortex, but it makes the same point
+concrete: two ordinary C++ functions call each other, and a trace printed on
+entry and exit shows the stack growing by one frame per call and shrinking by
+one per return, as in Figure 1.
+
+--8<-- "includes/examples/build-v0.1/stage-7-functions-and-control-flow/mutual_recursion.cpp.md"
+
+??? check "In the trace, `is_even(4)` prints its own `n` again after four deeper calls have finished. What would it print if every call to a function shared one set of parameters and locals?"
+
+    The value left by the last call to write it. `is_even(4)` and `is_even(2)`
+    would share one `n`, so by the time `is_even(4)` resumes, `n` would hold
+    whatever `is_even(0)` stored there, and the last trace line from it
+    would read `is_even(0) returns true` instead of `is_even(4) returns true`. A
+    call that is paused, waiting for a deeper one, still needs its own values
+    when it resumes. A separate stack frame per call is what keeps them.
+
 The stack is finite, though. A recursion that never stops, or goes too deep,
 runs out of stack, and Vortex requires the program to stop with a report
 rather than crash; [stage 9](stage-9-runtime-safety.md) adds that check
@@ -268,6 +294,21 @@ You do not have to build a separate graph data structure to use the idea. It
 is a way of thinking about what the generated code must do, and a way to draw
 test cases.
 
+The idea holds for any loop in any language. Here is Euclid's algorithm,
+unrelated to the compiler, written by hand as basic blocks: a header that
+tests the loop condition, a body that does the work and loops back, and an
+exit once the condition fails.
+
+--8<-- "includes/examples/build-v0.1/stage-7-functions-and-control-flow/gcd_blocks.cpp.md"
+
+??? check "In `gcd_blocks.cpp`, why does the header block run one more time than the body block?"
+
+    Every pass through the body ends with the back edge to the header, and
+    the only way out of the loop is the header's test failing. So the header
+    runs once per iteration, plus once more for the test that fails. Called
+    with `b` equal to 0, the header would run once and the body not at all:
+    the zero-iteration case a `while` loop must allow.
+
 ## If and else
 
 An `if` evaluates its condition, which stage 5 has already proved is a `bool`,
@@ -297,6 +338,21 @@ they "evaluate the right operand only when required", and calls this behavior
 `index < 4 && values[index] > 0.0`, the right side must not run when `index` is
 4. So an ordinary-looking expression contains a hidden fork, and it needs the
 same treatment as an `if`.
+
+The next example has nothing to do with array bounds; it checks inventory
+counts instead. Each side of `&&` and `||` is a function that prints when it
+runs, so the trace shows directly which calls the short-circuit rule skips.
+
+--8<-- "includes/examples/build-v0.1/stage-7-functions-and-control-flow/short_circuit.cpp.md"
+
+??? check "Suppose `&&` and `||` in `short_circuit.cpp` evaluated both sides and then combined them. Which lines of the output would change?"
+
+    Only the `count = 0` block gains lines: a `needs_reorder(0) checked`
+    after each `has_stock(0) checked`, because in both expressions the left
+    side alone already decides the result when `count` is 0. Every printed
+    `bool` stays the same. That is why short-circuiting has to be tested
+    through a side effect such as a print: the values alone cannot show that
+    the right side ran when it should not have.
 
 ## While loops
 
@@ -385,6 +441,16 @@ condition must be tested again. Second, there are two ways to reach
 same view of `total`. If you use SSA, that block is a join point and needs a
 phi, as [stage 6](stage-6-first-machine-code.md#ssa-if-you-use-llvm)
 described.
+
+??? check "Suppose `continue` in Figure 2 jumped to the top of the body instead of to the header. Would the program still print `16`?"
+
+    Yes. Every `continue` happens when `count` is 2, 4, 6 or 8, when
+    `count < 10` is true anyway, so skipping the test changes nothing, and the
+    `break` ends the loop before `count` reaches 10. The mistake shows only
+    when the condition is false at a `continue`. Remove the `break` test and
+    the correct loop prints `25`, the sum of 1, 3, 5, 7 and 9. The wrong one
+    continues at `count` 10 without testing, adds 11, and prints `36`. A test
+    catches a misplaced edge only if the output depends on that edge.
 
 ## For loops over integer ranges
 
@@ -595,6 +661,41 @@ each rule instead of trusting the lowering.
 **Testing only the happy path.** A loop that always runs to completion never
 exercises `break`. A condition that is always true never exercises the false
 edge. Each edge in Figure 2 should be taken by at least one test.
+
+## Key ideas
+
+!!! recap
+
+    - **What does every function call need of its own, and why?** A stack
+      frame, because the same function may be running more than once at the
+      same time (recursion, or two calls in one expression), and each
+      running call needs parameters and locals that the others cannot
+      disturb.
+    - **What is a basic block?** A straight run of instructions with one way
+      in, at the top, and one way out, at the bottom: nothing branches into
+      its middle.
+    - **Why does a `then` block that ends in `return` have no edge to the
+      `if`'s join point?** Because execution never reaches the end of that
+      block to fall through; it has already left the function.
+    - **When is the right side of `&&` or `||` evaluated?** Only when the
+      left side has not already decided the result. The specification calls
+      this observable, so generated code must branch around the right side
+      rather than always computing it.
+    - **Where does `continue` jump to in a `while` loop? In a `for` loop?**
+      To the header in a `while`, so the condition is tested again; through
+      the step that advances the loop variable in a `for`, so the loop moves
+      on instead of repeating the same value.
+    - **Which loop does `break` or `continue` affect when loops are
+      nested?** Only the nearest enclosing loop; Vortex v0.1 has no labels to
+      reach an outer one directly.
+    - **Why does `square(left) + square(right)` always call `square(left)`
+      first?** The expressions chapter fixes left-to-right evaluation for
+      the operands of every operator and for call arguments, and this order
+      is observable whenever an argument has a side effect such as a print.
+
+## Where this comes back
+
+--8<-- "includes/next/compiler__guide__stage-7-functions-and-control-flow.md"
 
 ## How others teach this stage
 

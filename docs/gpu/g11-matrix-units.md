@@ -716,7 +716,7 @@ Record the machine, the OS version and the date with the table. The row that mat
 
 Read NVIDIA's 2017 tensor-core post first for the picture, then the WMMA section of the Programming Guide and PTX's warp-level matrix chapter side by side, then the SIMD-group matrix and Metal Performance Primitives sections of the Metal Shading Language Specification.
 
-[^n14]: Mark Appleyard and Michael Yokim, "Programming Tensor Cores in CUDA 9", NVIDIA Technical Blog, 17 October 2017: the sections on Volta's tensor cores and on the WMMA API. <https://developer.nvidia.com/blog/programming-tensor-cores-cuda-9/>
+[^n14]: Jeremy Appleyard and Scott Yokim, "Programming Tensor Cores in CUDA 9", NVIDIA Technical Blog, 17 October 2017: the sections on Volta's tensor cores and on the WMMA API. <https://developer.nvidia.com/blog/programming-tensor-cores-cuda-9/>
 [^wmma]: NVIDIA, "CUDA Programming Guide", v13.4.2, section 5.4.11, "Warp Matrix Functions", and 5.4.11.1, "Description". <https://docs.nvidia.com/cuda/cuda-programming-guide/05-appendices/cpp-language-extensions.html#warp-matrix-functions>
 [^wmma-types]: NVIDIA, "CUDA Programming Guide", v13.4.2, sections 5.4.11.2, "Alternate Floating Point", and 5.4.11.6, "Element Types and Matrix Sizes". <https://docs.nvidia.com/cuda/cuda-programming-guide/05-appendices/cpp-language-extensions.html#element-types-and-matrix-sizes>
 [^cc-types]: NVIDIA, "CUDA Programming Guide", v13.4.2, section 5.1.3, Table 33, "Input Data Types Supported by Tensor Core Acceleration per Compute Capability". <https://docs.nvidia.com/cuda/cuda-programming-guide/05-appendices/compute-capabilities.html#compute-capabilities-table-tensor-core-data-types-per-compute-capability>

@@ -1,205 +1,445 @@
 # M8. Vectorization in MLIR
 
-<p class="page-intro">The vector dialect gives a tile of a computation its own SSA-valued type, separate from the loop and the memory it came from. This chapter reads that type, the op that moves it across the memory boundary, and the op that contracts it, and follows one small tile down to the hardware vectors a real register file holds.</p>
+<p class="page-intro">MLIR vectorizes from the top down: a structured operation that already says which dimensions are parallel becomes a handful of operations on multi-dimensional vector values, which later passes cut down to the registers a real machine has. This chapter follows one matrix multiply through that path, by hand and with mlir-opt, and marks where a lowering can quietly break Vortex's floating-point rule.</p>
 
-<p class="vx-meta" markdown="1">Level: Intermediate · Reading time: about 30 minutes · Builds on: [M6. Loops: affine and scf](m6-affine-and-scf.md), [P10. Vectorization](../optimize/p10-vectorization.md)</p>
+<p class="vx-meta" markdown="1">Level: Intermediate · Reading time: about 40 minutes · Builds on: [M6. Loops: affine and scf](m6-affine-and-scf.md), [P10. Vectorization](../optimize/p10-vectorization.md)</p>
 
 ???+ remember "Before you start, remember"
 
-    ??? question "What is a memref's type, and what can it not say about a Vortex &mut argument?"
+    ??? question "At the point (d0, d1, d2) of `linalg.matmul`'s iteration space, which element does each operand supply?"
 
-        A memref such as `memref<8x16xf32>` names a shape, an element type and, with no layout written, row-major order: a reference to a region of memory. Nothing in that type says the memory it names is reached through no other argument of the same call; that promise is Vortex's `&mut` rule, not MLIR's.
+        The first input supplies `(d0, d2)`, the second `(d2, d1)` and the output `(d0, d1)`. With `d0`, `d1` and `d2` standing for `row`, `column` and `k`, those are `a[row, k]`, `b[k, column]` and `c[row, column]`, and the body adds the product into the output element.
 
-        Introduced in [M2. Reading MLIR](m2-reading-mlir.md#types-say-what-a-value-is).
+        Introduced in [M2. Reading MLIR](m2-reading-mlir.md#a-named-operation-hides-a-region).
 
-    ??? question "In an operation's generic form, what tells you a bracketed entry is a property rather than a discardable attribute?"
+    ??? question "What does `fastmath = #arith.fastmath<none>` on an `arith.addf` promise, and does MLIR's verifier require it?"
 
-        Properties sit inside `<{ }>` and belong to the operation's own definition, the ones it checks itself, such as `predicate` on `arith.cmpf`. Discardable attributes sit in a plain `{ }` and carry a dialect prefix that gives them their meaning, such as `linalg.memoized_indexing_maps`.
+        It grants no fast-math permission: no contraction into a fused multiply-add and no reassociation. The verifier accepts any flag, so keeping decision 56 is a test you write, not a check MLIR makes.
 
         Introduced in [M2. Reading MLIR](m2-reading-mlir.md#attributes-and-properties-hold-the-constants).
 
-    ??? question "What three facts does a loop vectorizer need before it may widen a loop at all?"
+    ??? question "Besides independent iterations, what does a loop vectorizer need before it may widen a loop?"
 
-        A computable trip count, no loop-carried dependence that the widening would reorder illegally, and either no aliasing between the memory it touches or a proof, such as Vortex's `&mut` exclusivity, that removes the need for a runtime check.
+        A countable loop, no call it cannot see through, and proof that the arrays it stores to do not overlap the ones it reads, or a runtime check that stands in for the proof.
 
         Introduced in [P10. Vectorization](../optimize/p10-vectorization.md#what-else-a-vectorizer-needs).
 
-    ??? question "Why does Vortex's [f32; 64, 64] fit NEON's fixed-width model better than SVE's scalable one?"
+    ??? question "What is the difference between an ordered and a reassociated floating-point reduction?"
 
-        SVE's whole point is running correctly at a vector length the compiler does not know until the program runs. Vortex's array extents are constants in the type, known to the compiler at every call site, so nothing is gained by leaving the width undetermined.
+        An ordered reduction adds the lanes into the running total one at a time, in index order, so the result has the same bits as the scalar loop. A reassociated one keeps partial sums per lane and combines them at the end, which is faster and can round differently.
 
-        Introduced in [P10. Vectorization](../optimize/p10-vectorization.md#neon-sve-and-sme).
+        Introduced in [P10. Vectorization](../optimize/p10-vectorization.md#reductions-ordered-or-reassociated).
+
+    ??? question "What does LLVM's loop vectorizer do with iterations left over when the trip count is not a multiple of the width?"
+
+        It runs them in a scalar epilogue: a copy of the original loop that starts where the vector loop stopped.
+
+        Introduced in [P10. Vectorization](../optimize/p10-vectorization.md#trip-counts-and-the-scalar-epilogue).
 
 !!! goals "In this chapter"
 
-    - Explain what a virtual vector type is, and why `vector.transfer_read` and `vector.transfer_write` are the only vector-dialect operations that touch memory.
-    - Read a `vector.contract` operation's `indexing_maps`, `iterator_types` and `kind` as `linalg.matmul`'s own shape, moved one level down from a region to explicit properties.
-    - Explain why a multi-dimensional vector type matches no real register, and predict what a lowering pass unrolls it into.
-    - Distinguish padding at a transfer op's memory boundary from a vectorized loop's scalar epilogue, and say what a compile-time-known shape buys Vortex at each one.
-    - Connect NEON's fixed lane width, already chosen once in P10 for LLVM IR, to the same choice the vector dialect makes when a lowering picks its target.
+    - Explain what a virtual vector is, how the transfer operations move one between memory and SSA values, and what `in_bounds` and the padding value promise.
+    - Vectorize a `linalg.matmul` with the transform dialect and read the resulting `vector.contract` as the same computation, one level down.
+    - Predict how an n-D vector lowers to LLVM and then to NEON registers, and explain why MLIR keeps it as an array of 1-D vectors instead of flattening it.
+    - Compare padding and masking at a tile's edge with P10's scalar epilogue, and say what Vortex's fixed shapes remove.
+    - Recognize the contraction lowerings that fuse a multiply and an add, and write the test that catches them in a Vortex pipeline.
 
-## A tile that is a value, not an address
+## Two ways to find vectors
 
-[P10](../optimize/p10-vectorization.md) vectorized a loop after the loop already existed: LLVM's loop vectorizer widens iterations that read and write memory through addresses, because by the time LLVM IR runs a loop, that is what a loop is. [M2](m2-reading-mlir.md#a-named-operation-hides-a-region) showed a level above that, where a whole matrix multiply is one operation, `linalg.matmul`, with no loop and no address arithmetic anywhere in it. The **vector dialect** sits between the two. It gives a tile of a computation, a handful of elements meant to move together, its own type: an SSA value with a shape, produced and consumed like any other value in the IR, not a description of where those elements live.
+[P10](../optimize/p10-vectorization.md#two-vectorizers) vectorized from the bottom up. LLVM's loop vectorizer looks at a loop made of loads, stores, branches and address arithmetic, and has to prove that the iterations are independent before it may run four at once. It works hard to recover a fact the programmer knew all along.
 
-`vector<2x2xf32>` names four `f32` elements arranged two by two. Nothing about that type says which memref they came from, or whether they came from a memref at all; a `vector<2x2xf32>` can be a function argument, the result of an `arith.addf`, or the operand of another vector op, exactly as an `f32` scalar can. Getting elements into that shape from memory, and back out again, is the job of exactly two operations, and the vector dialect defines no others that read or write memory at all:[^vector]
+MLIR can start higher. [M2](m2-reading-mlir.md#a-named-operation-hides-a-region) showed `linalg.matmul` as one operation whose iteration space is written down: three dimensions, two of them independent and one summed over. Nothing has to be proved. The vector dialect's documentation makes the point directly: vectorizing loops amounts to raising structure that was lost, while vectorizing a structured operation is a pattern rewrite.[^vector] The paper that describes MLIR's code generation path says the same about `linalg`: the vectorizer reads the indexing expressions that the operation already carries.[^vasilache]
+
+The **vector dialect** is where the result lands. It defines a type for a group of elements meant to be processed together, and operations on values of that type. The documentation separates three levels.[^vector]
+
+- **Virtual vectors** are machine-independent: any rank, any size, such as `vector<4x3x8xf32>`. Vectorizers and hand-written kernels produce them.
+- **Hardware vectors** are the shapes and operations a particular instruction set provides, such as NEON's 128-bit registers or a GPU's matrix instructions, often in a dialect per target.
+- **The LLVM level** is LLVM IR's own vector types, which have one dimension only.
+
+Lowering moves from the first level to the last, a step at a time. This chapter follows one small matrix multiply along that path.
+
+## A tile that is a value
+
+A value of type `vector<2x2xf32>` holds four `f32` elements arranged two by two. It is an SSA value like any other: it can be a function argument, the result of `arith.addf`, or the operand of another operation. Nothing in the type says where the elements came from. A memref names a place in memory; a vector names a value.
+
+Something has to move elements between the two. The most general operations for that are the **transfer operations**, `vector.transfer_read` and `vector.transfer_write`:[^vector]
 
 --8<-- "includes/examples/mlir/m8-vectorization/tile_transfer.mlir.md"
 
-`vector.transfer_read` names a memref, a starting index per dimension, and a **pad** value: the value a lane gets if the read reaches past the memref's bound. `vector.transfer_write` is the mirror operation, writing a vector's elements back to a memref at a starting index. Between the two, `arith.addf %tile, %tile` runs on the vector value directly, the same operation Horner's rule used on a single `f32` in [M2](m2-reading-mlir.md#one-function-two-spellings), now typed at `vector<2x2xf32>` instead. `%tile` is never an address; the two transfer ops are the only places this function reaches into memory at all. `%c0` from the first draft of this example never appeared, because neither transfer op needed a zero offset; deleting an unused constant is as ordinary a cleanup in MLIR as it is in any other IR.
+`vector.transfer_read %src[%c1, %c1], %pad` reads a slice of `%src` starting at index `(1, 1)`. The slice's size comes from the result type, so this reads rows 1 and 2, columns 1 and 2. The operand `%pad` is the **padding value**: the value a lane receives if its index falls outside the memref. `arith.addf` then doubles the value, not the memory, and `vector.transfer_write` stores the result into `%dst` at the same position.
 
-The `in_bounds = [true, true]` on each transfer op is a per-dimension promise: for this dimension, every index the read or write touches is inside the memref, so the operation never needs to invent a padded value or skip a lane. A `4x4` memref read at offset `(1, 1)` with a `2x2` tile reaches indices 1 and 2 in each dimension, both inside `0..4`, so the promise holds, and it is the caller's job to have checked that before writing `true`.
+`in_bounds = [true, true]` is a promise per dimension: along this dimension, every index the transfer touches is inside the memref. With the promise, the operation never needs the padding value, and the documentation says such a read, with no mask, can be lowered to a plain load. Without it the default is `false`, meaning the access may run off the end, and the printer leaves the attribute out when every dimension has the default.[^vector] The promise is not checked: MLIR 18.1.8 accepts `in_bounds = [true, true]` on a read that starts at `(3, 3)` in a `4x4` memref (checked on 2026-09-24). A false promise is the author's mistake, and the verifier does not report it.
 
-??? check "Which vector-dialect operations in this chapter's first example read or write memory, and which do not?"
+The transfer operations are not the only way to touch memory. The dialect also has `vector.load` and `vector.store`, and masked, gather and scatter variants. The difference is in what they promise. `vector.load` reads a slice whose innermost dimension must be contiguous in memory, and its documentation says nothing may be assumed about elements read out of bounds.[^vector]
 
-    `vector.transfer_read` and `vector.transfer_write` are the only two; `arith.addf` runs entirely on the `vector<2x2xf32>` value between them, the same operation it would be on a scalar, with no memref in sight.
+A transfer operation can also transpose or broadcast through its `permutation_map`, pad, and mask, and it works on tensors as well as memrefs. The documentation explains the name: it is a "read" and not a "load" because a whole virtual vector usually does not fit one hardware register.[^vector] The code generation paper calls the transfer operations a "Swiss army knife" between memory and vectors.[^vasilache]
 
-## vector.contract: the same shape as linalg.matmul, one level down
+??? check "In the example, which operations touch memory? If the read started at `(2, 3)` instead of `(1, 1)`, what should `in_bounds` say?"
 
-A matrix multiply is a **contraction**: two inputs, indexed along a shared dimension that disappears from the output because it gets summed away. `linalg.matmul` expressed that with a region, a small block of code the operation runs once per output element, reading `M2`'s own printout of it.[^m2contract] `vector.contract` expresses the same contraction over values already sitting in vector registers, and it needs no region at all, because a reduction over vector lanes has only a handful of possible combinators, and the operation names the one it wants as a property instead of writing it out as code:
+    Only the two transfer operations touch memory; `arith.addf` works on the vector value. Starting at `(2, 3)`, the tile covers rows 2 and 3, both inside, and columns 3 and 4, and column 4 is outside a `4x4` memref. The promise is per dimension, so the correct spelling is `in_bounds = [true, false]`: the two lanes in column 4 receive `%pad`. Keeping `[true, true]` would still pass the verifier, and a lowering could then emit a plain load that reads past the buffer.
 
---8<-- "includes/examples/mlir/m8-vectorization/vector_contract_matmul.mlir.md"
+## From linalg.matmul to vector.contract
 
-Compare `indexing_maps` here with the ones [M2](m2-reading-mlir.md#a-named-operation-hides-a-region) printed for `linalg.matmul`: renaming `row`, `column` and `k` to `m`, `n` and `k`, the two are the same three affine maps, `(m, k)` for the first input, `(k, n)` for the second, `(m, n)` for the output. `iterator_types` says the same thing `linalg.matmul` says with `parallel` and `reduction` iterators: `m` and `n` each pick out one independent output element, and `k` is the dimension the operation sums over. What changes is `kind = #vector.kind<add>`: where `linalg.matmul`'s region multiplies two scalars and adds a third, `vector.contract` names `add` as its **combining kind**, the operation used to fold each contracted element into the accumulator, drawn from a fixed set that also includes `mul`, `min`, `max` and a few others documented on the vector dialect.[^vector] A region can express any per-element computation; a combining kind can only be one of a short, fixed list, and a matrix multiply's accumulation is on that list, so `vector.contract` can drop the region and keep its output verifiable by the type checker alone.
+Now a whole operation. This file multiplies a `4x8` matrix by an `8x4` matrix into a `4x4` output, all in buffers, and adds a **schedule**: a second piece of IR, in the transform dialect, that says which transformation to apply to which operation. [M9](m9-transform-dialect.md) is about schedules; here you need only to read this one. It finds the `linalg.matmul`, goes up to the function around it, and asks for everything in the function to be vectorized.[^transform]
 
-Both `indexing_maps` and `kind` print inside `<{ }>` in the operation's generic form, the same properties bracket [M2](m2-reading-mlir.md#attributes-and-properties-hold-the-constants) used for `linalg.matmul`'s own `operandSegmentSizes`: they are part of what `vector.contract` means, checked by the operation's own verifier, not discardable attributes a pass could drop without changing the computation.
+--8<-- "includes/examples/mlir/m8-vectorization/vectorize_matmul.mlir.md"
 
-Decision 56 does not lose its grip going into vector-typed code. `arith.addf` on `vector<2x2xf32>` values carries the same `fastmath = #arith.fastmath<none>` property the scalar version carries in [M2](m2-reading-mlir.md#attributes-and-properties-hold-the-constants); printing this chapter's first example in generic form shows it on the `%doubled` computation directly. `vector.contract` is not itself an `arith` operation, so it carries no `fastmath` property to check, but any lowering that turns it into scalar or vector `arith.mulf` and `arith.addf` inherits the same rule those operations always carry: one rounding per operation, no contraction, no reassociation, unless something explicitly grants it.
+Read the function in the output from the top.
 
-??? check "linalg.matmul expresses its reduction as a region; vector.contract expresses the same reduction as a kind property. Why can vector.contract get away with dropping the region?"
+1. Three `vector.transfer_read`s bring in all of `%arg0`, `%arg1` and `%arg2` as values of type `vector<4x8xf32>`, `vector<8x4xf32>` and `vector<4x4xf32>`. The shapes are static and each tile covers its whole buffer, so each read carries `in_bounds = [true, true]`.
+2. One `vector.contract` computes the product.
+3. One `vector.transfer_write` stores the result into `%arg2`.
 
-    Because a contraction over vector lanes only ever combines them one of a few fixed ways: add, multiply, min, max, and similar. A region can express any per-element computation a linalg op might need, but a vector contraction's combinator is always one of a short, closed list, so naming it as a property, checked by the verifier, is enough; there is nothing a region could express here that the property cannot already name.
+That is the recipe the code generation paper gives for vectorizing any `linalg` operation: a transfer read per operand, the computation in vector form, and a transfer write back, indexed the way the `linalg` operation indexes its operands.[^vasilache] With static shapes that fit in one tile, there is no loop left at all. For a large matrix you would first tile the operation ([M6](m6-affine-and-scf.md#tiling-traced-by-hand)) and vectorize the tile inside the loops.
 
-## Padding instead of a scalar epilogue
-
-[P10](../optimize/p10-vectorization.md#trip-counts-and-the-scalar-epilogue) handled a loop trip count that does not divide evenly by keeping the loop's original scalar body and reaching it a second time, as a **scalar epilogue**, after the widened body has consumed every full-width group. The vector dialect solves the same problem differently, closer to where a single tile is read:
-
---8<-- "includes/examples/mlir/m8-vectorization/partial_tile_padding.mlir.md"
-
-A `2x2` read at offset `(2, 2)` into a `3x3` memref reaches indices 2 and 3 in each dimension; index 3 is out of bounds in a memref sized 3. With no `in_bounds` attribute written, `vector.transfer_read` defaults to treating every dimension as possibly out of bounds, and the printer leaves the attribute off entirely rather than spelling out a value that is already the default, the same convention [M2](m2-reading-mlir.md#attributes-and-properties-hold-the-constants) noted for `fastmath<none>`. Every lane whose index falls outside the memref receives `%pad`, `-1.0` here, instead of a value read from memory. One operation, no second copy of any code, covers both the real elements and the padded ones.
-
-The two strategies solve the same shape of problem at different distances from the machine. LLVM's loop vectorizer runs after a loop already exists in address-and-branch form, so its only tool for a leftover remainder is more control flow: a second, scalar path the compiler must also generate, verify and schedule. `vector.transfer_read` sits above that; it names a request for a rectangular tile, and padding lets the operation answer that request completely even when the tile does not fit, with no second code path anywhere. The cost moves from extra instructions to a branch, or predicate, inside the load and store themselves, and where that cost lands depends on the target this vector op eventually lowers to.
-
-Vortex rarely needs either strategy. [Decision 11](../decisions/arrays.md#d11) fixes every array extent as a constant known at every call site, so a lowering that picks its tile size can pick one that divides each dimension evenly and never emit anything but `in_bounds = [true, true]`, exactly as this chapter's first example already does. Padding exists in the vector dialect because MLIR has to serve dialects and front ends whose shapes are not always known until the program runs; a Vortex lowering can use that generality without ever paying for it, the same relationship P10 already drew between the LLVM vectorizer's runtime alias checks and the `noalias` proof a `&mut` parameter hands the vectorizer for free.
-
-??? check "A lowering tiles a Vortex [f32; 64, 64] array at width 4 in both dimensions. Does any transfer_read it emits ever need padding?"
-
-    No. 64 divides evenly by 4 in both dimensions, and the array's extent is a compile-time constant, so every tile the lowering emits fits inside the array exactly. Every transfer op it generates can carry `in_bounds = [true, true]` and never supply a pad value that could reach the output.
-
-## From a virtual shape to a hardware register
-
-`vector<2x2xf32>` has no matching register on any real chip. NEON's widest general vector register is 128 bits, read as some number of equal-width lanes, one dimension, never two.[^neon] A `vector<2x2xf32>` is what the vector dialect's own documentation calls a **virtual vector**: a machine-agnostic shape, chosen by a pass that reasons about a tile of a computation, before any pass has decided which target that tile will run on or how wide its registers are.[^vector] Somewhere on the way to a target, that shape has to become something a register file can hold.
-
---8<-- "includes/examples/mlir/m8-vectorization/nd_vector_lowering.mlir.md"
-
-Lowering with `--convert-vector-to-llvm` and `--convert-func-to-llvm` turns `vector<2x2xf32>` into `!llvm.array<2 x vector<2xf32>>`: an array of two one-dimensional vectors, one per row, rather than one flat four-lane vector. The vector dialect's documentation names this directly: a higher-rank vector is "unrolled to smaller k-D vector types and operations that correspond to the HW," working down toward the rank a real instruction set defines.[^vector-unroll] Two `vector<2xf32>` values, each narrow enough that NEON, or any other mainstream SIMD extension, has an instruction that moves one, is a shape a compiler can hand to an instruction selector unchanged. One `vector<4xf32>` built by flattening the tile would already have decided, before any target-aware pass has run, that row 0 and row 1 belong in the same register in that order; a wider or differently shaped target might prefer them in two registers, or four, or interleaved with another tile entirely, and a decision made this early would have to be undone rather than simply not made yet.
+The operation is `transform.structured.vectorize_children_and_apply_patterns`, and the second half of its name matters. With the plainer `transform.structured.vectorize` on the same function, MLIR 18.1.8 produced a different shape (checked on the owner's machine on 2026-09-24). Both inputs were read into `vector<4x4x8xf32>`, one element for every point of the iteration space, using permutation maps with a `0` in them, which repeat an element along a dimension it does not depend on. Then came an elementwise `arith.mulf` of the two, and a `vector.multi_reduction <add>` over dimension 2, the `k` dimension. The reads also lacked `in_bounds`. The pattern set folds the multiply-and-reduce into `vector.contract` and infers the `in_bounds` promises; its documentation names the multi-reduction-to-contract rewrite among them.[^transform] Figure 1 draws the three stages.
 
 <figure class="vx-figure">
-<svg viewBox="0 0 700 300" role="img" aria-labelledby="m8-f1-title m8-f1-desc">
-<title id="m8-f1-title">A 2x2 virtual vector unrolling into two 1-D hardware vectors</title>
-<desc id="m8-f1-desc">On the left, one box represents a single value of type vector 2 by 2 of f32, drawn as a 2 by 2 grid of four cells labelled by row and column. An arrow labelled convert vector to llvm points to two boxes on the right, stacked vertically. The upper right box holds row 0's two cells and is labelled vector of 2 f32; the lower right box holds row 1's two cells and is labelled the same. A brace on the far right groups both boxes and is labelled llvm array of 2 vector of 2 f32. No cell moves between the two right-hand boxes: each keeps the two elements of its own row together.</desc>
+<svg viewBox="0 0 760 330" role="img" aria-label="Three stages of vectorizing a 4 by 8 times 8 by 4 matrix multiply" aria-describedby="m8-f1-desc">
+<title id="m8-f1-title">Three stages of vectorizing a matrix multiply</title>
+<desc id="m8-f1-desc">Three panels from left to right, joined by arrows. Left panel, linalg.matmul: an iteration space drawn as a box with axes m of size 4, n of size 4 and k of size 8; each point multiplies a of m k by b of k n and adds into c of m n. Middle panel, after transform.structured.vectorize: a, of shape 4 by 8, is repeated along n into a 4 by 4 by 8 value; b, of shape 8 by 4, is transposed and repeated along m into another 4 by 4 by 8 value; an elementwise arith.mulf multiplies them, and vector.multi_reduction add over dimension 2, the k dimension, produces a 4 by 4 result added to c. Right panel, after the cleanup patterns: a single vector.contract takes the 4 by 8 and 8 by 4 values and the 4 by 4 accumulator, with no 128-element intermediate.</desc>
 <defs>
 <marker id="m8-f1-head" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path class="vx-arrowhead" d="M0 0 L10 5 L0 10 z"/></marker>
 </defs>
-<text class="vx-text-muted" x="105" y="35" text-anchor="middle">vector&lt;2x2xf32&gt;</text>
-<rect class="vx-box-strong" x="35" y="55" width="140" height="140" rx="4"/>
-<line class="vx-line" x1="35" y1="125" x2="175" y2="125"/>
-<line class="vx-line" x1="105" y1="55" x2="105" y2="195"/>
-<text class="vx-mono" x="70" y="95" text-anchor="middle">[0,0]</text>
-<text class="vx-mono" x="140" y="95" text-anchor="middle">[0,1]</text>
-<text class="vx-mono" x="70" y="165" text-anchor="middle">[1,0]</text>
-<text class="vx-mono" x="140" y="165" text-anchor="middle">[1,1]</text>
-<path class="vx-flow" d="M175 125 L255 125" marker-end="url(#m8-f1-head)"/>
-<text class="vx-text-muted" x="215" y="112" text-anchor="middle">--convert-vector-to-llvm</text>
-<g class="vx-seq" style="--vx-i: 0; --vx-n: 2">
-<text class="vx-text-muted" x="345" y="65" text-anchor="middle">row 0</text>
-<rect class="vx-box-accent" x="280" y="75" width="130" height="50" rx="4"/>
-<line class="vx-line" x1="345" y1="75" x2="345" y2="125"/>
-<text class="vx-mono" x="312" y="105" text-anchor="middle">[0,0]</text>
-<text class="vx-mono" x="378" y="105" text-anchor="middle">[0,1]</text>
-<text class="vx-text-muted" x="345" y="143" text-anchor="middle">vector&lt;2xf32&gt;</text>
-</g>
-<g class="vx-seq" style="--vx-i: 1; --vx-n: 2">
-<text class="vx-text-muted" x="345" y="175" text-anchor="middle">row 1</text>
-<rect class="vx-box-accent" x="280" y="185" width="130" height="50" rx="4"/>
-<line class="vx-line" x1="345" y1="185" x2="345" y2="235"/>
-<text class="vx-mono" x="312" y="215" text-anchor="middle">[1,0]</text>
-<text class="vx-mono" x="378" y="215" text-anchor="middle">[1,1]</text>
-<text class="vx-text-muted" x="345" y="253" text-anchor="middle">vector&lt;2xf32&gt;</text>
-</g>
-<path class="vx-line" d="M425 75 C 448 75, 448 235, 425 235"/>
-<text class="vx-mono" x="560" y="130" text-anchor="middle">!llvm.array&lt;2 x</text>
-<text class="vx-mono" x="560" y="150" text-anchor="middle">vector&lt;2xf32&gt;&gt;</text>
+<text class="vx-text" x="110" y="24" text-anchor="middle">linalg.matmul</text>
+<rect class="vx-box-strong" x="30" y="60" width="130" height="130" rx="4"/>
+<path class="vx-line" d="M30 60 L70 36 L200 36 L160 60"/>
+<path class="vx-line" d="M160 190 L200 166 L200 36"/>
+<text class="vx-text-muted" x="95" y="210" text-anchor="middle">m × n = 4 × 4</text>
+<text class="vx-text-muted" x="214" y="120">k = 8</text>
+<text class="vx-mono" x="95" y="120" text-anchor="middle">one point:</text>
+<text class="vx-mono" x="95" y="140" text-anchor="middle">c += a·b</text>
+<text class="vx-text-muted" x="110" y="250" text-anchor="middle">parallel m, n</text>
+<text class="vx-text-muted" x="110" y="268" text-anchor="middle">reduction k</text>
+<path class="vx-flow" d="M250 130 L282 130" marker-end="url(#m8-f1-head)"/>
+<text class="vx-text" x="420" y="24" text-anchor="middle">structured.vectorize</text>
+<rect class="vx-box" x="300" y="44" width="110" height="40" rx="4"/>
+<text class="vx-mono" x="355" y="69" text-anchor="middle">a: 4x8</text>
+<rect class="vx-box" x="430" y="44" width="110" height="40" rx="4"/>
+<text class="vx-mono" x="485" y="69" text-anchor="middle">b: 8x4</text>
+<text class="vx-text-muted" x="355" y="104" text-anchor="middle">repeat along n</text>
+<text class="vx-text-muted" x="485" y="104" text-anchor="middle">transpose, repeat along m</text>
+<rect class="vx-box-accent" x="300" y="114" width="110" height="40" rx="4"/>
+<text class="vx-mono" x="355" y="139" text-anchor="middle">4x4x8</text>
+<rect class="vx-box-accent" x="430" y="114" width="110" height="40" rx="4"/>
+<text class="vx-mono" x="485" y="139" text-anchor="middle">4x4x8</text>
+<rect class="vx-box" x="340" y="176" width="160" height="36" rx="4"/>
+<text class="vx-mono" x="420" y="199" text-anchor="middle">arith.mulf 4x4x8</text>
+<rect class="vx-box" x="310" y="232" width="220" height="36" rx="4"/>
+<text class="vx-mono" x="420" y="255" text-anchor="middle">multi_reduction add [2]</text>
+<text class="vx-text-muted" x="420" y="292" text-anchor="middle">sums over k into c: 4x4</text>
+<path class="vx-line" d="M420 154 L420 176"/>
+<path class="vx-line" d="M420 212 L420 232"/>
+<path class="vx-flow" d="M552 130 L584 130" marker-end="url(#m8-f1-head)"/>
+<text class="vx-text" x="665" y="24" text-anchor="middle">+ cleanup patterns</text>
+<rect class="vx-box-strong" x="596" y="96" width="150" height="70" rx="4"/>
+<text class="vx-mono" x="671" y="124" text-anchor="middle">vector.contract</text>
+<text class="vx-mono" x="671" y="146" text-anchor="middle">4x8, 8x4 → 4x4</text>
+<text class="vx-text-muted" x="671" y="190" text-anchor="middle">no 128-element</text>
+<text class="vx-text-muted" x="671" y="208" text-anchor="middle">intermediate</text>
 </svg>
-<figcaption>Figure 1. Lowering <code>vector&lt;2x2xf32&gt;</code> with <code>--convert-vector-to-llvm</code> produces one 1-D <code>vector&lt;2xf32&gt;</code> per row, held in an LLVM array, rather than one flat 4-lane vector. Each row's two elements stay together; nothing crosses between rows.</figcaption>
+<figcaption>Figure 1. Vectorizing <code>linalg.matmul</code> in MLIR 18.1.8. The plain vectorizer (middle) turns the iteration space into one 128-element value per input, multiplies them lane by lane and sums over <code>k</code>. The cleanup patterns (right) recognize that multiply-then-sum as a contraction and replace all three operations with one.</figcaption>
 </figure>
 
-Vortex's `matmul` kernel would meet this same unrolling wherever a lowering chose a tile wider than one dimension, such as the 2x2 accumulator tile [P12](../optimize/p12-fast-gemm.md) builds toward: the tile's shape can stay a single `vector<2x2xf32>` value through every pass that reasons about the tile as a whole, `vector.contract` among them, and only unroll into per-row 1-D vectors at the point a real target is chosen, the same point [P10](../optimize/p10-vectorization.md#four-lanes-one-instruction) fixed a lane width for the same kernel one level lower in the stack, working on LLVM IR instead of MLIR.
+The middle stage is worth understanding even though you rarely keep it. It is the most literal reading of the iteration space: one lane per point `(m, n, k)`. A `4x4x8` value of `f32` has 128 elements, 4,096 bits, which is 32 NEON registers for each input, and it holds every element of `a` and `b` four times over. Recognizing the contraction lets the next stage choose a better schedule for the same arithmetic.
 
-??? check "A pass could flatten vector<2x2xf32> straight into vector<4xf32> instead of an array of two vector<2xf32> values. What would that choice cost?"
+## Reading a vector.contract
 
-    It would fix, before any target-aware pass has run, that row 0 and row 1 belong in one register in that exact order. A target whose native width does not match 4, or whose preferred layout for a 2-D tile differs, would need that choice undone before it could proceed. Unrolling to nested 1-D vectors keeps each row a separate value, so a later, target-aware pass makes that placement decision once, instead of a target-agnostic pass making it early and a later pass reversing it.
+A **contraction** multiplies elements of two inputs, sums the products along the dimensions the inputs share, and adds the sums into an accumulator. The documentation defines `vector.contract` that way and requires three things.[^vector]
 
-## Where this fits in the pipeline
+- `indexing_maps`, one affine map per operand, from the iteration space to that operand's indices. The maps in the example's output are the ones [M2](m2-reading-mlir.md#a-named-operation-hides-a-region) read for `linalg.matmul`: `(d0, d2)` for the first input, `(d2, d1)` for the second, `(d0, d1)` for the accumulator.
+- `iterator_types`, one per dimension. `d0` and `d1` are `parallel`: each value picks out a separate output element. `d2` is a `reduction`: it appears in both inputs and not in the accumulator, and the operation sums over it.
+- `kind`, the **combining kind**: how each sum is folded into the accumulator. The current documentation lists `add`, `mul`, and several minimum and maximum variants for floats, plus `and`, `or` and `xor` for integers; `add` is the default.[^vector]
 
-None of this chapter's examples start from `linalg.matmul`. In a real pipeline, an operation shaped like `vector.contract` more often arrives by rewriting a structured op than by being written out by hand: the transform dialect defines `transform.structured.vectorize`, an operation that rewrites a targeted `linalg` operation directly into vector-dialect operations shaped like this chapter's own.[^transform] [M9](m9-transform-dialect.md) covers the schedule language that operation lives in; this chapter only needed to show what its output looks like once it lands.
+The third operand, `%2`, is the accumulator, read from `%arg2` before the contraction. So the output is `c + a·b`, exactly what `linalg.matmul` computes. M2 pointed out the consequence for Vortex: the stage 10 kernel overwrites `c`, so a translation through either operation must start from a zeroed accumulator.
+
+Compare the two operations. `linalg.matmul` describes its computation with a region, a block of scalar code run at every point. `vector.contract` has no region: the maps and the kind say everything, because a contraction's only freedom is which dimensions pair up and how the sums combine. `linalg.matmul` works on tensors or memrefs; `vector.contract` works on values, and its result is a new value.
+
+That difference is why the vector level is a good place to transform. The vector dialect's documentation lists work that becomes unnecessary when a tile is a value rather than memory: unroll-and-jam of loops, restructuring loads and stores to reuse registers, and forwarding stored values to later loads.[^vector] A value has no address, so no store can change it behind the compiler's back.
+
+??? check "If the first indexing map were `(d0, d1, d2) -> (d2, d0)` and the rest stayed the same, what would the operation compute, and what shape would `%a` need?"
+
+    `%a` would be indexed `[k, m]`, so it must have shape `8x4`, with `k` first. The operation would compute `c + aᵀ·b`: the transpose of `%a` times `%b`. The maps, not the operand order, decide which index is which, so a transposed input needs no separate transpose operation.
+
+## Padding at the edge of a tile
+
+Tiles do not always fit. A `2x2` tile placed at the bottom-right corner of a `3x3` memref has one real element and three lanes outside. [P10](../optimize/p10-vectorization.md#trip-counts-and-the-scalar-epilogue) handled the leftover iterations of a loop with a scalar epilogue. A transfer operation handles them inside the one operation, with the padding value. This example reads the corner tile and then lowers the read one step, to 1-D reads, with `--convert-vector-to-scf=full-unroll` and `--canonicalize`:
+
+--8<-- "includes/examples/mlir/m8-vectorization/partial_tile_padding.mlir.md"
+
+The 2-D read became 1-D rows. Row 3 lies entirely outside the memref, which the compiler can see from the constant indices, so that row became part of a constant: `%cst_0`, a `2x2` vector of `-1.0`. Row 2 is partly inside, so it stayed a 1-D `vector.transfer_read` of two elements, still without `in_bounds`, and `vector.insert` places it in row 0 of the result. Figure 2 shows the tile, its lanes and the mask each row needs.
+
+<figure class="vx-figure">
+<svg viewBox="0 0 760 290" role="img" aria-label="A 2 by 2 tile at the corner of a 3 by 3 memref, with the lanes that need padding" aria-describedby="m8-f2-desc">
+<title id="m8-f2-title">A 2 by 2 tile at the corner of a 3 by 3 memref</title>
+<desc id="m8-f2-desc">On the left, a 3 by 3 grid of memref elements with indices from 0 to 2 in each dimension. A 2 by 2 tile starts at row 2, column 2. Only its top-left lane, element 2 2, lies inside the grid and is highlighted; the other three lanes, 2 3, 3 2 and 3 3, lie outside and are marked pad. On the right, the two rows of the tile after lowering. Row 2 becomes a 1-D read with lane mask 1 0: lane 0 loads element 2 2, lane 1 takes the padding value; in LLVM this is llvm.intr.masked.load with the padding value as pass-through. Row 3 becomes the constant minus 1, minus 1 with no load at all.</desc>
+<text class="vx-text" x="150" y="24" text-anchor="middle">memref&lt;3x3xf32&gt;, tile at [2, 2]</text>
+<rect class="vx-box" x="40" y="50" width="60" height="50"/>
+<rect class="vx-box" x="100" y="50" width="60" height="50"/>
+<rect class="vx-box" x="160" y="50" width="60" height="50"/>
+<rect class="vx-box" x="40" y="100" width="60" height="50"/>
+<rect class="vx-box" x="100" y="100" width="60" height="50"/>
+<rect class="vx-box" x="160" y="100" width="60" height="50"/>
+<rect class="vx-box" x="40" y="150" width="60" height="50"/>
+<rect class="vx-box" x="100" y="150" width="60" height="50"/>
+<rect class="vx-cell-on" x="160" y="150" width="60" height="50"/>
+<text class="vx-mono" x="190" y="180" text-anchor="middle">[2,2]</text>
+<rect class="vx-box-bad" x="220" y="150" width="60" height="50"/>
+<text class="vx-mono" x="250" y="180" text-anchor="middle">pad</text>
+<rect class="vx-box-bad" x="160" y="200" width="60" height="50"/>
+<text class="vx-mono" x="190" y="230" text-anchor="middle">pad</text>
+<rect class="vx-box-bad" x="220" y="200" width="60" height="50"/>
+<text class="vx-mono" x="250" y="230" text-anchor="middle">pad</text>
+<rect class="vx-line" x="160" y="150" width="120" height="100" rx="3"/>
+<text class="vx-text-muted" x="30" y="80" text-anchor="end">0</text>
+<text class="vx-text-muted" x="30" y="130" text-anchor="end">1</text>
+<text class="vx-text-muted" x="30" y="180" text-anchor="end">2</text>
+<text class="vx-text-muted" x="30" y="230" text-anchor="end">3</text>
+<text class="vx-text-muted" x="330" y="180">row 2</text>
+<text class="vx-text-muted" x="330" y="230">row 3</text>
+<g class="vx-seq" style="--vx-i: 0; --vx-n: 2">
+<rect class="vx-box-accent" x="400" y="152" width="340" height="46" rx="4"/>
+<text class="vx-mono" x="412" y="172">mask [1, 0]: load lane 0,</text>
+<text class="vx-mono" x="412" y="190">lane 1 = pad (masked.load)</text>
+</g>
+<g class="vx-seq" style="--vx-i: 1; --vx-n: 2">
+<rect class="vx-box" x="400" y="204" width="340" height="44" rx="4"/>
+<text class="vx-mono" x="412" y="231">constant [-1.0, -1.0], no load</text>
+</g>
+</svg>
+<figcaption>Figure 2. The corner tile of the padding example. One lane is inside the memref; the others take the padding value. After lowering, the row that is wholly outside becomes a constant, and the row that is partly inside becomes a load with a <strong>lane mask</strong>, one on-or-off bit per lane.</figcaption>
+</figure>
+
+Lowering the same file on to the LLVM dialect with `--convert-vector-to-llvm` turned row 2 into a comparison of each lane's index against the memref's size, producing a two-lane mask, and a call to `llvm.intr.masked.load` that returns `%pad` in the lanes whose bit is off (checked on 2026-09-24). A **lane mask** is a vector of `i1` values, one per lane, that says which lanes an operation acts on. The transfer operation's documentation defines its optional mask the same way: lanes whose bit is 0 receive the padding value.[^vector]
+
+So the two strategies spend their cost in different places. P10's scalar epilogue adds a second copy of the loop and runs the leftover iterations one element at a time. Padding keeps one code path but pays for index comparisons, masks and masked memory operations wherever a tile might cross an edge, and a masked load may run slower than a plain one on a given target. The vector dialect keeps the choice open until the target is known: the transfer operation only states which lanes are real.
+
+MLIR also offers the epilogue's approach. The code generation paper describes **peeling** a loop so that the main part runs full tiles only, and padding a partial tile out to a full one, as ways of reaching fixed shapes before vectorization.[^vasilache] `transform.structured.vectorize` can also be given explicit vector sizes, in which case it vectorizes with masked vectors of that size.[^transform]
+
+Vortex has a stronger position than either. [Decision 11](../decisions/arrays.md#d11) makes every array extent a constant known at compile time, so the compiler knows, for each tile, whether it fits. If it picks tile sizes that divide the extents, every transfer can carry `in_bounds = true` in every dimension, and there is neither a mask nor an epilogue. When no convenient size divides an extent, as with a width of 4 and an extent of 6, the compiler chooses knowingly, per shape, among a narrower width, a masked last tile and a peeled one.
+
+??? check "A lowering tiles a Vortex `[f32; 64, 64]` array with `4x4` tiles, and a `[f32; 8, 6]` array with the same tiles. Which transfers need padding or masks?"
+
+    None for the `64x64` array: 64 is a multiple of 4 in both dimensions, so every tile fits and every transfer can carry `in_bounds = [true, true]`. For `8x6`, the tiles starting at column 4 cover columns 4 to 7, and columns 6 and 7 do not exist, so those four tiles need a mask or padding along the second dimension, or the lowering must choose another width, such as 2, or peel the last two columns. Because both extents are constants, the compiler knows exactly which tiles these are.
+
+## From virtual vectors to NEON registers
+
+No mainstream CPU has a `vector<4x8xf32>` register. AArch64's SIMD registers are 128 bits wide, one dimension, four `f32` lanes.[^aapcs64] LLVM IR likewise has only 1-D vector types.[^vector] Somewhere the tile has to be cut into pieces a register can hold. This example lowers a function that doubles a `4x8` tile:
+
+--8<-- "includes/examples/mlir/m8-vectorization/nd_vector_lowering.mlir.md"
+
+`vector<4x8xf32>` became `!llvm.array<4 x vector<8xf32>>`: an array of four 1-D vectors, one per row. The single `arith.addf` became four `llvm.fadd` operations, each extracting one row, adding, and inserting the result. The vector dialect's documentation gives this as the general rule: an n-D vector lowers to an (n-1)-D array of 1-D vectors, and its example is `vector<4x8x128xf32>` becoming a 4 by 8 array of 128-element vectors.[^vector]
+
+That is not the end. `vector<8xf32>` is 256 bits, still twice a NEON register. Translating the output to LLVM IR with `mlir-translate` and compiling it with `llc -O2 -mtriple=arm64-apple-macos` produced eight `fadd.4s` instructions on registers `v0` to `v7` (checked on the owner's machine on 2026-09-24). LLVM's code generator split each 8-lane vector into two 4-lane halves. Figure 3 follows the tile through both steps.
+
+<figure class="vx-figure">
+<svg viewBox="0 0 760 300" role="img" aria-label="A 4 by 8 vector tile lowered to four 1-D vectors and then to eight NEON registers" aria-describedby="m8-f3-desc">
+<title id="m8-f3-title">A 4 by 8 tile, four LLVM vectors, eight NEON registers</title>
+<desc id="m8-f3-desc">On the left, one value of type vector 4 by 8 of f32, drawn as a grid of 4 rows and 8 columns. An arrow labelled convert-vector-to-llvm leads to the middle: four separate rows, each a vector of 8 f32, together forming an llvm array of 4. An arrow labelled llc leads to the right: eight NEON registers v0 to v7, each holding 4 lanes; row 0 fills v0 and v1, row 1 fills v2 and v3, row 2 fills v4 and v5, row 3 fills v6 and v7. The rows light up one after another. No lane moves between rows.</desc>
+<defs>
+<marker id="m8-f3-head" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path class="vx-arrowhead" d="M0 0 L10 5 L0 10 z"/></marker>
+</defs>
+<text class="vx-text" x="110" y="30" text-anchor="middle">vector&lt;4x8xf32&gt;</text>
+<rect class="vx-box-strong" x="20" y="60" width="180" height="180" rx="3"/>
+<line class="vx-line" x1="20" y1="105" x2="200" y2="105"/>
+<line class="vx-line" x1="20" y1="150" x2="200" y2="150"/>
+<line class="vx-line" x1="20" y1="195" x2="200" y2="195"/>
+<text class="vx-text-muted" x="110" y="262" text-anchor="middle">one SSA value</text>
+<path class="vx-flow" d="M210 150 L262 150" marker-end="url(#m8-f3-head)"/>
+<text class="vx-text-muted" x="236" y="138" text-anchor="middle">MLIR</text>
+<text class="vx-text" x="360" y="30" text-anchor="middle">!llvm.array&lt;4 x vector&lt;8xf32&gt;&gt;</text>
+<g class="vx-seq" style="--vx-i: 0; --vx-n: 4">
+<rect class="vx-box-accent" x="275" y="60" width="170" height="36" rx="3"/>
+<text class="vx-mono" x="360" y="83" text-anchor="middle">row 0: vector&lt;8xf32&gt;</text>
+<rect class="vx-box-accent" x="530" y="60" width="100" height="36" rx="3"/>
+<text class="vx-mono" x="580" y="83" text-anchor="middle">v0 .4s</text>
+<rect class="vx-box-accent" x="640" y="60" width="100" height="36" rx="3"/>
+<text class="vx-mono" x="690" y="83" text-anchor="middle">v1 .4s</text>
+</g>
+<g class="vx-seq" style="--vx-i: 1; --vx-n: 4">
+<rect class="vx-box-accent" x="275" y="105" width="170" height="36" rx="3"/>
+<text class="vx-mono" x="360" y="128" text-anchor="middle">row 1: vector&lt;8xf32&gt;</text>
+<rect class="vx-box-accent" x="530" y="105" width="100" height="36" rx="3"/>
+<text class="vx-mono" x="580" y="128" text-anchor="middle">v2 .4s</text>
+<rect class="vx-box-accent" x="640" y="105" width="100" height="36" rx="3"/>
+<text class="vx-mono" x="690" y="128" text-anchor="middle">v3 .4s</text>
+</g>
+<g class="vx-seq" style="--vx-i: 2; --vx-n: 4">
+<rect class="vx-box-accent" x="275" y="150" width="170" height="36" rx="3"/>
+<text class="vx-mono" x="360" y="173" text-anchor="middle">row 2: vector&lt;8xf32&gt;</text>
+<rect class="vx-box-accent" x="530" y="150" width="100" height="36" rx="3"/>
+<text class="vx-mono" x="580" y="173" text-anchor="middle">v4 .4s</text>
+<rect class="vx-box-accent" x="640" y="150" width="100" height="36" rx="3"/>
+<text class="vx-mono" x="690" y="173" text-anchor="middle">v5 .4s</text>
+</g>
+<g class="vx-seq" style="--vx-i: 3; --vx-n: 4">
+<rect class="vx-box-accent" x="275" y="195" width="170" height="36" rx="3"/>
+<text class="vx-mono" x="360" y="218" text-anchor="middle">row 3: vector&lt;8xf32&gt;</text>
+<rect class="vx-box-accent" x="530" y="195" width="100" height="36" rx="3"/>
+<text class="vx-mono" x="580" y="218" text-anchor="middle">v6 .4s</text>
+<rect class="vx-box-accent" x="640" y="195" width="100" height="36" rx="3"/>
+<text class="vx-mono" x="690" y="218" text-anchor="middle">v7 .4s</text>
+</g>
+<path class="vx-flow" d="M455 150 L515 150" marker-end="url(#m8-f3-head)"/>
+<text class="vx-text-muted" x="485" y="138" text-anchor="middle">llc</text>
+<text class="vx-text" x="635" y="30" text-anchor="middle">NEON, 128 bits each</text>
+<text class="vx-text-muted" x="360" y="262" text-anchor="middle">four 1-D values</text>
+<text class="vx-text-muted" x="635" y="262" text-anchor="middle">eight fadd.4s</text>
+</svg>
+<figcaption>Figure 3. A <code>vector&lt;4x8xf32&gt;</code> on its way to an M4. MLIR's LLVM lowering splits off the leading dimension into an array of rows; LLVM's code generator splits each 256-bit row into two 128-bit registers. At no step does a lane move to another row.</figcaption>
+</figure>
+
+Why an array of rows, and not one flat `vector<32xf32>`? The documentation weighs both.[^vector] A flat vector allows LLVM's `extractelement` and `shufflevector` with a lane number computed at run time. But it needs index arithmetic everywhere to convert between 2-D and 1-D positions, and it hides the real structure of the hardware: a vector larger than a register will be held in several registers whatever its type says.
+
+The nested form matches what a register file can do. A register file cannot be indexed by a value computed at run time; the register number is fixed in the instruction. LLVM's `extractvalue` on an array accepts only constant indices, which says exactly that. A lowering that needs a dynamic row index has to go through memory, and the documentation prefers to make that visible in the IR rather than hide it behind a flat type.[^vector]
+
+Cutting a large virtual vector into pieces the target handles well is called **unrolling** in the vector dialect: the multi-dimensional unrolling factors are carried by the vector type itself.[^vector] The code generation paper gives two purposes: splitting operations into sizes the target supports well, and splitting sizes that are not powers of two, such as `vector<12xf32>` into three `vector<4xf32>`, before LLVM's code generator sees them.[^vasilache] For the M4, a lowering that unrolls to `vector<4xf32>` pieces does in MLIR what `llc` otherwise does late.
+
+Vector types also have a scalable form for SVE. In `vector<[4]xf32>`, the brackets mark a dimension whose length is a multiple of 4 fixed only when the program runs; the documentation lowers such types to LLVM's scalable vectors, and a type whose scalable dimension is not the last one cannot be converted to LLVM.[^vector] [P10](../optimize/p10-vectorization.md#neon-sve-and-sme) explained why Vortex's constant extents gain little from that.
+
+## Lowering a contraction, and what it does to rounding
+
+`vector.contract` does not correspond to one instruction on the M4 either. The code generation paper lists three ways to lower it: to **outer products**, to inner (dot) products, or to LLVM's matrix intrinsics.[^vasilache] The first is the shape of a fast matrix-multiply kernel ([P12](../optimize/p12-fast-gemm.md#the-register-blocked-micro-kernel)), so start there.
+
+The **outer product** of a column vector `x` and a row vector `y` is the matrix whose element `(i, j)` is `x[i] · y[j]`. A matrix product is a sum of outer products, one per value of `k`: column `k` of `a` times row `k` of `b`. Each term updates every element of the accumulator once. This example asks for that strategy explicitly:
+
+--8<-- "includes/examples/mlir/m8-vectorization/contract_to_outerproduct.mlir.md"
+
+Follow the values in the output.
+
+1. `vector.transpose %arg0` swaps rows and columns, so that each column of `a` becomes a row that `vector.extract` can take with a constant index.
+2. `%1` is column 0 of `a` and `%2` is row 0 of `b`. `vector.outerproduct %1, %2, %arg2` computes their outer product and adds it to `%arg2`, the old accumulator.
+3. `%4` and `%5` are column 1 and row 1. The second `vector.outerproduct` adds their outer product to `%3`, the result of the first.
+
+So element `(i, j)` of the result is `(c[i][j] + a[i][0]·b[0][j]) + a[i][1]·b[1][j]`: the accumulator first, then the products in `k` order. That is the C-initialized order that [P12](../optimize/p12-fast-gemm.md#two-ways-to-accumulate) described for micro-kernels. Figure 4 draws the two updates.
+
+<figure class="vx-figure">
+<svg viewBox="0 0 760 270" role="img" aria-label="A 2 by 2 contraction lowered to two outer-product updates, each row of which becomes a fused multiply-add" aria-describedby="m8-f4-desc">
+<title id="m8-f4-title">A 2 by 2 contraction as two outer-product updates</title>
+<desc id="m8-f4-desc">Two steps from left to right. Step k equals 0: column 0 of a, with elements a00 and a10, times row 0 of b, with elements b00 and b01, is added to the accumulator c, giving a 2 by 2 result whose element i j is c i j plus a i 0 times b 0 j. Step k equals 1: column 1 of a times row 1 of b is added to that result. Beneath each step, each of the two rows of the update is marked as one llvm.intr.fmuladd on a vector of 2 f32, four in all, and in MLIR 18.1.8 compiled for AArch64 each became an fmla, a fused multiply-add with one rounding.</desc>
+<text class="vx-text" x="185" y="26" text-anchor="middle">k = 0</text>
+<rect class="vx-box" x="30" y="50" width="50" height="80" rx="3"/>
+<text class="vx-mono" x="55" y="80" text-anchor="middle">a00</text>
+<text class="vx-mono" x="55" y="112" text-anchor="middle">a10</text>
+<text class="vx-text-muted" x="55" y="150" text-anchor="middle">col 0 of a</text>
+<text class="vx-text" x="98" y="95" text-anchor="middle">⊗</text>
+<rect class="vx-box" x="116" y="50" width="100" height="40" rx="3"/>
+<text class="vx-mono" x="141" y="75" text-anchor="middle">b00</text>
+<text class="vx-mono" x="191" y="75" text-anchor="middle">b01</text>
+<text class="vx-text-muted" x="166" y="110" text-anchor="middle">row 0 of b</text>
+<text class="vx-text" x="236" y="95" text-anchor="middle">+ c</text>
+<rect class="vx-box-accent" x="256" y="50" width="104" height="80" rx="3"/>
+<text class="vx-mono" x="308" y="80" text-anchor="middle">row 0</text>
+<text class="vx-mono" x="308" y="112" text-anchor="middle">row 1</text>
+<text class="vx-text-muted" x="308" y="150" text-anchor="middle">partial result</text>
+<text class="vx-text" x="570" y="26" text-anchor="middle">k = 1</text>
+<rect class="vx-box" x="415" y="50" width="50" height="80" rx="3"/>
+<text class="vx-mono" x="440" y="80" text-anchor="middle">a01</text>
+<text class="vx-mono" x="440" y="112" text-anchor="middle">a11</text>
+<text class="vx-text-muted" x="440" y="150" text-anchor="middle">col 1 of a</text>
+<text class="vx-text" x="483" y="95" text-anchor="middle">⊗</text>
+<rect class="vx-box" x="501" y="50" width="100" height="40" rx="3"/>
+<text class="vx-mono" x="526" y="75" text-anchor="middle">b10</text>
+<text class="vx-mono" x="576" y="75" text-anchor="middle">b11</text>
+<text class="vx-text-muted" x="551" y="110" text-anchor="middle">row 1 of b</text>
+<text class="vx-text" x="628" y="95" text-anchor="middle">+</text>
+<rect class="vx-box-strong" x="646" y="50" width="104" height="80" rx="3"/>
+<text class="vx-mono" x="698" y="80" text-anchor="middle">row 0</text>
+<text class="vx-mono" x="698" y="112" text-anchor="middle">row 1</text>
+<text class="vx-text-muted" x="698" y="150" text-anchor="middle">result</text>
+<line class="vx-line" x1="385" y1="40" x2="385" y2="250"/>
+<g class="vx-pulse">
+<rect class="vx-box-bad" x="30" y="178" width="330" height="60" rx="4"/>
+<rect class="vx-box-bad" x="415" y="178" width="335" height="60" rx="4"/>
+</g>
+<text class="vx-mono" x="195" y="202" text-anchor="middle">2 × llvm.intr.fmuladd, vector&lt;2xf32&gt;</text>
+<text class="vx-text-muted" x="195" y="224" text-anchor="middle">on the M4: fmla.2s, one rounding</text>
+<text class="vx-mono" x="582" y="202" text-anchor="middle">2 × llvm.intr.fmuladd, vector&lt;2xf32&gt;</text>
+<text class="vx-text-muted" x="582" y="224" text-anchor="middle">on the M4: fmla.2s, one rounding</text>
+</svg>
+<figcaption>Figure 4. The outer-product lowering of a <code>2x2</code> contraction. Each step adds one rank-1 matrix to the accumulator, and each row of that step becomes one multiply-add on a 2-lane vector. The highlighted boxes are where MLIR 18.1.8 emitted <code>llvm.intr.fmuladd</code>, which the AArch64 back end fused.</figcaption>
+</figure>
+
+Now lower one step further. Adding `--convert-vector-to-llvm` to the example's flags turns each `vector.outerproduct` into two calls to `llvm.intr.fmuladd`, one per row of the accumulator (checked with MLIR 18.1.8 on 2026-09-24). LLVM's Language Reference defines `llvm.fmuladd` as `a * b + c` where it is unspecified whether the product is rounded before the addition; the code generator may fuse the two.[^langref] It did: translated and compiled with `llc -O2 -mtriple=arm64-apple-macos`, the four calls became four `fmla.2s` instructions, AArch64's vector fused multiply-add ([A3](../backend/a3-floats-and-vectors.md#fused-multiply-add)).
+
+That is exactly what [decision 56](../decisions/numbers.md#d56) forbids: one rounding where the program has two. Nothing in the input asked for it. `vector.contract` in 18.1.8 has no `fastmath` property at all; a `fastmath` written on it survives only as a discardable attribute that the operation does not interpret (checked on 2026-09-24). The fusion came from a lowering choice, and a test that reads every `arith` operation's `fastmath` flag, as [M2's exercise](m2-reading-mlir.md#for-vortex) asked for, sees nothing wrong.
+
+Newer MLIR makes the fusion explicit rather than optional. The current documentation says an accumulating `vector.outerproduct` on floats is guaranteed to emit a fused multiply-add, lowering to `llvm.intr.fma`, and that `vector.fma` always lowers to `llvm.fma`; it also lists a `fastmath` attribute on `vector.contract`.[^vector] The version changes the spelling; for Vortex the result is the same. The outer-product path, as written, fuses.
+
+The same contraction, given straight to `--convert-vector-to-llvm` in 18.1.8, took the dot-product path instead (checked on 2026-09-24). For each output element it multiplied a row of `a` by a column of `b` with a separate `arith.mulf`, summed the products with `llvm.intr.vector.reduce.fadd` starting from 0.0 and marked `fastmath<none>`, which LLVM defines as an ordered reduction,[^langref] and added the old accumulator at the end. Every operation rounds once, as decision 56 requires, but the order is P12's zero-initialized one, `c + ((0 + a₀b₀) + a₁b₁)`, not the C-initialized one above. The pass keeps that reduction ordered unless you pass its `reassociate-fp-reductions` option.[^passes]
+
+So two lowerings of one operation round differently: one fuses each multiply and add, the other rounds every operation but adds the accumulator last instead of first. A Vortex pipeline that uses `vector.contract` has to choose its lowering on purpose, and its tests have to look below MLIR, at the LLVM IR or the assembly, for the fusion.
+
+??? check "Your pipeline emits `vector.contract`, lowers it with the outer-product strategy and passes a test that every `arith` operation has `fastmath<none>`. Which check would catch the decision 56 violation, and why did the `fastmath` test miss it?"
+
+    A check on the lowered code: fail if the LLVM IR contains a call to `llvm.fmuladd` or `llvm.fma` on `f32`, or if the assembly contains `fmla`, `fmadd` or another fused instruction. The `fastmath` test missed it because neither `vector.contract` nor `vector.outerproduct` is an `arith` operation, and the fusion was introduced by the lowering of `vector.outerproduct`, not by any flag in the input.
+
+## Where the vector dialect sits
+
+Putting the pieces in order gives the path this chapter walked, and the branches it did not take.
 
 ```mermaid
 flowchart LR
-    A["linalg.matmul<br/>M2, M5"] -->|"transform.structured.vectorize<br/>M9"| B["vector.contract<br/>+ transfer_read/write<br/>this chapter"]
-    B -->|"--convert-vector-to-llvm"| C["nested 1-D vectors<br/>NEON, SVE, ..."]
-    B -->|"--convert-vector-to-gpu"| D["GPU thread registers<br/>M10"]
+    A["linalg.matmul<br/>M2, M5"] -->|"structured.vectorize<br/>M9"| B["transfer_read / write<br/>vector.contract<br/>virtual vectors"]
+    B -->|"unroll, lower_contraction"| C["1-D vectors<br/>outerproduct, fma, reduce"]
+    C -->|"--convert-vector-to-llvm"| D["LLVM IR<br/>NEON, SVE"]
+    B -->|"--convert-vector-to-gpu"| E["GPU matrix ops<br/>M10, G11"]
 ```
 
-The same virtual-vector value can flow toward either branch of that diagram. Lowered with `--convert-vector-to-llvm`, it becomes the nested hardware vectors this chapter's third example showed. Lowered with `--convert-vector-to-gpu` instead, the vector dialect's documentation describes essentially the same virtual-vector value ending up spread across a warp's or workgroup's registers rather than one thread's;[^vector] [M10](m10-mlir-for-gpus.md) is where that path is built out.
+The branch to the right leads to hardware that does have two-dimensional operations. The code generation paper describes vector operations lowering either to LLVM's vector instructions or directly to target instructions that work on 2-D tiles, naming GPU warp-level matrix operations and Intel's AMX tile multiply as examples.[^vasilache] The `--convert-vector-to-gpu` pass lowers vector operations to the GPU dialect, with an option to target NVIDIA's `nvgpu` dialect instead.[^passes] [M10](m10-mlir-for-gpus.md) builds that path, and [G11](../gpu/g11-matrix-units.md) describes the matrix units it aims at.
+
+Each arrow is a choice a compiler makes, and each can be made per target. That is the point of keeping the virtual level: a vectorizer that produces `vector.contract` does not need to know whether the machine has NEON, SVE, SME or a tensor core. The lowering does.
 
 ## For Vortex
 
 !!! vortex "Exercise"
 
-    **Build** a vector-dialect variant of the MLIR-writing tool [M2's exercise](m2-reading-mlir.md#for-vortex) asked for: given the scalar MLIR your tool already emits for the [stage 10 kernel](../compiler/guide/stage-10-matrix-multiplication.md#the-program-the-milestone-asks-for), produce a second version whose `column` loop body reads and writes `vector<Wxf32>` tiles instead of one `f32` at a time, for a width `W` you choose.
+    **Build** a vector-typed variant of the MLIR-writing tool from [M2's exercise](m2-reading-mlir.md#for-vortex): for the [stage 10 kernel](../compiler/guide/stage-10-matrix-multiplication.md#the-program-the-milestone-asks-for) and its other shapes, write a second MLIR file in which the loop over `column` advances by a width `W` and the arithmetic works on `vector<Wxf32>` values, read and written with transfer operations. Use only the `builtin`, `func`, `arith`, `scf`, `memref` and `vector` dialects.
 
-    1. A width decision, made once, for `f32`: 4, matching NEON's 128-bit lane width, is a defensible starting point, the same width [P10](../optimize/p10-vectorization.md#neon-sve-and-sme) settled on at the LLVM level.
-    2. `vector.transfer_read` and `vector.transfer_write` at the `column` loop's memory accesses, with `in_bounds` set to `true` in every dimension, never computed as an unknown, since [decision 11](../decisions/arrays.md#d11) makes every shape a compile-time constant your tool already has in hand.
-    3. A refusal, not a silent scalar fallback, for the `k` loop: it carries a reduction on `sum`, the same fact [P10](../optimize/p10-vectorization.md#reductions-ordered-or-reassociated) already named as blocking, and this chapter gave that reduction no vector-dialect treatment either. Name the construct in the refusal, the way [M2's exercise](m2-reading-mlir.md#for-vortex) already asks your tool to refuse constructs outside its subset.
-    4. No `fastmath` value other than `none` on any `arith` operation your tool emits, vector-typed or not: the rule [decision 56](../decisions/numbers.md#d56) sets does not relax because the type grew a shape.
+    1. A written decision, before any code: which loop becomes vector-typed, why the order of the additions into each element of `c` stays exactly what the scalar kernel does, and why the loop over `k` does not become a reduction across lanes ([P10](../optimize/p10-vectorization.md#reductions-ordered-or-reassociated)).
+    2. A width `W` for `f32`, chosen once with a sentence of justification against the M4's 128-bit registers.
+    3. `in_bounds` set to `true` in every dimension of every transfer your tool emits. For a shape whose extent is not a multiple of `W`, refuse it by name, the way M2's tool refuses constructs outside its subset.
+    4. No `vector.contract`, `vector.outerproduct` or `vector.fma` in the output, and no `fastmath` value other than `none` on any `arith` operation, scalar or vector.
 
-    **Not yet:** driving this from the transform dialect ([M9](m9-transform-dialect.md)) instead of writing the vector ops directly; a GPU-facing lowering ([M10](m10-mlir-for-gpus.md)); any width other than 4 for `f32`; masking or padding for a shape that is not a multiple of `W` in every dimension, since Vortex's fixed shapes mean your tool can choose `W` to avoid that case entirely rather than handle it.
+    **Not yet:** driving the rewrite from the transform dialect ([M9](m9-transform-dialect.md)); `vector.contract` and any contraction lowering; masks, padding or peeling for shapes that are not multiples of `W`; SVE's scalable types; GPU lowering ([M10](m10-mlir-for-gpus.md)); running the result.
 
     **Proof that it works:**
 
-    - The vector-typed file your tool emits for the stage 10 kernel, and for one non-square shape, both pass `mlir-opt` with no options.
-    - A test that reads every `arith` operation's generic form in the emitted file and fails if any `fastmath` value is not `none`.
-    - A test that reads every `vector.transfer_read` and `vector.transfer_write` your tool emits and fails if any lacks `in_bounds = [true, ...]` set to `true` in every dimension, so an accidental fallback to padding is caught rather than silently accepted.
-    - A refusal test: point your tool at a shape whose relevant dimension is not a multiple of your chosen `W`, and confirm it refuses by name rather than emitting a transfer op that would need padding.
-    - A round trip in the style [M2's exercise](m2-reading-mlir.md#for-vortex) used: `mlir-opt --mlir-print-op-generic` on the emitted file, piped back through `mlir-opt`, prints exactly what `mlir-opt` alone printed.
+    - The vector-typed files for the stage 10 kernel and for two more shapes that are multiples of `W` pass `mlir-opt` with no options, and round-trip through `--mlir-print-op-generic` as in M2.
+    - A test that reads every `vector.transfer_read` and `vector.transfer_write` in the output and fails unless each carries `in_bounds` with every entry `true`.
+    - The decision 56 test from M2, extended to vector-typed `arith` operations.
+    - A lowering canary: run the output through `--convert-vector-to-scf`, `--convert-scf-to-cf`, `--convert-vector-to-llvm`, `--finalize-memref-to-llvm`, `--convert-arith-to-llvm`, `--convert-func-to-llvm` and `--reconcile-unrealized-casts`, translate it with `mlir-translate --mlir-to-llvmir`, and fail if the LLVM IR contains `llvm.fmuladd` or `llvm.fma`, or if `llc -O2` for AArch64 produces `fmla` or `fmadd`. Then add one `vector.fma` by hand and confirm that the canary fails.
+    - A refusal test: a `[f32; 8, 6]` output with `W = 4` produces a refusal that names the shape, not a file.
 
 ## Key ideas
 
 !!! recap "Questions you can now answer"
 
-    - **What is a virtual vector, and how does its type differ from a memref's?** A machine-agnostic vector type, such as `vector<2x2xf32>`, that names a shape and element type but no memory location. A memref is a reference to memory; a vector is an SSA value, produced and consumed like any other value, that happens to hold several elements.
-    - **Which vector-dialect operations touch memory?** Only `vector.transfer_read` and `vector.transfer_write`. Every other vector operation, `vector.contract` included, works entirely on values already in vector-typed form.
-    - **How does vector.contract's indexing_maps relate to linalg.matmul's?** They are the same affine maps, read the same way: one map per operand, naming which indices of a shared iteration space that operand's elements come from. `vector.contract` adds a `kind` property in place of `linalg.matmul`'s region, because a vector contraction's combinator is always one of a short, fixed list.
-    - **Why does a 2x2 virtual vector lower to an array of two 1-D vectors rather than one flat 4-lane vector?** No mainstream SIMD extension defines a two-dimensional register; flattening early would also fix a row-major layout and a total width before any target-aware pass has chosen what the target actually wants. Nested 1-D vectors keep that decision open.
-    - **How does a transfer op handle a tile that reaches past its memref's bound, and how does that differ from a vectorized LLVM loop's approach to the same problem?** It pads the out-of-bounds lanes with a supplied value, in the one operation that reads the tile. An LLVM loop vectorizer instead keeps a second, scalar copy of the loop body as an epilogue, run after the vectorized body, because by the time it runs a loop already exists as address-and-branch control flow.
-    - **Why does Vortex rarely need either strategy?** Every Vortex array extent is a compile-time constant, so a lowering can choose a tile width that divides each shape evenly and never emit a transfer op that needs padding, or a loop that needs a scalar epilogue.
+    - **What is a virtual vector?** A value of vector type of any rank and size, such as `vector<4x8xf32>`, independent of any machine; lowering later cuts it into the 1-D vectors a target supports.
+    - **What do the transfer operations add over a plain load?** A padding value for lanes out of bounds, per-dimension `in_bounds` promises, an optional mask, and a permutation map for transposing or broadcasting; they work on memrefs and tensors.
+    - **How does `linalg.matmul` become `vector.contract`?** The vectorizer reads each operand with a transfer read, expresses the body over the whole iteration space, and cleanup patterns fold the multiply-and-reduce into one contraction with the same indexing maps.
+    - **Why does `vector<4x8xf32>` lower to an array of four `vector<8xf32>`?** LLVM has only 1-D vectors, and a register file cannot be indexed at run time; keeping rows as separate values keeps that structure visible instead of hiding it behind a flat vector.
+    - **How does a transfer handle a tile that crosses the edge?** Lanes outside receive the padding value; after lowering, that is a lane mask and a masked load, instead of P10's scalar epilogue.
+    - **Why is the outer-product lowering of `vector.contract` a problem for Vortex?** It produces multiply-adds that LLVM may fuse (18.1.8) or must fuse (current MLIR), giving one rounding where decision 56 requires two, and no `fastmath` flag in the input shows it.
 
 ## Where this comes back
 
 !!! next "You will use this again in"
 
-    - [M9. Schedules as IR: the transform dialect](m9-transform-dialect.md): *transform.structured.vectorize*, *payload IR built from vector ops*
-    - [M10. MLIR for GPUs](m10-mlir-for-gpus.md): *the same virtual-vector value, lowered toward GPU thread registers instead of NEON*
-    - [P11. Floating point under optimization](../optimize/p11-floating-point.md): *fastmath none stays the rule once a value carries a shape*
-    - [P12. Anatomy of a fast GEMM](../optimize/p12-fast-gemm.md): *the micro-kernel's accumulator tile, expressed as a vector.contract instead of a loop of scalar FMAs*
+    - [M9. Schedules as IR: the transform dialect](m9-transform-dialect.md): *structured.vectorize*, *apply_patterns*, *lower_contraction*
+    - [M10. MLIR for GPUs](m10-mlir-for-gpus.md): *virtual vectors*, *convert-vector-to-gpu*
+    - [M12. Designing Vortex's GPU path](m12-vortex-gpu-path.md): *choosing a lowering on purpose*, *fusion hidden in a lowering*
+    - [P11. Floating point under optimization](../optimize/p11-floating-point.md): *llvm.fmuladd*, *contraction introduced by a lowering*
+    - [P12. Anatomy of a fast GEMM](../optimize/p12-fast-gemm.md): *outer-product micro-kernel*, *C-initialized and zero-initialized order*
+    - [G11. Matrix units](../gpu/g11-matrix-units.md): *hardware with 2-D operations*
 
 ## Sources and further reading
 
-Read the vector dialect's own documentation first: its rationale section explains virtual versus hardware vectors directly, in the same terms this chapter used. [M2](m2-reading-mlir.md#sources-and-further-reading) is the chapter to reread for the generic-form vocabulary, properties, attributes and `linalg.matmul`'s own indexing maps, this chapter's `vector.contract` example leaned on throughout. The transform dialect's own page is the natural next stop for `transform.structured.vectorize`, ahead of [M9](m9-transform-dialect.md)'s fuller treatment of the schedule language it lives in.
+Read the vector dialect's documentation first, especially its sections on virtual vectors and on the trade-offs of lowering n-D vectors to LLVM: this chapter's figures follow its argument.[^vector] Then read sections 3.3 and 3.5 of the code generation paper, which walks a convolution and a matrix product through the same stages with larger tiles.[^vasilache] The transform dialect's entries for the vectorization operations are the reference for what each schedule step does.[^transform]
 
-[^vector]: MLIR Project, "'vector' Dialect", sections "Positioning in the Codegen Framework", "Properties of Virtual Vectors and their Implication on Codegen" and "Operations", read on 2026-09-24. <https://mlir.llvm.org/docs/Dialects/Vector/>
-[^vector-unroll]: MLIR Project, "'vector' Dialect", section "Properties of Virtual Vectors and their Implication on Codegen", on higher-rank vectors being unrolled to smaller k-D vector types and operations corresponding to the target's hardware vectors, read on 2026-09-24. <https://mlir.llvm.org/docs/Dialects/Vector/>
-[^m2contract]: M2's own reading of `linalg.matmul`'s generic form, its `indexing_maps`, region body and `operandSegmentSizes` property. <https://mlir.llvm.org/docs/Dialects/Linalg/>
-[^neon]: Arm, "Intrinsics", the Neon, SVE, SVE2, SME and Helium reference, on NEON's 128-bit general vector registers, read on 2026-09-24. <https://developer.arm.com/architectures/instruction-sets/intrinsics/>
-[^transform]: MLIR Project, "'transform' Dialect", on `transform.structured.vectorize` (`transform::VectorizeOp`) vectorizing a targeted structured operation, read on 2026-09-24. <https://mlir.llvm.org/docs/Dialects/Transform/>
+[^vector]: MLIR Project, "'vector' Dialect", sections "Components of a Generic Retargetable Vector-Level Dialect", "Short Description of the Existing Infrastructure", "Transformations Problems Avoided", "The Big Out-Of-Scope Piece: Automatic Vectorization" and "LLVM Lowering Tradeoffs", and the entries `vector.contract`, `vector.fma`, `vector.load`, `vector.outerproduct` and `vector.transfer_read`, read on 2026-09-24. <https://mlir.llvm.org/docs/Dialects/Vector/>
+[^vasilache]: Nicolas Vasilache, Oleksandr Zinenko, Aart J. C. Bik, Mahesh Ravishankar, Thomas Raoux, Alexander Belyaev, Matthias Springer, Tobias Gysi, Diego Caballero, Stephan Herhut, Stella Laurenzo and Albert Cohen, "Composable and Modular Code Generation in MLIR: A Structured and Retargetable Approach to Tensor Compiler Construction", arXiv:2202.03293, 2022, sections 2.3.1, 3.3 and 3.5, read on 2026-09-24. <https://arxiv.org/abs/2202.03293>
+[^transform]: MLIR Project, "'transform' Dialect", entries `transform.structured.vectorize`, `transform.structured.vectorize_children_and_apply_patterns` and `transform.apply_patterns.vector.lower_contraction`, read on 2026-09-24. <https://mlir.llvm.org/docs/Dialects/Transform/>
+[^passes]: MLIR Project, "Passes", entries `-convert-vector-to-llvm` (option `-reassociate-fp-reductions`), `-convert-vector-to-scf` and `-convert-vector-to-gpu`, read on 2026-09-24. <https://mlir.llvm.org/docs/Passes/>
+[^langref]: LLVM Project, "LLVM Language Reference Manual", sections "'llvm.fmuladd.*' Intrinsic" and "'llvm.vector.reduce.fadd.*' Intrinsic", read on 2026-09-24. <https://llvm.org/docs/LangRef.html>
+[^aapcs64]: Arm, "Procedure Call Standard for the Arm 64-bit Architecture (AAPCS64)", section "SIMD and Floating-Point registers". <https://github.com/ARM-software/abi-aa/blob/main/aapcs64/aapcs64.rst>

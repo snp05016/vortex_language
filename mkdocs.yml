@@ -58,12 +58,15 @@ nav:
       - 2. Basic source rules: language-tour/02-basic-source-rules.md
       - 3. Hello world and main: language-tour/03-hello-world.md
       - 4. Variables and types: language-tour/04-variables-and-types.md
+      - "Review: chapters 1 to 4": language-tour/review-1-4.md
       - 5. Expressions: language-tour/08-expressions.md
       - 6. Statements: language-tour/09-statements.md
       - 7. Declarations: language-tour/10-declarations.md
+      - "Review: chapters 5 to 7": language-tour/review-5-7.md
       - 8. Runtime and numerical rules: language-tour/06-runtime-and-numerical-rules.md
       - 9. Planned types: language-tour/05-types-planned-for-later.md
       - 10. Planned kernels and parallelism: language-tour/07-kernels-and-parallel-execution.md
+      - "Review: chapters 8 to 10": language-tour/review-8-10.md
   - Reference:
       - Specification:
           - Specification status: specification/index.md
@@ -100,14 +103,25 @@ nav:
       - 1. Source text and error messages: compiler/guide/stage-1-source-and-diagnostics.md
       - 2. The lexer: compiler/guide/stage-2-lexer.md
       - 3. The parser and the syntax tree: compiler/guide/stage-3-parser-and-tree.md
+      - "Review: stages 0 to 3": compiler/guide/review-0-3.md
       - 4. Names and scopes: compiler/guide/stage-4-names-and-scopes.md
       - 5. Types and language rules: compiler/guide/stage-5-types-and-rules.md
       - 6. The first machine code: compiler/guide/stage-6-first-machine-code.md
+      - "Review: stages 4 to 6": compiler/guide/review-4-6.md
       - 7. Functions and control flow: compiler/guide/stage-7-functions-and-control-flow.md
       - 8. Data in memory: compiler/guide/stage-8-data-in-memory.md
       - 9. Runtime safety: compiler/guide/stage-9-runtime-safety.md
+      - "Review: stages 7 to 9": compiler/guide/review-7-9.md
       - 10. Matrix multiplication: compiler/guide/stage-10-matrix-multiplication.md
       - 11. Release: compiler/guide/stage-11-release.md
+      - "Review: stages 10 and 11": compiler/guide/review-10-11.md
+      - Workbook: compiler/workbook.md
+      - Recipes:
+          - Add a token: compiler/recipes/add-a-token.md
+          - Add a diagnostic: compiler/recipes/add-a-diagnostic.md
+          - Add an AST node: compiler/recipes/add-an-ast-node.md
+          - Read the generated assembly: compiler/recipes/read-generated-assembly.md
+          - Find the commit that broke a test: compiler/recipes/bisect-a-failing-test.md
       - Word list: compiler/guide/words.md
       - Reading list: compiler/guide/reading-list.md
   - Back end:
@@ -142,6 +156,7 @@ nav:
           - "E4. Testing back ends": backend/e4-testing-backends.md
   - Optimize:
       - Overview: optimize/index.md
+      - The CPU matmul ladder: optimize/ladder.md
       - The middle end:
           - "O1. The optimizer's contract": optimize/o1-optimizer-contract.md
           - "O2. Control-flow graphs and dominance": optimize/o2-cfg-and-dominance.md
@@ -259,6 +274,9 @@ markdown_extensions:
       check_paths: true
       auto_append:
         - includes/abbreviations.md
+  - pymdownx.tasklist:
+      custom_checkbox: true
+      clickable_checkbox: true
   - pymdownx.tabbed:
       alternate_style: true
   - pymdownx.arithmatex:
@@ -277,5 +295,6 @@ extra_css:
 extra_javascript:
   - javascripts/theme.js
   - javascripts/katex.js
+  - javascripts/workbook.js
   - https://cdn.jsdelivr.net/npm/katex@0.18.9/dist/katex.min.js
   - https://cdn.jsdelivr.net/npm/katex@0.18.9/dist/contrib/auto-render.min.js

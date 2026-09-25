@@ -58,12 +58,17 @@ worth calling. Two facts about Vortex v0.1 shape the rest:
   ([stage 10](../../compiler/guide/stage-10-matrix-multiplication.md#one-function-per-shape)).
   The bridge therefore compiles one kernel per supported shape ahead of time
   and rejects other shapes with a clear error.
-- **The array ABI is not specified yet.** The exact layout of arrays is not
-  part of the public v0.1 specification
-  ([arrays, section 7.8](../../specification/arrays.md#78-memory-and-layout)).
-  Before any kernel can be called from C++, a
+- **The array ABI is not specified yet.** Vortex fixes the order elements are
+  stored in: contiguous, row-major
+  ([arrays, section 7.8](../../specification/arrays.md#78-memory-and-layout);
+  [decision 43](../../decisions/arrays.md#d43)). But element size, alignment
+  and padding stay implementation-defined, and ABI compatibility with other
+  languages is not specified in v0.1
+  ([structs, section 8.8](../../specification/structs.md#88-layout)). Before
+  any kernel can be called from C++, a
   [decision record](../../decisions/index.md) must fix how exported kernels
-  lay out arrays and receive their arguments.
+  lay out arguments at that boundary and receive shared and mutable
+  references.
 
 | Part | What it does | Done when | Taught in |
 | --- | --- | --- | --- |
@@ -216,6 +221,12 @@ without an explanation does not go in.
 - **Vortex, ahead-of-time compile:** the time to compile the kernel before the
   program runs, since Vortex does not compile during the call.
 
+## Analysis
+
+Empty until the first measured run. This section will explain, for each
+workload, why the fastest path won: which loops fused, which path stayed
+memory-bound, and what the kernel evidence from A1 or A8 predicted.
+
 ## What did not work
 
 Filled in as the work goes: one row per attempt that failed or was dropped.
@@ -250,6 +261,13 @@ design was reached.
 - **Versions move.** Results hold for the recorded PyTorch, Triton and CUDA
   versions only. The PyTorch documentation cited here is for version 2.14.
 
+## Reproduce
+
+Empty until the first measured run. This section will give one command that,
+from a clean checkout, builds the compiled kernels, registers the custom
+operator, runs every comparison on both machines, writes the raw data into
+the repository, and regenerates the tables on this page.
+
 ## What a reviewer should look at
 
 | Evidence | What to check | Where |
@@ -266,7 +284,7 @@ design was reached.
 
 [^pt-custom-ops]: PyTorch, "Custom C++ and CUDA Operators", PyTorch tutorials. <https://docs.pytorch.org/tutorials/advanced/cpp_custom_ops.html>
 [^torch-compile]: PyTorch, "torch.compile", PyTorch 2.14 documentation. <https://docs.pytorch.org/docs/2.14/generated/torch.compile.html>
-[^triton-paper]: Philippe Tillet, H. T. Kung and David Cox, "Triton: An Intermediate Language and Compiler for Tiled Neural Network Computations", *MAPL 2019*, pages 10 to 19. <https://doi.org/10.1145/3315508.3329973>
+[^triton-paper]: Philippe Tillet, H. T. Kung and David Cox, "Triton: An Intermediate Language and Compiler for Tiled Neural Network Computations", *MAPL 2019*, pages 10 to 19. <https://www.eecs.harvard.edu/~htk/publication/2019-mapl-tillet-kung-cox.pdf>
 [^triton-tutorial]: Triton, "Matrix Multiplication", Triton tutorials. <https://triton-lang.org/main/getting-started/tutorials/03-matrix-multiplication.html>
 [^pt-benchmark]: PyTorch, "PyTorch Benchmark", PyTorch recipes. <https://docs.pytorch.org/tutorials/recipes/recipes/benchmark.html>
 [^brrr]: Horace He, "Making Deep Learning go Brrrr From First Principles". <https://horace.io/brrr_intro.html>

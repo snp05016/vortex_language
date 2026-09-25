@@ -10,4 +10,6 @@ skip = ./site,./build,*.svg,*.woff2,*.pyc,*.egg-info
 #   fallin  Chris Fallin, author of Cranelift's register allocator
 #   olt     MLIR's "ordered less than" float comparison predicate
 #   sme     Arm's Scalable Matrix Extension
-ignore-words-list = resutl,wirth,fallin,olt,sme
+#   valu    AMD's vector arithmetic logic unit, quoted from a HIP section title
+#   advertis  part of the URL of David Salomon's "Assemblers and Loaders"
+ignore-words-list = resutl,wirth,fallin,olt,sme,valu,advertis

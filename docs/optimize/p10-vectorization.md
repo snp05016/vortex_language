@@ -368,7 +368,7 @@ Read the output from the top. `entry` would jump straight to the scalar loop if 
 
 The vector loop and the epilogue write disjoint elements in increasing index order, and each element is computed by exactly one of them with the same operations, so the split changes no result.
 
-With 64 iterations and the same width, `middle.block` would branch on `true` straight to `exit`, as `@sum_strict` in the second example does: the kernel's 64-element rows need no epilogue at widths 4, 8 or 16. With interleaving, the unit that must divide the trip count is the width times the interleave count, the number of iterations one pass of the vector loop covers. A loop with a small trip count and a large vector trip can spend most of its time in the epilogue; LLVM can vectorize the epilogue itself at a narrower width,[^llvm-vec-ep] and [M8](../mlir/m8-vectorization.md#padding-instead-of-a-scalar-epilogue) shows padding as another answer.
+With 64 iterations and the same width, `middle.block` would branch on `true` straight to `exit`, as `@sum_strict` in the second example does: the kernel's 64-element rows need no epilogue at widths 4, 8 or 16. With interleaving, the unit that must divide the trip count is the width times the interleave count, the number of iterations one pass of the vector loop covers. A loop with a small trip count and a large vector trip can spend most of its time in the epilogue; LLVM can vectorize the epilogue itself at a narrower width,[^llvm-vec-ep] and [M8](../mlir/m8-vectorization.md#padding-at-the-edge-of-a-tile) shows padding as another answer.
 
 ## The kernel's column loop, lane by lane
 

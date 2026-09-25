@@ -3,6 +3,8 @@
 
 <p class="page-intro">How a compiler makes correct code fast: the middle end that removes waste, then the CPU performance work that turns the naive matrix multiplication into a fast one.</p>
 
+The P chapters form one path, from the naive matrix multiplication to a fast one: [the CPU matmul ladder](ladder.md) shows every rung, the chapter that teaches it and whether it keeps the bits.
+
 
 ## The middle end
 
@@ -28,7 +30,7 @@
 | [P1. Measure first](p1-measure-first.md) | How to time code so the numbers mean something, before changing anything. | Published |
 | [P2. The memory hierarchy](p2-memory-hierarchy.md) | Caches, lines, associativity, bandwidth and latency, and what they mean for loops over arrays. | Published |
 | [P3. The roofline model](p3-roofline.md) | Arithmetic intensity and the two ceilings that bound a kernel's speed. | Published |
-| [P4. Seeing inside the CPU: counters and tools](p4-counters-and-tools.md) | Hardware performance counters, profilers and static analyzers such as llvm-mca. | Being written |
+| [P4. Seeing inside the CPU: counters and tools](p4-counters-and-tools.md) | Hardware performance counters, profilers and static analyzers such as llvm-mca. | Published |
 | [P5. The microarchitecture shelf](p5-microarchitecture.md) | Pipelines, out-of-order execution, ports and the manuals that describe them. | Published |
 | [P6. Dependence analysis](p6-dependence-analysis.md) | Which loop iterations depend on which: distance and direction vectors, and the tests that compute them. | Published |
 | [P7. Loop transformations](p7-loop-transformations.md) | Interchange, fusion, fission, unrolling and unroll-and-jam, and when each is legal. | Published |

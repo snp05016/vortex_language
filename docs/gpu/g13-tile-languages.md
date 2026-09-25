@@ -10,13 +10,13 @@
 
         Rereading the same values from global memory. The block loads a slice of each operand into shared memory once, and every thread of the block reads that shared copy many times.
 
-        Introduced in [G10. The GPU matmul ladder](g10-matmul-ladder.md#rung-3-shared-memory-tiling-the-block-tile).
+        Introduced in [G10. The GPU matmul ladder](g10-matmul-ladder.md#rung-3-the-block-tile).
 
     ??? question "What are the three levels of tile in G10's warp-tiled kernel, and what does each one divide?"
 
         The block tile, divided among the warps of a block; the warp tile, divided among the 32 lanes of a warp; and the thread tile, the small rectangle of outputs one lane keeps in registers.
 
-        Introduced in [G10. The GPU matmul ladder](g10-matmul-ladder.md#rung-9-warp-tiling-a-tile-between-the-block-and-the-thread).
+        Introduced in [G10. The GPU matmul ladder](g10-matmul-ladder.md#rung-9-the-warp-tile).
 
     ??? question "When an array's length is not a multiple of the block size, what must the kernel add, and which warps pay for it?"
 
@@ -423,7 +423,7 @@ Edges are handled in the load and store operations, not in the program's control
 
 The power-of-two rule has a consequence for shapes like 70. In G2, a guard `if (idx < n)` could protect any block size. A tile language with power-of-two tiles cannot pick a tile that divides 70 (70 = 2 × 5 × 7, so no tile edge larger than 2 divides it), so every tile edge of 4 or more leaves a partial tile at the end, and the kernel must mask it.
 
-For a 70 × 70 output and 16 × 16 tiles, each axis needs 5 tiles covering 80 positions, so 5 × 5 = 25 programs compute 6,400 slots for 4,900 real outputs. With 32 × 32 tiles, 3 tiles per axis cover 96, and 9 programs compute 9,216 slots. Larger tiles reuse more ([G10](g10-matmul-ladder.md#rungs-4-and-5-register-tiling-the-thread-tile)) but waste more at the edge.
+For a 70 × 70 output and 16 × 16 tiles, each axis needs 5 tiles covering 80 positions, so 5 × 5 = 25 programs compute 6,400 slots for 4,900 real outputs. With 32 × 32 tiles, 3 tiles per axis cover 96, and 9 programs compute 9,216 slots. Larger tiles reuse more ([G10](g10-matmul-ladder.md#rungs-4-and-5-the-thread-tile)) but waste more at the edge.
 
 MLIR's structured tiling handles the same edge differently. `edge_tiles.mlir` tiles a 10 × 10 matmul by 4 along `M` and `N` (a size of 0 leaves `K` untiled) and prints the result:
 

@@ -155,7 +155,8 @@ reload after a spill. The checker must reject every one.
 The checker must also be independent. It walks the allocated code and tracks
 which value each register and stack slot holds, instead of reusing the
 allocator's own liveness results. This is the approach of the checker built
-for Cranelift's register allocator.[^fallin]
+for Cranelift's register allocator,[^fallin] and [E4](../../backend/e4-testing-backends.md)
+teaches the same idea for back ends generally.
 
 ### What counts as success
 

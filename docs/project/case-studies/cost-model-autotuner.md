@@ -220,6 +220,13 @@ explanation does not go in.
 - **Model's choice, search's best:** GFLOP/s with its 95% confidence
   interval, for one shape named in the setup table.
 
+## Analysis
+
+Empty until the first measured run. For each shape, this section will say why
+the model's prediction was accurate or not: which term (the roofline, the
+cache model, the ridge point) it got wrong, which counters explain a gap, and
+how the model's choice and the search's best compare on a roofline chart.
+
 ## What did not work
 
 Filled in as the work goes: one row per attempt that failed or was dropped,
@@ -250,6 +257,14 @@ including model changes that made things worse.
   predictions. The philosophy forbids presenting an estimate as a measured
   result
   ([responsibilities](../../philosophy.md#programmer-and-compiler-responsibilities)).
+
+## Reproduce
+
+Empty until the first measured run. This section will give one command that,
+from a clean checkout, builds the model and the search harness, runs the
+safety test over the candidate space, runs the model and the search on every
+tuning and held-out shape, writes the raw data into the repository and
+regenerates every table on this page.
 
 ## What a reviewer should look at
 

@@ -154,6 +154,7 @@ concepts:
       - compiler/guide/stage-4-names-and-scopes.md
       - compiler/guide/stage-6-first-machine-code.md
       - compiler/parser-design.md
+      - gpu/g7-programming-models.md
     recall_question: Which function does every executable Vortex program start running from, and what must it look like in v0.1?
     recall_answer: The entry point, `main`. In v0.1 it takes no parameters, returns `void`, and there must be exactly one.
 
@@ -371,6 +372,16 @@ concepts:
       - compiler/guide/stage-10-matrix-multiplication.md
       - roadmap.md
       - compiler/parser-design.md
+      - optimize/p2-memory-hierarchy.md
+      - gpu/g2-simt.md
+      - gpu/g4-memory-performance.md
+      - gpu/g10-matmul-ladder.md
+      - gpu/g13-tile-languages.md
+      - gpu/g15-systolic-arrays.md
+      - mlir/m2-reading-mlir.md
+      - mlir/m5-structured-ops.md
+      - mlir/m6-affine-and-scf.md
+      - mlir/m8-vectorization.md
     recall_question: Which v0.1 type holds a fixed number of values of one type, with sizes known at compile time, such as `[f32; 4]`?
     recall_answer: A fixed-size array. Its element type and every dimension are part of its type.
 
@@ -391,6 +402,7 @@ concepts:
       - compiler/guide/stage-5-types-and-rules.md
       - compiler/guide/stage-7-functions-and-control-flow.md
       - compiler/parser-design.md
+      - gpu/g11-matrix-units.md
     recall_question: In `[f32; 4]`, what is `f32` called?
     recall_answer: The element type, the single type shared by every element of the array.
 
@@ -416,6 +428,8 @@ concepts:
       - compiler/guide/stage-8-data-in-memory.md
       - compiler/guide/stage-10-matrix-multiplication.md
       - compiler/parser-design.md
+      - gpu/g11-matrix-units.md
+      - gpu/g15-systolic-arrays.md
     recall_question: What is one size in an array type such as `[f32; 4, 8]` called, and when must it be known?
     recall_answer: A dimension. Each one must evaluate at compile time to an integer that fits `usize`.
 
@@ -439,6 +453,13 @@ concepts:
       - compiler/guide/stage-8-data-in-memory.md
       - compiler/guide/stage-10-matrix-multiplication.md
       - compiler/parser-design.md
+      - optimize/o8-loops.md
+      - optimize/p6-dependence-analysis.md
+      - gpu/g2-simt.md
+      - gpu/g4-memory-performance.md
+      - gpu/g10-matmul-ladder.md
+      - gpu/g13-tile-languages.md
+      - gpu/g15-systolic-arrays.md
     recall_question: What do we call the list of an array's sizes, one per dimension?
     recall_answer: Its shape. For `[f32; 2, 3]` the shape is `[2, 3]`, and it is part of the type.
 
@@ -462,6 +483,7 @@ concepts:
       - specification/grammar.md
       - compiler/guide/stage-4-names-and-scopes.md
       - compiler/guide/stage-8-data-in-memory.md
+      - gpu/g4-memory-performance.md
     recall_question: What do you declare to group related values into a new named type, such as `Point` with `x` and `y`?
     recall_answer: A struct. Declaring it creates a type; a struct expression creates a value of that type.
 
@@ -510,6 +532,16 @@ concepts:
       - compiler/guide/stage-9-runtime-safety.md
       - compiler/guide/stage-10-matrix-multiplication.md
       - roadmap.md
+      - optimize/o9-alias-analysis.md
+      - gpu/g4-memory-performance.md
+      - gpu/g6-synchronization.md
+      - gpu/g10-matmul-ladder.md
+      - gpu/g12-flashattention.md
+      - gpu/g13-tile-languages.md
+      - gpu/g15-systolic-arrays.md
+      - mlir/m2-reading-mlir.md
+      - mlir/m5-structured-ops.md
+      - mlir/m7-bufferization.md
     recall_question: How can a function read or change an existing value without copying it, and how are the two kinds written?
     recall_answer: Through a reference. `&T` is a shared reference for reading; `&mut T` is a mutable reference that can also change the value.
 
@@ -531,6 +563,7 @@ concepts:
       - specification/expressions.md
       - specification/references.md
       - compiler/guide/stage-5-types-and-rules.md
+      - gpu/g3-memory-hierarchy.md
     recall_question: What must the operand of `&` or `&mut` be, and why is `a + b` not allowed?
     recall_answer: Addressable, meaning it names real storage such as a variable, field or array element; `a + b` is only a temporary result.
 
@@ -661,6 +694,7 @@ concepts:
       - compiler/guide/stage-8-data-in-memory.md
       - roadmap.md
       - compiler/parser-design.md
+      - optimize/o7-inlining-and-sroa.md
     recall_question: What is `square(4.0)` an example of, and what happens when it runs?
     recall_answer: A function call. The function's body runs, then execution carries on from just after the call.
 
@@ -870,6 +904,11 @@ concepts:
       - compiler/guide/stage-7-functions-and-control-flow.md
       - compiler/guide/stage-9-runtime-safety.md
       - compiler/parser-design.md
+      - optimize/o8-loops.md
+      - gpu/g2-simt.md
+      - gpu/g4-memory-performance.md
+      - gpu/g7-programming-models.md
+      - gpu/g10-matmul-ladder.md
     recall_question: In `for index in 0..4 { ... }`, what is `index`, and where can it be used?
     recall_answer: The loop variable. It is visible only inside the loop's body.
 
@@ -1068,6 +1107,7 @@ concepts:
       - compiler/guide/stage-4-names-and-scopes.md
       - compiler/guide/stage-8-data-in-memory.md
       - compiler/parser-design.md
+      - gpu/g4-memory-performance.md
     recall_question: >-
       In `struct Point { x: f32, y: f32 }`, what are `x` and `y` called, and
       how do you read one?
@@ -1097,6 +1137,11 @@ concepts:
       - compiler/guide/stage-9-runtime-safety.md
       - compiler/guide/stage-10-matrix-multiplication.md
       - compiler/parser-design.md
+      - gpu/g2-simt.md
+      - gpu/g4-memory-performance.md
+      - gpu/g10-matmul-ladder.md
+      - gpu/g13-tile-languages.md
+      - gpu/g15-systolic-arrays.md
     recall_question: What do we call the period while the compiler is working on the source, before any executable exists?
     recall_answer: Compile time. Errors found then are reported before the program can run.
 
@@ -1117,6 +1162,8 @@ concepts:
       - compiler/guide/stage-8-data-in-memory.md
       - compiler/guide/stage-9-runtime-safety.md
       - compiler/guide/stage-10-matrix-multiplication.md
+      - gpu/g7-programming-models.md
+      - gpu/g8-isas-and-irs.md
     recall_question: What do we call the period while the finished executable is running?
     recall_answer: Run time. Checks that depend on values known only then are made at run time.
 
@@ -1160,6 +1207,8 @@ concepts:
       - compiler/guide/stage-9-runtime-safety.md
       - compiler/guide/stage-11-release.md
       - roadmap.md
+      - optimize/o1-optimizer-contract.md
+      - optimize/o8-loops.md
     recall_question: What happens when a running Vortex program divides an integer by zero?
     recall_answer: A runtime error. The program stops and reports what went wrong.
 
@@ -1214,6 +1263,7 @@ concepts:
       - compiler/guide/stage-6-first-machine-code.md
       - compiler/guide/stage-10-matrix-multiplication.md
       - compiler/guide/stage-11-release.md
+      - gpu/g11-matrix-units.md
     recall_question: Which planned type is meant for multidimensional numerical data, and what replaces it in v0.1?
     recall_answer: A tensor. In v0.1 you use a fixed-size multidimensional array such as `[f32; 4, 4]`.
 
@@ -1231,6 +1281,15 @@ concepts:
     used_in:
       - philosophy.md
       - compiler/guide/stage-11-release.md
+      - gpu/g1-throughput-machines.md
+      - gpu/g2-simt.md
+      - gpu/g4-memory-performance.md
+      - gpu/g5-occupancy.md
+      - gpu/g7-programming-models.md
+      - gpu/g9-gpu-compilers-in-llvm.md
+      - gpu/g10-matmul-ladder.md
+      - gpu/g13-tile-languages.md
+      - mlir/m12-vortex-gpu-path.md
     recall_question: What is the planned kind of function that could run on a GPU, and can you declare one in v0.1?
     recall_answer: A kernel. No; kernel and parallel syntax are future work, so v0.1 rejects them.
 
@@ -1342,6 +1401,8 @@ concepts:
       - compiler/guide/stage-8-data-in-memory.md
       - compiler/architecture.md
       - compiler/parser-design.md
+      - gpu/g7-programming-models.md
+      - gpu/g9-gpu-compilers-in-llvm.md
     recall_question: What do we call instructions in the numeric form a processor can execute directly?
     recall_answer: Machine code. A file of it that the operating system can start is an executable.
 
@@ -1356,6 +1417,7 @@ concepts:
     used_in:
       - compiler/guide/stage-7-functions-and-control-flow.md
       - compiler/guide/stage-8-data-in-memory.md
+      - gpu/g9-gpu-compilers-in-llvm.md
     recall_question: Which compiler stage turns the lowered program into instructions for a real processor?
     recall_answer: The code generator. A linker then joins its output with the runtime library to make the executable.
 
@@ -1458,6 +1520,7 @@ concepts:
       - compiler/guide/stage-11-release.md
       - roadmap.md
       - compiler/architecture.md
+      - backend/b1-simplest-backend.md
     recall_question: What do we call one small, automatic check with a definite pass or fail answer?
     recall_answer: A test. It either passes or fails, with nothing in between.
 
@@ -1693,6 +1756,8 @@ concepts:
       - compiler/guide/stage-11-release.md
       - roadmap.md
       - compiler/architecture.md
+      - backend/d1-debug-info.md
+      - mlir/m2-reading-mlir.md
     recall_question: What does every token, tree node and error message carry to say exactly which stretch of source it came from?
     recall_answer: A source span, a start position and a length.
 
@@ -2293,6 +2358,7 @@ concepts:
     used_in:
       - roadmap.md
       - compiler/parser-design.md
+      - mlir/m2-reading-mlir.md
     recall_question: What is the compiler's record of which names are declared in which scopes called?
     recall_answer: The symbol table. It is an idea, not a particular data structure.
 
@@ -2401,7 +2467,9 @@ concepts:
       on every reachable path.
     introduced_in: compiler/guide/stage-5-types-and-rules.md
     requires: [function, statement]
-    used_in: []
+    used_in:
+      - optimize/o2-cfg-and-dominance.md
+      - optimize/o4-dataflow.md
     recall_question: What do we call one possible route through a function body, following one choice at every `if`, loop and `return`?
     recall_answer: A control-flow path. A non-`void` function must return a value on every reachable one.
 
@@ -2541,6 +2609,14 @@ concepts:
       - compiler/guide/stage-8-data-in-memory.md
       - compiler/guide/stage-9-runtime-safety.md
       - compiler/parser-design.md
+      - backend/b1-simplest-backend.md
+      - backend/c1-instruction-selection.md
+      - optimize/o1-optimizer-contract.md
+      - gpu/g7-programming-models.md
+      - gpu/g8-isas-and-irs.md
+      - gpu/g9-gpu-compilers-in-llvm.md
+      - gpu/g13-tile-languages.md
+      - mlir/m1-why-mlir.md
     recall_question: What do we call the form of the program inside the compiler that is no longer source text but not yet machine code?
     recall_answer: The intermediate representation (IR). It sits between the front end and the back end.
 
@@ -2561,6 +2637,8 @@ concepts:
       - compiler/guide/stage-7-functions-and-control-flow.md
       - compiler/guide/stage-11-release.md
       - compiler/architecture.md
+      - gpu/g8-isas-and-irs.md
+      - gpu/g9-gpu-compilers-in-llvm.md
     recall_question: What is it called when the compiler rewrites the checked syntax tree as a list of small, ordered steps?
     recall_answer: Lowering. It moves the program toward a more machine-like form, such as an IR.
 
@@ -2580,6 +2658,7 @@ concepts:
       - compiler/guide/stage-10-matrix-multiplication.md
       - compiler/guide/stage-11-release.md
       - roadmap.md
+      - mlir/m12-vortex-gpu-path.md
     recall_question: Which half of the compiler reads the source, works out what it means and rejects bad programs?
     recall_answer: The front end. In this guide it is stages 1 to 5.
 
@@ -2594,6 +2673,10 @@ concepts:
     requires: [front-end, machine-code]
     used_in:
       - compiler/guide/stage-7-functions-and-control-flow.md
+      - gpu/g8-isas-and-irs.md
+      - gpu/g9-gpu-compilers-in-llvm.md
+      - gpu/g13-tile-languages.md
+      - mlir/m12-vortex-gpu-path.md
     recall_question: Which half of the compiler turns a checked program into code for a particular machine?
     recall_answer: The back end. Another kind of machine, such as a GPU, would need another back end but the same front end.
 
@@ -2607,6 +2690,13 @@ concepts:
       - compiler/guide/stage-8-data-in-memory.md
       - compiler/architecture.md
       - compiler/parser-design.md
+      - backend/a1-machine-model.md
+      - backend/b2-x86-64.md
+      - backend/e2-describing-a-target.md
+      - gpu/g7-programming-models.md
+      - gpu/g8-isas-and-irs.md
+      - gpu/g9-gpu-compilers-in-llvm.md
+      - gpu/g11-matrix-units.md
     recall_question: What do we call the kind of machine and operating system a generated program is meant to run on?
     recall_answer: The target. The back end produces code for it.
 
@@ -2622,6 +2712,14 @@ concepts:
       - compiler/guide/stage-7-functions-and-control-flow.md
       - compiler/guide/stage-8-data-in-memory.md
       - compiler/guide/stage-9-runtime-safety.md
+      - backend/a1-machine-model.md
+      - backend/b1-simplest-backend.md
+      - backend/b3-object-files.md
+      - backend/d2-jit.md
+      - backend/e3-llvm-allocator-scheduler-mc.md
+      - gpu/g2-simt.md
+      - gpu/g8-isas-and-irs.md
+      - gpu/g9-gpu-compilers-in-llvm.md
     recall_question: What is one basic operation a processor can carry out, such as adding two numbers, called?
     recall_answer: An instruction. Machine code is a sequence of instructions in numeric form.
 
@@ -2633,7 +2731,18 @@ concepts:
       work on values held in registers.
     introduced_in: compiler/guide/stage-6-first-machine-code.md
     requires: [instruction]
-    used_in: []
+    used_in:
+      - backend/a1-machine-model.md
+      - backend/a2-aarch64-assembly.md
+      - backend/a4-calling-conventions.md
+      - backend/c3-linear-scan.md
+      - optimize/o3-ssa.md
+      - optimize/p5-microarchitecture.md
+      - gpu/g3-memory-hierarchy.md
+      - gpu/g5-occupancy.md
+      - gpu/g9-gpu-compilers-in-llvm.md
+      - gpu/g10-matmul-ladder.md
+      - gpu/g11-matrix-units.md
     recall_question: What are the small, very fast storage slots inside the processor called?
     recall_answer: Registers. Instructions mostly work on values held in them.
 
@@ -2645,7 +2754,10 @@ concepts:
       by people. An assembler turns it into machine code.
     introduced_in: compiler/guide/stage-6-first-machine-code.md
     requires: [instruction, machine-code]
-    used_in: []
+    used_in:
+      - backend/a2-aarch64-assembly.md
+      - backend/b1-simplest-backend.md
+      - backend/b2-x86-64.md
     recall_question: What is the readable text form of machine instructions, which an assembler turns into machine code?
     recall_answer: Assembly language.
 
@@ -2660,6 +2772,10 @@ concepts:
     requires: [machine-code]
     used_in:
       - roadmap.md
+      - backend/b3-object-files.md
+      - backend/b4-linking-and-loading.md
+      - backend/d1-debug-info.md
+      - backend/d2-jit.md
     recall_question: What do we call a file of machine code that is not yet a complete program and may refer to code elsewhere, such as `print`?
     recall_answer: An object file. A linker joins object files and libraries into an executable.
 
@@ -2671,7 +2787,10 @@ concepts:
       filling in each name with the address of the code it refers to.
     introduced_in: compiler/guide/stage-6-first-machine-code.md
     requires: [object-file, executable]
-    used_in: []
+    used_in:
+      - backend/b3-object-files.md
+      - backend/b4-linking-and-loading.md
+      - backend/d2-jit.md
     recall_question: Which tool joins object files and the runtime library into one executable?
     recall_answer: The linker. It fills in each name with the address of the code it refers to.
 
@@ -2687,6 +2806,8 @@ concepts:
       - compiler/guide/stage-11-release.md
       - roadmap.md
       - compiler/architecture.md
+      - backend/b4-linking-and-loading.md
+      - backend/d2-jit.md
     recall_question: What do we call a file of machine code that the operating system can start as a program?
     recall_answer: An executable. The linker produces it from object files and libraries.
 
@@ -2701,6 +2822,8 @@ concepts:
     requires: [executable]
     used_in:
       - compiler/guide/stage-9-runtime-safety.md
+      - backend/b1-simplest-backend.md
+      - backend/b4-linking-and-loading.md
     recall_question: Where does the code for `print` come from in a compiled Vortex program?
     recall_answer: From the runtime library, code supplied with the language that generated programs call for services such as printing.
 
@@ -2731,6 +2854,14 @@ concepts:
     requires: [intermediate-representation]
     used_in:
       - compiler/guide/stage-7-functions-and-control-flow.md
+      - backend/c2-liveness.md
+      - backend/c4-graph-coloring.md
+      - backend/e1-llvm-codegen-pipeline.md
+      - optimize/o3-ssa.md
+      - gpu/g9-gpu-compilers-in-llvm.md
+      - mlir/m1-why-mlir.md
+      - mlir/m2-reading-mlir.md
+      - mlir/m9-transform-dialect.md
     recall_question: In which style of IR is every named value assigned exactly once, so that a changing variable becomes a series of versions?
     recall_answer: Static single assignment (SSA) form.
 
@@ -2744,6 +2875,12 @@ concepts:
     requires: [static-single-assignment]
     used_in:
       - compiler/guide/stage-7-functions-and-control-flow.md
+      - backend/e1-llvm-codegen-pipeline.md
+      - optimize/o2-cfg-and-dominance.md
+      - optimize/o3-ssa.md
+      - gpu/g9-gpu-compilers-in-llvm.md
+      - mlir/m2-reading-mlir.md
+      - mlir/m4-dialect-conversion.md
     recall_question: In SSA form, what picks which version of a value to use at a point where two paths meet?
     recall_answer: A phi. Its choice depends on which path was taken.
 
@@ -2763,6 +2900,16 @@ concepts:
       - compiler/guide/stage-11-release.md
       - roadmap.md
       - compiler/architecture.md
+      - backend/c6-scheduling.md
+      - backend/d3-real-backends.md
+      - backend/e1-llvm-codegen-pipeline.md
+      - optimize/o1-optimizer-contract.md
+      - optimize/o10-pass-pipelines.md
+      - gpu/g9-gpu-compilers-in-llvm.md
+      - gpu/g13-tile-languages.md
+      - mlir/m1-why-mlir.md
+      - mlir/m3-passes-and-rewriting.md
+      - mlir/m4-dialect-conversion.md
     recall_question: What do we call one trip over the whole program by one part of the compiler, doing one job?
     recall_answer: A pass, such as checking types or lowering to IR.
 
@@ -2774,7 +2921,10 @@ concepts:
       such as an assembler, a linker or a C compiler.
     introduced_in: compiler/guide/stage-6-first-machine-code.md
     requires: [linker, assembly-language]
-    used_in: []
+    used_in:
+      - backend/b1-simplest-backend.md
+      - backend/b2-x86-64.md
+      - backend/b4-linking-and-loading.md
     recall_question: What do we call the outside programs, such as an assembler and a linker, that the compiler depends on?
     recall_answer: The toolchain.
 
@@ -2818,6 +2968,8 @@ concepts:
     used_in:
       - compiler/guide/stage-8-data-in-memory.md
       - compiler/ast-guide.md
+      - backend/a4-calling-conventions.md
+      - backend/a5-stack-frames.md
     recall_question: In a function call, what is the function that makes the call named?
     recall_answer: The caller. The function being called is the callee.
 
@@ -2832,6 +2984,8 @@ concepts:
     used_in:
       - compiler/guide/stage-8-data-in-memory.md
       - compiler/parser-design.md
+      - backend/a4-calling-conventions.md
+      - backend/a5-stack-frames.md
     recall_question: In a function call, what is the function being called named?
     recall_answer: The callee. It hands its return value back to the caller.
 
@@ -2843,6 +2997,7 @@ concepts:
     requires: [function, caller]
     used_in:
       - roadmap.md
+      - backend/a4-calling-conventions.md
     recall_question: What is the value a function hands back to its caller called, and which functions have none?
     recall_answer: The return value. A `void` function has none.
 
@@ -2854,7 +3009,9 @@ concepts:
       goes on top, and each return removes the top entry.
     introduced_in: compiler/guide/stage-7-functions-and-control-flow.md
     requires: [function-call]
-    used_in: []
+    used_in:
+      - backend/a5-stack-frames.md
+      - backend/d1-debug-info.md
     recall_question: What records the calls that have started but not yet finished, adding one on each call and removing one on each return?
     recall_answer: The call stack.
 
@@ -2867,7 +3024,12 @@ concepts:
       runs, namely its parameters, its local variables and where to go back to.
     introduced_in: compiler/guide/stage-7-functions-and-control-flow.md
     requires: [call-stack, parameter, local-variable]
-    used_in: []
+    used_in:
+      - backend/a4-calling-conventions.md
+      - backend/a5-stack-frames.md
+      - backend/c5-spilling.md
+      - backend/d1-debug-info.md
+      - backend/e3-llvm-allocator-scheduler-mc.md
     recall_question: What is one call's entry on the call stack, holding its parameters, local variables and return place, called?
     recall_answer: A stack frame.
 
@@ -2880,7 +3042,12 @@ concepts:
       and where the return value is found.
     introduced_in: compiler/guide/stage-7-functions-and-control-flow.md
     requires: [caller, callee, argument, return-value]
-    used_in: []
+    used_in:
+      - backend/a4-calling-conventions.md
+      - backend/e2-describing-a-target.md
+      - gpu/g9-gpu-compilers-in-llvm.md
+      - mlir/m4-dialect-conversion.md
+      - mlir/m12-vortex-gpu-path.md
     recall_question: Which agreement between caller and callee says where arguments are placed and where the return value is found?
     recall_answer: The calling convention.
 
@@ -2893,7 +3060,13 @@ concepts:
       out, at the bottom. Nothing jumps into the middle of it.
     introduced_in: compiler/guide/stage-7-functions-and-control-flow.md
     requires: [instruction]
-    used_in: []
+    used_in:
+      - backend/c1-instruction-selection.md
+      - backend/c2-liveness.md
+      - backend/c6-scheduling.md
+      - optimize/o2-cfg-and-dominance.md
+      - gpu/g9-gpu-compilers-in-llvm.md
+      - mlir/m2-reading-mlir.md
     recall_question: What is a straight run of instructions with one way in at the top and one way out at the bottom called?
     recall_answer: A basic block. Nothing jumps into the middle of it.
 
@@ -2906,7 +3079,11 @@ concepts:
       arrow shows a place execution can go next.
     introduced_in: compiler/guide/stage-7-functions-and-control-flow.md
     requires: [basic-block]
-    used_in: []
+    used_in:
+      - backend/c2-liveness.md
+      - backend/c4-graph-coloring.md
+      - optimize/o2-cfg-and-dominance.md
+      - gpu/g9-gpu-compilers-in-llvm.md
     recall_question: Which picture of a function shows basic blocks joined by arrows for where execution can go next?
     recall_answer: The control-flow graph (CFG).
 
@@ -2931,7 +3108,11 @@ concepts:
       branch, often called a jump, always goes to the same one.
     introduced_in: compiler/guide/stage-7-functions-and-control-flow.md
     requires: [basic-block]
-    used_in: []
+    used_in:
+      - gpu/g2-simt.md
+      - gpu/g6-synchronization.md
+      - gpu/g8-isas-and-irs.md
+      - gpu/g9-gpu-compilers-in-llvm.md
     recall_question: Which instruction moves execution to another block, and what is its unconditional kind often called?
     recall_answer: A branch. A conditional branch picks between two blocks using a `bool`; an unconditional one is a jump.
 
@@ -2942,7 +3123,8 @@ concepts:
     definition: An edge that goes back to an earlier block, which is what makes a loop.
     introduced_in: compiler/guide/stage-7-functions-and-control-flow.md
     requires: [edge]
-    used_in: []
+    used_in:
+      - gpu/g9-gpu-compilers-in-llvm.md
     recall_question: In a control-flow graph, what kind of edge makes a loop?
     recall_answer: A back edge, one that goes back to an earlier block.
 
@@ -2982,7 +3164,9 @@ concepts:
     spec_ref: specification/statements.md#611-scope-and-lifetime
     introduced_in: compiler/guide/stage-7-functions-and-control-flow.md
     requires: [local-variable, scope]
-    used_in: []
+    used_in:
+      - backend/c2-liveness.md
+      - backend/c5-spilling.md
     recall_question: Scope says where a variable's name is visible; what says how long the variable itself exists while the program runs?
     recall_answer: Its lifetime. A local variable exists from its declaration until execution leaves its block.
 
@@ -2998,6 +3182,9 @@ concepts:
     requires: [byte]
     used_in:
       - compiler/guide/stage-11-release.md
+      - backend/a1-machine-model.md
+      - backend/b3-object-files.md
+      - optimize/p2-memory-hierarchy.md
     recall_question: What is the large, numbered storage area a running program reads and writes called?
     recall_answer: Memory, one very long row of bytes, each with its own number.
 
@@ -3009,6 +3196,12 @@ concepts:
     requires: [memory, byte]
     used_in:
       - compiler/ast-guide.md
+      - backend/a1-machine-model.md
+      - backend/a2-aarch64-assembly.md
+      - optimize/p2-memory-hierarchy.md
+      - gpu/g3-memory-hierarchy.md
+      - gpu/g4-memory-performance.md
+      - gpu/g9-gpu-compilers-in-llvm.md
     recall_question: What is the number of a byte in memory called, and which byte gives a value its one?
     recall_answer: An address. A value's address is the number of its first byte.
 
@@ -3033,7 +3226,10 @@ concepts:
       faster, or only correctly, when it starts at a multiple of four.
     introduced_in: compiler/guide/stage-8-data-in-memory.md
     requires: [address, size]
-    used_in: []
+    used_in:
+      - backend/a5-stack-frames.md
+      - backend/b3-object-files.md
+      - gpu/g4-memory-performance.md
     recall_question: Which rule says a value must start at an address that is a multiple of some number?
     recall_answer: Alignment. A four-byte number, for example, is best started at a multiple of four.
 
@@ -3045,7 +3241,10 @@ concepts:
       part meets its alignment rule.
     introduced_in: compiler/guide/stage-8-data-in-memory.md
     requires: [alignment]
-    used_in: []
+    used_in:
+      - gpu/g4-memory-performance.md
+      - gpu/g13-tile-languages.md
+      - gpu/g15-systolic-arrays.md
     recall_question: What are the unused bytes placed between or after a value's parts, so each part meets its alignment rule, called?
     recall_answer: Padding.
 
@@ -3073,6 +3272,10 @@ concepts:
     used_in:
       - compiler/guide/stage-10-matrix-multiplication.md
       - compiler/guide/stage-11-release.md
+      - gpu/g4-memory-performance.md
+      - gpu/g9-gpu-compilers-in-llvm.md
+      - gpu/g11-matrix-units.md
+      - gpu/g13-tile-languages.md
     recall_question: What is the full description of a value's size, alignment and the offset of each of its parts called?
     recall_answer: Its layout.
 
@@ -3085,7 +3288,9 @@ concepts:
     spec_ref: specification/arrays.md#78-memory-and-layout
     introduced_in: compiler/guide/stage-8-data-in-memory.md
     requires: [memory]
-    used_in: []
+    used_in:
+      - gpu/g4-memory-performance.md
+      - gpu/g10-matmul-ladder.md
     recall_question: What do we call values stored side by side in memory with no gaps?
     recall_answer: Contiguous. Arrays are intended to use contiguous, predictable storage.
 
@@ -3100,7 +3305,8 @@ concepts:
     spec_ref: specification/glossary.md
     introduced_in: compiler/guide/stage-8-data-in-memory.md
     requires: [array, struct]
-    used_in: []
+    used_in:
+      - optimize/o7-inlining-and-sroa.md
     recall_question: What do we call a value made of other values, and which v0.1 types are like that?
     recall_answer: An aggregate. In v0.1 the aggregates are arrays and structs.
 
@@ -3117,7 +3323,14 @@ concepts:
       it. See [Arrays and shapes](arrays.md#78-memory-and-layout).
     introduced_in: compiler/guide/stage-8-data-in-memory.md
     requires: [contiguous, dimension]
-    used_in: []
+    used_in:
+      - gpu/g1-throughput-machines.md
+      - gpu/g3-memory-hierarchy.md
+      - gpu/g4-memory-performance.md
+      - gpu/g7-programming-models.md
+      - gpu/g11-matrix-units.md
+      - mlir/m2-reading-mlir.md
+      - mlir/m6-affine-and-scf.md
     recall_question: What do we call storing a two-dimensional array one whole row after another?
     recall_answer: Row-major order. Neighbours in a row are then neighbours in memory.
 
@@ -3130,7 +3343,9 @@ concepts:
       neighbours in a column are neighbours in memory.
     introduced_in: compiler/guide/stage-8-data-in-memory.md
     requires: [row-major-order]
-    used_in: []
+    used_in:
+      - gpu/g4-memory-performance.md
+      - gpu/g13-tile-languages.md
     recall_question: What do we call storing a two-dimensional array one whole column after another?
     recall_answer: Column-major order. Neighbours in a column are then neighbours in memory.
 
@@ -3143,7 +3358,10 @@ concepts:
       functions in machine code.
     introduced_in: compiler/guide/stage-8-data-in-memory.md
     requires: [layout, calling-convention]
-    used_in: []
+    used_in:
+      - backend/a4-calling-conventions.md
+      - backend/a5-stack-frames.md
+      - backend/e2-describing-a-target.md
     recall_question: What is the low-level agreement about how values are laid out and passed between functions in machine code?
     recall_answer: The application binary interface (ABI).
 
@@ -3204,7 +3422,13 @@ concepts:
     spec_ref: specification/conformance.md#15-undefined-behavior
     introduced_in: compiler/guide/stage-9-runtime-safety.md
     requires: [dynamic-rule, well-formed]
-    used_in: []
+    used_in:
+      - backend/c7-peephole.md
+      - backend/e4-testing-backends.md
+      - optimize/o1-optimizer-contract.md
+      - optimize/o11-undefined-behavior.md
+      - gpu/g4-memory-performance.md
+      - gpu/g13-tile-languages.md
     recall_question: What do we call a situation where the rules say nothing about what happens next, and can a well-formed v0.1 program reach it?
     recall_answer: Undefined behavior. Vortex v0.1 does not intentionally expose it to well-formed programs.
 
@@ -3231,7 +3455,26 @@ concepts:
     spec_ref: specification/types-and-values.md#44-floating-point-values
     introduced_in: compiler/guide/stage-9-runtime-safety.md
     requires: []
-    used_in: []
+    used_in:
+      - backend/a3-floats-and-vectors.md
+      - gpu/g4-memory-performance.md
+      - gpu/g5-occupancy.md
+      - gpu/g6-synchronization.md
+      - gpu/g10-matmul-ladder.md
+      - gpu/g11-matrix-units.md
+      - gpu/g12-flashattention.md
+      - gpu/g13-tile-languages.md
+      - gpu/g15-systolic-arrays.md
+      - mlir/m1-why-mlir.md
+      - mlir/m2-reading-mlir.md
+      - mlir/m3-passes-and-rewriting.md
+      - mlir/m4-dialect-conversion.md
+      - mlir/m5-structured-ops.md
+      - mlir/m6-affine-and-scf.md
+      - mlir/m8-vectorization.md
+      - mlir/m9-transform-dialect.md
+      - mlir/m11-ml-compilers.md
+      - mlir/m12-vortex-gpu-path.md
     recall_question: Which international standard do Vortex's `f32` and `f64` follow?
     recall_answer: IEEE 754, the standard for floating-point arithmetic.
 
@@ -3285,6 +3528,12 @@ concepts:
     used_in:
       - compiler/guide/stage-11-release.md
       - roadmap.md
+      - gpu/g4-memory-performance.md
+      - gpu/g10-matmul-ladder.md
+      - gpu/g11-matrix-units.md
+      - gpu/g12-flashattention.md
+      - gpu/g13-tile-languages.md
+      - gpu/g15-systolic-arrays.md
     recall_question: What is a rectangle of numbers in rows and columns called, and how is it written in v0.1?
     recall_answer: A matrix. In v0.1 it is simply a two-dimensional array such as `[f32; 2, 3]`.
 
@@ -3296,7 +3545,9 @@ concepts:
       line. A 2 by 3 matrix has 2 rows and 3 columns.
     introduced_in: compiler/guide/stage-10-matrix-multiplication.md
     requires: [matrix]
-    used_in: []
+    used_in:
+      - gpu/g4-memory-performance.md
+      - gpu/g10-matmul-ladder.md
     recall_question: In a matrix, what are one horizontal line and one vertical line called, and how many of each does a 2 by 3 matrix have?
     recall_answer: A row and a column. A 2 by 3 matrix has 2 rows and 3 columns.
 
@@ -3333,6 +3584,21 @@ concepts:
     used_in:
       - compiler/guide/stage-11-release.md
       - roadmap.md
+      - backend/c2-liveness.md
+      - backend/c3-linear-scan.md
+      - backend/c4-graph-coloring.md
+      - backend/c6-scheduling.md
+      - optimize/o1-optimizer-contract.md
+      - gpu/g10-matmul-ladder.md
+      - gpu/g11-matrix-units.md
+      - gpu/g13-tile-languages.md
+      - gpu/g15-systolic-arrays.md
+      - mlir/m2-reading-mlir.md
+      - mlir/m5-structured-ops.md
+      - mlir/m8-vectorization.md
+      - mlir/m9-transform-dialect.md
+      - mlir/m11-ml-compilers.md
+      - mlir/m12-vortex-gpu-path.md
     recall_question: Which operation builds each cell of a matrix C from one row of A and one column of B?
     recall_answer: Matrix multiplication. Each cell of the result is one dot product.
 
@@ -3345,7 +3611,11 @@ concepts:
       adding up the results. Each cell of a matrix product is one dot product.
     introduced_in: compiler/guide/stage-10-matrix-multiplication.md
     requires: []
-    used_in: []
+    used_in:
+      - gpu/g10-matmul-ladder.md
+      - gpu/g11-matrix-units.md
+      - gpu/g12-flashattention.md
+      - gpu/g15-systolic-arrays.md
     recall_question: What do we call multiplying two equal-length lists position by position and adding up the results?
     recall_answer: A dot product. Each cell of a matrix product is one.
 
@@ -3358,7 +3628,8 @@ concepts:
       number of columns of `A` and the number of rows of `B`.
     introduced_in: compiler/guide/stage-10-matrix-multiplication.md
     requires: [matrix-multiplication, row-and-column]
-    used_in: []
+    used_in:
+      - gpu/g11-matrix-units.md
     recall_question: To multiply A by B, which size must match, and what is it called?
     recall_answer: The inner dimension, the number of columns of A, which must equal the number of rows of B.
 
@@ -3372,6 +3643,9 @@ concepts:
     requires: [test]
     used_in:
       - compiler/guide/stage-11-release.md
+      - optimize/p1-measure-first.md
+      - gpu/g11-matrix-units.md
+      - gpu/g14-measuring-gpu-code.md
     recall_question: What is a result worked out independently, by hand or by trusted software, that a test compares the output against?
     recall_answer: A known answer.
 
@@ -3381,7 +3655,10 @@ concepts:
     definition: How far apart two floating-point results may be and still count as equal.
     introduced_in: compiler/guide/stage-10-matrix-multiplication.md
     requires: [ieee-754]
-    used_in: []
+    used_in:
+      - optimize/p16-capstone.md
+      - gpu/g11-matrix-units.md
+      - gpu/g12-flashattention.md
     recall_question: When a test compares floating-point results, what says how far apart they may be and still count as equal?
     recall_answer: The tolerance.
 
@@ -3394,7 +3671,12 @@ concepts:
       unoptimized.
     introduced_in: compiler/guide/stage-10-matrix-multiplication.md
     requires: []
-    used_in: []
+    used_in:
+      - optimize/p1-measure-first.md
+      - optimize/p3-roofline.md
+      - gpu/g4-memory-performance.md
+      - gpu/g10-matmul-ladder.md
+      - gpu/g14-measuring-gpu-code.md
     recall_question: What do we call code written in the most direct way, with no attempt to make it fast?
     recall_answer: Naive, like the straightforward, unoptimized v0.1 matrix multiplication.
 
@@ -3404,7 +3686,14 @@ concepts:
     definition: Loops placed inside other loops. Matrix multiplication is usually three loops deep.
     introduced_in: compiler/guide/stage-10-matrix-multiplication.md
     requires: [loop-variable]
-    used_in: []
+    used_in:
+      - backend/c2-liveness.md
+      - backend/c6-scheduling.md
+      - optimize/p6-dependence-analysis.md
+      - optimize/p7-loop-transformations.md
+      - gpu/g1-throughput-machines.md
+      - gpu/g13-tile-languages.md
+      - gpu/g15-systolic-arrays.md
     recall_question: What do we call loops placed inside other loops, such as the three loops of matrix multiplication?
     recall_answer: A loop nest.
 
@@ -3585,6 +3874,8 @@ concepts:
     spec_ref: specification/references.md#98-aliasing
     introduced_in: specification/references.md
     requires: []
+    used_in:
+      - optimize/o9-alias-analysis.md
     recall_question: "Which term does the specification use for this idea: the part of a program during which a reference made by & or &mut is live: to the end of the enclosing...?"
     recall_answer: >-
       Borrow. The part of a program during which a reference made by & or &mut
@@ -3649,6 +3940,9 @@ concepts:
     spec_ref: specification/expressions.md#512-constant-expressions
     introduced_in: specification/expressions.md
     requires: []
+    used_in:
+      - gpu/g2-simt.md
+      - gpu/g13-tile-languages.md
     recall_question: "Which term does the specification use for this idea: in v0.1, an integer constant expression: integer literals, each optionally preceded by unary -, combined...?"
     recall_answer: >-
       Constant expression. In v0.1, an integer constant expression: integer
@@ -3951,3 +4245,2378 @@ concepts:
       Warning. A diagnostic that points out a likely mistake without rejecting
       the program. Warnings are optional and never change whether a program is
       accepted. See Diagnostics 10.1.
+
+  # ---- Back end book ----------------------------------------------------
+
+  - id: load-store-architecture
+    term: load/store architecture
+    tooltip: true
+    short: An ISA where only load and store instructions touch memory; arithmetic
+      works on registers only.
+    definition: In a load/store architecture such as AArch64, arithmetic and logical
+      instructions read and write only registers; a value in memory must first be
+      loaded into a register, and any result stored back to memory explicitly.
+    introduced_in: backend/a1-machine-model.md
+    requires:
+    - register
+    - instruction
+    used_in:
+    - backend/a2-aarch64-assembly.md
+    - backend/b1-simplest-backend.md
+    - backend/b2-x86-64.md
+    - backend/c1-instruction-selection.md
+    recall_question: Why does incrementing an array element take three instructions
+      on AArch64 but one on x86-64?
+    recall_answer: 'AArch64 is a load/store architecture, so arithmetic works only
+      on registers: the element must be loaded, incremented and stored back separately;
+      x86-64 is register-memory, so one instruction can read, add to and write the
+      memory operand.'
+  - id: register-memory-architecture
+    term: register-memory architecture
+    tooltip: true
+    short: An ISA where some instructions read or write an operand directly in memory,
+      not just registers.
+    definition: In a register-memory architecture such as x86-64, an arithmetic
+      instruction may name a memory location as one of its operands directly, folding
+      a load or a store into the same instruction that a load/store architecture
+      would need a separate instruction for.
+    introduced_in: backend/a1-machine-model.md
+    requires:
+    - load-store-architecture
+    used_in:
+    - backend/b2-x86-64.md
+    - backend/c1-instruction-selection.md
+    recall_question: What can one x86-64 instruction do that one AArch64 instruction
+      cannot?
+    recall_answer: Because x86-64 is a register-memory architecture, one instruction
+      such as subl can read an operand from memory and compute with it directly;
+      AArch64's load/store architecture always needs a separate load first.
+  - id: addressing-mode
+    term: addressing mode
+    tooltip: true
+    short: A form an instruction's memory operand can take, such as base plus scaled
+      index.
+    definition: An addressing mode is one of the fixed patterns an instruction can
+      use to compute the address it loads from or stores to, such as a base register
+      alone, a base plus an immediate offset, or a base plus an index register scaled
+      by the size of the access.
+    introduced_in: backend/a2-aarch64-assembly.md
+    requires:
+    - register
+    - load-store-architecture
+    used_in:
+    - backend/a3-floats-and-vectors.md
+    - backend/b2-x86-64.md
+    - backend/c1-instruction-selection.md
+    - backend/c7-peephole.md
+    - backend/d3-real-backends.md
+    - optimize/o8-loops.md
+    - project/case-studies/native-aarch64-backend.md
+    recall_question: 'Where does ldr w0, [x8, x2, lsl #2] read from?'
+    recall_answer: 'At the address x8 + x2 times 4: a base register plus an index
+      register shifted left by the log2 of the element size, one of AArch64''s addressing
+      modes; the shift amount must match the size of the access.'
+  - id: fused-multiply-add
+    term: fused multiply-add
+    abbr: FMA
+    short: A single instruction that multiplies two values and adds a third with
+      one rounding, not two.
+    definition: A fused multiply-add computes the product of two values and adds
+      a third, rounding only once at the end, rather than rounding the product and
+      then rounding the sum as two separate instructions would.
+    introduced_in: backend/a3-floats-and-vectors.md
+    requires:
+    - ieee-754
+    used_in:
+    - backend/c1-instruction-selection.md
+    - backend/c7-peephole.md
+    - optimize/p11-floating-point.md
+    - optimize/p12-fast-gemm.md
+    recall_question: Why can fmadd give a different answer than a separate multiply
+      followed by an add?
+    recall_answer: Fused multiply-add rounds once, after computing the exact product
+      and sum together; computing them as two separate instructions rounds the product
+      first, which can lose a bit that the addition would otherwise have exposed.
+  - id: caller-saved-register
+    term: caller-saved register
+    tooltip: true
+    short: A register a callee may overwrite; the caller must save it first if it
+      needs the value after the call.
+    definition: A caller-saved register is one the calling convention allows a callee
+      to change freely; a caller that needs the register's value after making a
+      call must save it beforehand and restore it afterward.
+    introduced_in: backend/a4-calling-conventions.md
+    requires:
+    - calling-convention
+    - register
+    used_in:
+    - backend/a5-stack-frames.md
+    - backend/b1-simplest-backend.md
+    - backend/c2-liveness.md
+    - backend/c3-linear-scan.md
+    - backend/c4-graph-coloring.md
+    - backend/c5-spilling.md
+    recall_question: What must a caller do with a value in a caller-saved register
+      before making a call?
+    recall_answer: Save it to memory first if the value is needed afterward, because
+      the calling convention allows the callee to overwrite any caller-saved register
+      without restoring it.
+  - id: callee-saved-register
+    term: callee-saved register
+    tooltip: true
+    short: A register a callee must restore before returning if it uses it.
+    definition: 'A callee-saved register is one the calling convention requires
+      a callee to preserve: if the callee''s own code writes to it, the callee must
+      save the caller''s value first and restore it before returning.'
+    introduced_in: backend/a4-calling-conventions.md
+    requires:
+    - caller-saved-register
+    used_in:
+    - backend/a5-stack-frames.md
+    - backend/b1-simplest-backend.md
+    - backend/c2-liveness.md
+    - backend/c3-linear-scan.md
+    - backend/c4-graph-coloring.md
+    - backend/c5-spilling.md
+    - backend/d1-debug-info.md
+    - backend/e3-llvm-allocator-scheduler-mc.md
+    recall_question: Why does a double survive a call more cheaply on AArch64 than
+      on x86-64?
+    recall_answer: AAPCS64 makes the low 64 bits of v8 to v15 callee-saved, so a
+      value can simply stay in d8 across a call; SysV's convention makes no XMM
+      register callee-saved, so the caller must spill the value around every call.
+  - id: frame-record
+    term: frame record
+    tooltip: true
+    short: The saved frame pointer and return address pair that lets a debugger
+      walk the call stack.
+    definition: A frame record is two saved words at a known position in a stack
+      frame, the caller's frame pointer followed by the return address, with the
+      frame-pointer register pointing at them; following each record's saved frame
+      pointer to the next one walks the whole call stack.
+    introduced_in: backend/a5-stack-frames.md
+    requires:
+    - stack-frame
+    - calling-convention
+    used_in:
+    - backend/b1-simplest-backend.md
+    - backend/d1-debug-info.md
+    recall_question: How does a debugger walk the call stack using frame records
+      alone?
+    recall_answer: It follows the frame-pointer register to the current frame record,
+      reads the saved caller frame pointer and return address, then repeats at the
+      next record until it reaches one that is zero.
+  - id: macro-expansion
+    term: macro expansion
+    tooltip: true
+    short: Instruction selection by one fixed template per IR operation, chosen
+      without looking at neighbors.
+    definition: 'Macro expansion is the simplest instruction selection strategy:
+      each intermediate-representation operation is replaced by one fixed template
+      of machine instructions, chosen from the node''s own kind alone, with no knowledge
+      of the values around it.'
+    introduced_in: backend/b1-simplest-backend.md
+    requires:
+    - intermediate-representation
+    - instruction
+    used_in:
+    - backend/c1-instruction-selection.md
+    - backend/d3-real-backends.md
+    recall_question: Why does a back end built purely from macro expansion need
+      no register allocator?
+    recall_answer: Every value lives in its own stack slot and no value stays in
+      a register past its own template, so no two values ever compete for a register
+      and nothing needs saving around a call except the return address.
+  - id: differential-testing
+    term: differential testing
+    tooltip: true
+    short: Comparing two implementations on the same inputs; a disagreement proves
+      one has a bug.
+    definition: Differential testing runs the same input through two independent
+      implementations, such as two back ends or a back end and an interpreter, and
+      compares their results; a disagreement proves a bug in at least one of them,
+      while agreement only shows they behave alike on those inputs.
+    introduced_in: backend/b1-simplest-backend.md
+    requires:
+    - test
+    used_in:
+    - backend/b2-x86-64.md
+    - backend/c7-peephole.md
+    - backend/d3-real-backends.md
+    - backend/e4-testing-backends.md
+    - optimize/o12-testing-optimizers.md
+    - project/testing.md
+    - project/case-studies/differential-testing.md
+    - project/case-studies/native-aarch64-backend.md
+    - optimize/o1-optimizer-contract.md
+    - optimize/o7-inlining-and-sroa.md
+    - optimize/o11-undefined-behavior.md
+    - optimize/p1-measure-first.md
+    - optimize/p16-capstone.md
+    - project/index.md
+    - project/measuring.md
+    - project/case-studies/index.md
+    recall_question: What does it mean when two independently built back ends agree
+      on a random program's output?
+    recall_answer: Only that both behave alike on that particular input, not that
+      either is correct; a disagreement, on the other hand, proves a bug in at least
+      one of the two paths.
+  - id: relocation
+    term: relocation
+    short: A record telling the linker which bytes to patch, with what address,
+      and by what formula.
+    definition: 'A relocation is a record left in an object file wherever an instruction
+      or data word refers to an address not yet known: it names the bytes to patch,
+      the kind of patch, the symbol whose final address is needed, and a constant
+      addend to combine with it.'
+    introduced_in: backend/b3-object-files.md
+    requires:
+    - object-file
+    - linker
+    used_in:
+    - backend/b4-linking-and-loading.md
+    - backend/d1-debug-info.md
+    - backend/d2-jit.md
+    - backend/e1-llvm-codegen-pipeline.md
+    - backend/e3-llvm-allocator-scheduler-mc.md
+    recall_question: What four things does a relocation record specify?
+    recall_answer: Which bytes to patch, the kind of patch to apply, the symbol
+      whose address is needed, and a constant addend, combined for example as S
+      + A - P for a call instruction.
+  - id: instruction-selection
+    term: instruction selection
+    tooltip: true
+    short: Choosing which machine instructions compute an intermediate representation,
+      and at what cost.
+    definition: Instruction selection is the compiler pass that covers an intermediate
+      representation with machine instructions, choosing among the available patterns
+      for each part so that every operation is computed and the total cost is as
+      low as possible.
+    introduced_in: backend/c1-instruction-selection.md
+    requires:
+    - intermediate-representation
+    - macro-expansion
+    used_in:
+    - backend/c2-liveness.md
+    - backend/c6-scheduling.md
+    - backend/c7-peephole.md
+    - backend/d3-real-backends.md
+    - backend/e1-llvm-codegen-pipeline.md
+    - backend/e2-describing-a-target.md
+    - gpu/g9-gpu-compilers-in-llvm.md
+    - project/case-studies/native-aarch64-backend.md
+    recall_question: What is a cover, and how does macro expansion fit the definition?
+    recall_answer: A cover is a set of tiles, tree patterns paired with an instruction
+      and a cost, in which every node of the tree belongs to exactly one tile; macro
+      expansion is the cover made only of one-node tiles.
+  - id: live-range
+    term: live range
+    aliases:
+    - live interval
+    tooltip: true
+    short: The span of a program from where a value is defined to its last use.
+    definition: A value's live range is the set of program points at which it holds
+      a value that will still be read; register allocation must keep values with
+      overlapping live ranges in different locations. A live interval approximates
+      a live range as one contiguous span, as linear scan uses.
+    introduced_in: backend/c2-liveness.md
+    requires:
+    - control-flow-graph
+    used_in:
+    - backend/c3-linear-scan.md
+    - backend/c4-graph-coloring.md
+    - backend/c5-spilling.md
+    - backend/d3-real-backends.md
+    - backend/e1-llvm-codegen-pipeline.md
+    - backend/e3-llvm-allocator-scheduler-mc.md
+    - project/case-studies/native-aarch64-backend.md
+    recall_question: Why must a live range come from liveness analysis rather than
+      from where a name appears in the text?
+    recall_answer: A value used inside a loop is live around the entire loop, beyond
+      the last line that mentions it in the source order, because control can return
+      to an earlier use on the next iteration.
+  - id: interference-graph
+    term: interference graph
+    tooltip: true
+    short: A graph joining values that cannot share a register because their live
+      ranges overlap.
+    definition: An interference graph has one node per value and an edge between
+      two values whenever both are live at the same point, meaning they cannot be
+      assigned the same register; graph-coloring register allocation colors this
+      graph so that no edge joins two nodes of the same color.
+    introduced_in: backend/c2-liveness.md
+    requires:
+    - live-range
+    used_in:
+    - backend/c3-linear-scan.md
+    - backend/c4-graph-coloring.md
+    - backend/c5-spilling.md
+    - backend/d3-real-backends.md
+    - backend/e3-llvm-allocator-scheduler-mc.md
+    recall_question: What is the rule for adding edges to an interference graph?
+    recall_answer: Each definition interferes with every other value that is live
+      immediately after it, except that the source of a plain copy does not interfere
+      with the copy's own destination.
+  - id: register-allocation
+    term: register allocation
+    tooltip: true
+    short: Assigning a fixed number of registers to values whose live ranges overlap,
+      spilling what does not fit.
+    definition: Register allocation assigns each value in a program to a physical
+      register, subject to the rule that two values with overlapping live ranges
+      cannot share one; a value that cannot be given a register is spilled to memory
+      instead.
+    introduced_in: backend/c3-linear-scan.md
+    requires:
+    - register
+    - live-range
+    used_in:
+    - backend/c4-graph-coloring.md
+    - backend/c5-spilling.md
+    - backend/c6-scheduling.md
+    - backend/c7-peephole.md
+    - backend/d3-real-backends.md
+    - backend/e1-llvm-codegen-pipeline.md
+    - backend/e3-llvm-allocator-scheduler-mc.md
+    - project/case-studies/native-aarch64-backend.md
+    recall_question: What must be true of two values for register allocation to
+      place them in the same register?
+    recall_answer: 'Their live ranges must not overlap: at no program point can
+      both hold a value that will still be read, since sharing a register would
+      let one silently overwrite the other.'
+  - id: linear-scan
+    term: linear scan
+    tooltip: true
+    short: A register allocation algorithm that walks live intervals in order instead
+      of building a graph.
+    definition: Linear scan allocates registers by walking live intervals in order
+      of their start position, keeping a set of active intervals, and at each step
+      expiring intervals that have ended, assigning a free register if one exists,
+      or otherwise spilling whichever interval ends latest.
+    introduced_in: backend/c3-linear-scan.md
+    requires:
+    - register-allocation
+    - live-range
+    used_in:
+    - backend/c4-graph-coloring.md
+    - backend/c5-spilling.md
+    - backend/c6-scheduling.md
+    - backend/c7-peephole.md
+    - backend/d3-real-backends.md
+    - backend/e1-llvm-codegen-pipeline.md
+    - backend/e3-llvm-allocator-scheduler-mc.md
+    - project/case-studies/native-aarch64-backend.md
+    recall_question: When there is no free register for a new interval, which interval
+      does linear scan spill?
+    recall_answer: Whichever of the new interval and the currently active intervals
+      ends last, the furthest-end rule; it is optimal for straight-line code with
+      one definition and one use per value, but ignores how often a value is used.
+  - id: graph-coloring
+    term: graph coloring
+    tooltip: true
+    short: Register allocation by coloring an interference graph so no two joined
+      values share a color.
+    definition: Graph-coloring register allocation builds the interference graph
+      and tries to color it with one color per available register, so that no two
+      values joined by an edge get the same color; a graph that cannot be colored
+      forces some value to be spilled.
+    introduced_in: backend/c4-graph-coloring.md
+    requires:
+    - register-allocation
+    - interference-graph
+    used_in:
+    - backend/c5-spilling.md
+    - backend/d3-real-backends.md
+    - backend/e3-llvm-allocator-scheduler-mc.md
+    - project/case-studies/native-aarch64-backend.md
+    recall_question: What does SSA form guarantee about an interference graph that
+      makes it easier to color?
+    recall_answer: The graph is chordal, and its largest clique is exactly the set
+      of values live at one program point, so as many colors as the maximum number
+      of simultaneously live values are always enough, and spilling can be decided
+      before coloring.
+  - id: spilling
+    term: spilling
+    short: Storing a value in memory instead of a register because too many values
+      are live at once.
+    definition: Spilling stores a value to a stack slot instead of keeping it in
+      a register, freeing the register for other values; the spilled value must
+      be reloaded from memory at each later point where it is used.
+    introduced_in: backend/c5-spilling.md
+    requires:
+    - register-allocation
+    - live-range
+    used_in:
+    - backend/c6-scheduling.md
+    - backend/c7-peephole.md
+    - backend/d1-debug-info.md
+    - backend/d3-real-backends.md
+    - backend/e3-llvm-allocator-scheduler-mc.md
+    - gpu/g5-occupancy.md
+    recall_question: Why can spilling a value fail to reduce register pressure at
+      the point that needed it?
+    recall_answer: A spilled value still needs a register at each of its own uses;
+      if one of those uses is exactly the crowded point that forced the spill, reloading
+      it there still occupies a register at that point.
+  - id: rematerialization
+    term: rematerialization
+    short: Recomputing a value instead of reloading it from its spill slot.
+    definition: Rematerialization recomputes a spilled value from scratch at the
+      point it is needed, instead of loading it back from memory, and is only valid
+      for values that are cheap and safe to recompute, such as constants and address
+      calculations.
+    introduced_in: backend/c5-spilling.md
+    requires:
+    - spilling
+    used_in:
+    - backend/d3-real-backends.md
+    - backend/e3-llvm-allocator-scheduler-mc.md
+    - optimize/o6-redundancy.md
+    - gpu/g12-flashattention.md
+    recall_question: Which values are safe to rematerialize instead of reloading?
+    recall_answer: Ones cheaply computable from operands available everywhere, such
+      as constants and frame-relative or global addresses; never a running sum or
+      anything whose recomputation could round differently and change a result.
+  - id: instruction-scheduling
+    term: instruction scheduling
+    tooltip: true
+    short: Reordering independent instructions in a block to run faster without
+      changing what they compute.
+    definition: Instruction scheduling reorders the instructions of a block that
+      have no dependency between them, aiming to reduce stalls on the target machine;
+      it never changes which instructions run, what they read, or how a computation
+      is grouped.
+    introduced_in: backend/c6-scheduling.md
+    requires:
+    - basic-block
+    used_in:
+    - backend/c7-peephole.md
+    - backend/e1-llvm-codegen-pipeline.md
+    - backend/e2-describing-a-target.md
+    - backend/e3-llvm-allocator-scheduler-mc.md
+    - optimize/p5-microarchitecture.md
+    - optimize/p6-dependence-analysis.md
+    - project/case-studies/native-aarch64-backend.md
+    recall_question: What may an instruction scheduler change, and what must it
+      never change?
+    recall_answer: It may reorder instructions that do not depend on each other;
+      it may never change which instructions run, what values they read, or how
+      an arithmetic expression is grouped, since reassociation can change a floating-point
+      result.
+  - id: peephole-optimization
+    term: peephole optimization
+    tooltip: true
+    short: Repeatedly replacing a small matching window of instructions with a cheaper
+      equivalent.
+    definition: A peephole optimization pass slides a small window over a sequence
+      of instructions, replacing any window that matches a rule with a cheaper equivalent,
+      and repeats until no rule matches anywhere, since one rewrite can expose the
+      pattern for another.
+    introduced_in: backend/c7-peephole.md
+    requires:
+    - instruction-selection
+    used_in:
+    - backend/d3-real-backends.md
+    - backend/e1-llvm-codegen-pipeline.md
+    - backend/e4-testing-backends.md
+    - optimize/o11-undefined-behavior.md
+    - optimize/o12-testing-optimizers.md
+    - mlir/m3-passes-and-rewriting.md
+    recall_question: Why must a peephole optimizer run its rules to a fixpoint rather
+      than once?
+    recall_answer: 'One rewrite can create the pattern another rule needs: forwarding
+      a load can turn an instruction into a self-move, and deleting a copy can put
+      two stores next to each other.'
+  - id: debug-information
+    term: debug information
+    tooltip: true
+    short: Data emitted alongside code that maps addresses back to source lines
+      and variable locations.
+    definition: Debug information is data a compiler emits next to the machine code
+      it generates, recording which source line each instruction address came from,
+      how to unwind the stack at that address, and where each variable's value currently
+      lives.
+    introduced_in: backend/d1-debug-info.md
+    requires:
+    - source-span
+    - stack-frame
+    used_in:
+    - backend/d2-jit.md
+    - backend/d3-real-backends.md
+    - backend/e3-llvm-allocator-scheduler-mc.md
+    - optimize/o3-ssa.md
+    - optimize/o7-inlining-and-sroa.md
+    - project/case-studies/native-aarch64-backend.md
+    recall_question: Why is a DWARF line table stored as a small program rather
+      than a plain list of rows?
+    recall_answer: Most instructions share a line with their neighbors, so a compact
+      special opcode that advances the address and line together and appends one
+      row is far smaller than storing a row per instruction, and can even move the
+      line backward for reordered code.
+  - id: jit-compilation
+    term: JIT compilation
+    abbr: JIT
+    short: Generating and running machine code in memory at run time, instead of
+      ahead of time.
+    definition: JIT (just-in-time) compilation generates machine code while a program
+      is running and executes it directly from memory, skipping the object file,
+      linker and loader that an ahead-of-time back end relies on, and taking on
+      their jobs, such as resolving names and setting page permissions, itself.
+    introduced_in: backend/d2-jit.md
+    requires:
+    - object-file
+    - linker
+    used_in:
+    - backend/d3-real-backends.md
+    - gpu/g8-isas-and-irs.md
+    recall_question: What does a JIT skip compared with an ahead-of-time back end,
+      and what must it therefore do itself?
+    recall_answer: It skips the object file on disk, the linker and the loader;
+      it writes code directly into its own memory and calls it, so it must resolve
+      names, set page permissions and inform debuggers on its own.
+  - id: tablegen
+    term: TableGen
+    short: LLVM's domain-specific language for writing one target fact as a record
+      other tools generate from.
+    definition: TableGen is the language LLVM uses to describe a target as declarative
+      records, such as registers, instructions and calling-convention rules; each
+      fact is written once, and every table that needs it, from the assembler to
+      the register allocator, is generated from that same record.
+    introduced_in: backend/e2-describing-a-target.md
+    requires:
+    - instruction-selection
+    - calling-convention
+    used_in:
+    - backend/e3-llvm-allocator-scheduler-mc.md
+    - backend/e4-testing-backends.md
+    - gpu/g9-gpu-compilers-in-llvm.md
+    - mlir/m1-why-mlir.md
+    recall_question: Why does LLVM describe a target in TableGen instead of writing
+      C++ tables by hand?
+    recall_answer: Each fact about the target is written once as a record, and every
+      table that needs it is generated from that same record, so readers such as
+      the register allocator and the assembler cannot disagree about it.
+
+  # ---- Optimize book ----------------------------------------------------
+
+  - id: optimizer-contract
+    term: optimizer's contract
+    tooltip: true
+    aliases:
+    - observable behavior
+    short: What every optimization must preserve, a program's observable behavior,
+      and what it may change.
+    definition: 'An optimizer''s contract states what every rewrite of a program
+      must keep and what it is free to change. For Vortex that is the program''s
+      observable behavior: every byte print writes, whether and where it stops with
+      a runtime error, and its exit status. Everything else, such as timing, instruction
+      choice or register use, is free to change.'
+    introduced_in: optimize/o1-optimizer-contract.md
+    requires:
+    - runtime-error
+    - undefined-behavior
+    used_in:
+    - optimize/o2-cfg-and-dominance.md
+    - optimize/o5-constants-and-dead-code.md
+    - optimize/o6-redundancy.md
+    - optimize/o8-loops.md
+    - optimize/o9-alias-analysis.md
+    - optimize/o10-pass-pipelines.md
+    - optimize/o11-undefined-behavior.md
+    - optimize/o12-testing-optimizers.md
+    - optimize/p1-measure-first.md
+    - optimize/p11-floating-point.md
+    - mlir/m3-passes-and-rewriting.md
+    recall_question: What must every Vortex optimization preserve, under the optimizer's
+      contract?
+    recall_answer: 'The program''s observable behavior: every byte it prints, whether
+      and where it stops with a runtime error, and its exit status, on every input.
+      Everything else, such as timing or register choice, is free to change.'
+  - id: optimization-remark
+    term: optimization remark
+    tooltip: true
+    short: A compiler message reporting one optimization decision, passed, missed
+      or analysis.
+    definition: 'Production compilers report each optimization decision as a remark:
+      a passed remark for a transformation that was made, a missed remark for one
+      that was attempted and not made, and an analysis remark for something a pass
+      worked out, often the reason behind a missed remark.'
+    introduced_in: optimize/o1-optimizer-contract.md
+    requires:
+    - optimizer-contract
+    - pass
+    used_in:
+    - optimize/o9-alias-analysis.md
+    - optimize/o10-pass-pipelines.md
+    - optimize/o12-testing-optimizers.md
+    - optimize/p3-roofline.md
+    - optimize/p5-microarchitecture.md
+    - optimize/p7-loop-transformations.md
+    - optimize/p13-multithreading.md
+    - optimize/p15-choosing-parameters.md
+    - gpu/g14-measuring-gpu-code.md
+    recall_question: What do a passed, a missed and an analysis remark each report?
+    recall_answer: A passed remark reports a transformation that was made; a missed
+      remark reports one that was attempted and not made; an analysis remark reports
+      something a pass worked out, often the reason behind a missed remark.
+  - id: dominator-tree
+    term: dominator tree
+    tooltip: true
+    aliases:
+    - dominance
+    - dominates
+    - immediate dominator
+    short: A tree in which each block's parent is the nearest block every path to
+      it must pass.
+    definition: 'Block X dominates block Y when every path from the entry to Y passes
+      through X. Making each block a child of its immediate dominator, the closest
+      such block, gives a tree rooted at the entry: the dominator tree. X dominates
+      Y exactly when X is Y or an ancestor of Y in it.'
+    introduced_in: optimize/o2-cfg-and-dominance.md
+    requires:
+    - control-flow-graph
+    - basic-block
+    used_in:
+    - optimize/o3-ssa.md
+    - optimize/o4-dataflow.md
+    - optimize/o5-constants-and-dead-code.md
+    - optimize/o6-redundancy.md
+    - optimize/o8-loops.md
+    - optimize/o9-alias-analysis.md
+    - optimize/o10-pass-pipelines.md
+    - mlir/m2-reading-mlir.md
+    - mlir/m7-bufferization.md
+    recall_question: What does it mean for block X to dominate block Y, and what
+      does the dominator tree record?
+    recall_answer: Every path from the entry to Y passes through X. Making each
+      block a child of its immediate dominator gives the dominator tree, where X
+      dominates Y exactly when X is Y or an ancestor of Y.
+  - id: dominance-frontier
+    term: dominance frontier
+    tooltip: true
+    aliases:
+    - iterated dominance frontier
+    short: Where a block's dominance ends, so two versions of a value can meet and
+      need a phi.
+    definition: The dominance frontier of block X is the set of blocks Y such that
+      X dominates a predecessor of Y but does not strictly dominate Y itself. A
+      variable assigned in several blocks needs a phi at the iterated dominance
+      frontier of those blocks, counting the entry as one of them.
+    introduced_in: optimize/o2-cfg-and-dominance.md
+    requires:
+    - dominator-tree
+    - static-single-assignment
+    - phi
+    used_in:
+    - optimize/o3-ssa.md
+    - optimize/o5-constants-and-dead-code.md
+    - optimize/o9-alias-analysis.md
+    recall_question: What is the dominance frontier of a block X?
+    recall_answer: 'The set of blocks where X''s dominance ends: Y is in the frontier
+      when X dominates a predecessor of Y but does not strictly dominate Y. A variable
+      needs a phi at the iterated frontier of the blocks that assign it.'
+  - id: natural-loop
+    term: natural loop
+    tooltip: true
+    aliases:
+    - loop header
+    short: The blocks of a loop, found from a back edge whose target dominates its
+      source.
+    definition: A natural loop is the header of a back edge together with every
+      block that can reach the back edge's source without passing through the header.
+      Because every edge from outside the loop enters at the header, the header
+      dominates the whole loop, and so does a preheader placed outside it.
+    introduced_in: optimize/o2-cfg-and-dominance.md
+    requires:
+    - back-edge
+    - dominator-tree
+    used_in:
+    - optimize/o3-ssa.md
+    - optimize/o4-dataflow.md
+    - optimize/o5-constants-and-dead-code.md
+    - optimize/o6-redundancy.md
+    - optimize/o7-inlining-and-sroa.md
+    - optimize/o8-loops.md
+    - optimize/o9-alias-analysis.md
+    - optimize/p5-microarchitecture.md
+    - optimize/p6-dependence-analysis.md
+    - gpu/g9-gpu-compilers-in-llvm.md
+    recall_question: Which blocks form the natural loop of a back edge?
+    recall_answer: The back edge's target, its header, together with every block
+      that can reach the back edge's source without passing through the header.
+      Every edge from outside the loop enters at the header.
+  - id: mem2reg
+    term: mem2reg
+    abbr: mem2reg
+    short: LLVM's pass that promotes a stack slot to SSA values, placing phis where
+      needed.
+    definition: mem2reg promotes a stack slot, an alloca in the entry block that
+      holds one value and is used only by direct loads and stores, into plain SSA
+      values, placing phis at its iterated dominance frontier. A front end can keep
+      every mutable variable in memory and never build a phi by hand.
+    introduced_in: optimize/o3-ssa.md
+    requires:
+    - static-single-assignment
+    - register
+    used_in:
+    - optimize/o7-inlining-and-sroa.md
+    - optimize/o9-alias-analysis.md
+    - optimize/o10-pass-pipelines.md
+    - optimize/p12-fast-gemm.md
+    - project/case-studies/llvm-backend.md
+    recall_question: What must a stack slot satisfy for mem2reg to promote it to
+      SSA values?
+    recall_answer: It must be an alloca in the entry block, hold a single value
+      such as a scalar or a pointer, and be used only by direct loads and stores.
+      A struct or an array is not a single value.
+  - id: dataflow-analysis
+    term: dataflow analysis
+    tooltip: true
+    aliases:
+    - monotone framework
+    short: Computing a safe fact at every program point by iterating transfer functions.
+    definition: A dataflow analysis computes a safe fact at every point of a function
+      from a lattice of possible facts, a transfer function per block, a join where
+      paths meet, and a starting value. Because the transfer functions are monotone
+      and the lattice has finite height, iterating them to a fixed point always
+      terminates at the same answer.
+    introduced_in: optimize/o4-dataflow.md
+    requires:
+    - control-flow-graph
+    - dominator-tree
+    used_in:
+    - optimize/o5-constants-and-dead-code.md
+    - optimize/o6-redundancy.md
+    - optimize/o7-inlining-and-sroa.md
+    - optimize/o8-loops.md
+    - optimize/o9-alias-analysis.md
+    - optimize/p9-polyhedral-model.md
+    - gpu/g13-tile-languages.md
+    recall_question: What defines a dataflow problem, and why does iterating it
+      always stop?
+    recall_answer: Its facts and their order, a direction, a transfer function per
+      block, a join where paths meet, and a starting value. The transfer functions
+      are monotone and the lattice has finite height, so the facts only rise, and
+      only finitely often.
+  - id: dead-code-elimination
+    term: dead-code elimination
+    tooltip: true
+    aliases:
+    - dead code
+    short: Deleting code that runs but whose result nothing uses.
+    definition: Dead-code elimination removes code that runs but whose result nothing
+      uses. A simple version deletes a value with no remaining uses and re-examines
+      its operands; a stronger version marks every statement live only if it feeds
+      an output, a live statement, or a branch a live statement is control dependent
+      on, then deletes whatever is left unmarked.
+    introduced_in: optimize/o5-constants-and-dead-code.md
+    requires:
+    - dataflow-analysis
+    - static-single-assignment
+    used_in:
+    - optimize/o6-redundancy.md
+    - optimize/o7-inlining-and-sroa.md
+    - optimize/o9-alias-analysis.md
+    - optimize/o10-pass-pipelines.md
+    - optimize/o12-testing-optimizers.md
+    - optimize/p1-measure-first.md
+    - mlir/m3-passes-and-rewriting.md
+    - roadmap.md
+    - project/case-studies/cpu-matmul-ladder.md
+    - project/case-studies/benchmark-harness.md
+    recall_question: Why does marking dead code from live roots delete more than
+      counting uses does?
+    recall_answer: Values that only feed each other, such as a counter nobody reads,
+      always have a use and so are never deleted by counting; marking from roots
+      reaches only what a live output, statement or branch needs.
+  - id: value-numbering
+    term: value numbering
+    abbr: GVN
+    aliases:
+    - global value numbering
+    short: Finding computations that always produce the same value, not just the
+      same text.
+    definition: Value numbering compares operators and the value numbers of their
+      operands, with commutative operands sorted, to find computations that always
+      produce the same value. Global value numbering (GVN) does this across a whole
+      function; because a value never changes after its SSA definition, a computation
+      in a dominating block can serve every block below it.
+    introduced_in: optimize/o6-redundancy.md
+    requires:
+    - static-single-assignment
+    - dominator-tree
+    used_in:
+    - optimize/o9-alias-analysis.md
+    - optimize/o11-undefined-behavior.md
+    - optimize/o12-testing-optimizers.md
+    - optimize/p5-microarchitecture.md
+    - mlir/m3-passes-and-rewriting.md
+    recall_question: When may GVN reuse an earlier-computed value instead of recomputing
+      it?
+    recall_answer: Only when the two computations are provably the same operation
+      on the same operands, with nothing in between that could have changed either
+      operand. It says nothing about the order two different operations ran in.
+  - id: inlining
+    term: inlining
+    short: Copying a called function's body into its caller in place of the call.
+    definition: Inlining removes a call by copying the callee's body into the caller,
+      so later passes see the callee's code together with the caller's constants,
+      ranges and addresses. LLVM decides each call site by walking the callee with
+      the call's arguments in place and comparing an estimated cost against a threshold,
+      visiting the call graph bottom-up so each callee is measured after its own
+      simplification.
+    introduced_in: optimize/o7-inlining-and-sroa.md
+    requires:
+    - function-call
+    - dead-code-elimination
+    used_in:
+    - optimize/o8-loops.md
+    - optimize/o9-alias-analysis.md
+    - optimize/o10-pass-pipelines.md
+    - optimize/o12-testing-optimizers.md
+    - optimize/p10-vectorization.md
+    - optimize/p12-fast-gemm.md
+    - optimize/p14-algorithms-and-schedules.md
+    recall_question: What does inlining buy a compiler besides removing the cost
+      of a call?
+    recall_answer: 'Context: the callee''s code now sees the caller''s constants,
+      ranges and addresses, so folding, check removal, vectorization and scalar
+      replacement can reach code that used to be hidden behind the call.'
+  - id: sroa
+    term: SROA
+    abbr: SROA
+    short: Splitting a struct or small array into separate values that can each
+      become SSA.
+    definition: Scalar replacement of aggregates, SROA for short, replaces a memory
+      slot with one slot per piece that its uses touch, and each piece can then
+      be promoted to an SSA value as mem2reg would. It needs every use of the slot
+      at a constant offset; an escaping address or a variable index blocks it, which
+      is why SROA and inlining are usually run together.
+    introduced_in: optimize/o7-inlining-and-sroa.md
+    requires:
+    - mem2reg
+    - aggregate
+    used_in:
+    - optimize/o9-alias-analysis.md
+    - optimize/o10-pass-pipelines.md
+    - optimize/o12-testing-optimizers.md
+    - optimize/p12-fast-gemm.md
+    - project/case-studies/llvm-backend.md
+    recall_question: What does SROA need in order to replace a memory slot with
+      separate SSA values?
+    recall_answer: 'Every use of the slot visible at a constant offset: no escaping
+      address and no variable index. A call that hides the address, or a loop-indexed
+      access, blocks it until inlining or full unrolling removes the obstacle.'
+  - id: induction-variable
+    term: induction variable
+    tooltip: true
+    aliases:
+    - add recurrence
+    short: A loop counter written as a closed formula, a start value plus a step
+      each trip.
+    definition: LLVM's scalar evolution analysis writes an induction variable as
+      an add recurrence, a value that starts at a fixed value in a loop and grows
+      by a fixed step every iteration. Expressing addresses and counters this way
+      lets a compiler count a loop's iterations and bound the values an index can
+      take, without running the loop.
+    introduced_in: optimize/o8-loops.md
+    requires:
+    - natural-loop
+    - static-single-assignment
+    used_in:
+    - optimize/o10-pass-pipelines.md
+    - optimize/o11-undefined-behavior.md
+    - optimize/p3-roofline.md
+    - optimize/p6-dependence-analysis.md
+    - optimize/p7-loop-transformations.md
+    - optimize/p10-vectorization.md
+    - optimize/p14-algorithms-and-schedules.md
+    - mlir/m4-dialect-conversion.md
+    - mlir/m6-affine-and-scf.md
+    recall_question: What is an add recurrence, and what does it describe?
+    recall_answer: A value that starts at a fixed value in a loop and grows by a
+      fixed step each iteration, where the start or the step may itself be a recurrence
+      of an outer loop. It is how LLVM describes an induction variable.
+  - id: loop-simplify-form
+    term: loop simplify form
+    tooltip: true
+    aliases:
+    - canonical loop form
+    short: LLVM's normalized loop shape, one preheader, one back edge, dedicated
+      exits.
+    definition: A loop in loop simplify form has a preheader, a single back edge
+      (one latch), and dedicated exits, exit blocks whose predecessors all lie inside
+      the loop. LLVM's LoopSimplify pass builds whatever is missing, and pass managers
+      add it automatically before any loop pass runs, so later passes can rely on
+      the shape without checking for it themselves.
+    introduced_in: optimize/o8-loops.md
+    requires:
+    - natural-loop
+    used_in:
+    - optimize/o10-pass-pipelines.md
+    recall_question: What three things does loop simplify form guarantee about a
+      loop?
+    recall_answer: A preheader, a single latch (one back edge), and dedicated exits,
+      whose predecessors all lie inside the loop. LoopSimplify adds whatever is
+      missing before a loop pass runs.
+  - id: alias-analysis
+    term: alias analysis
+    tooltip: true
+    short: Deciding whether two memory accesses can touch the same bytes.
+    definition: An alias query asks whether two memory locations, each a start address
+      and a size, can share a byte. The safe answer is always MayAlias; a local
+      analysis can also prove NoAlias for distinct identified objects or statically
+      different offsets, and MustAlias when two accesses start at the same address
+      with the same size.
+    introduced_in: optimize/o9-alias-analysis.md
+    requires:
+    - reference
+    - borrow
+    used_in:
+    - optimize/o10-pass-pipelines.md
+    - optimize/p3-roofline.md
+    - optimize/p6-dependence-analysis.md
+    - optimize/p7-loop-transformations.md
+    - optimize/p10-vectorization.md
+    - optimize/p12-fast-gemm.md
+    - optimize/p13-multithreading.md
+    - mlir/m7-bufferization.md
+    recall_question: What does an alias query ask, and which of its answers is always
+      safe?
+    recall_answer: Whether two memory locations, each a start address and a size,
+      can share a byte. MayAlias is always safe; NoAlias, MustAlias and PartialAlias
+      each require a proof.
+  - id: memory-ssa
+    term: MemorySSA
+    abbr: MemorySSA
+    short: SSA form for memory, one MemoryDef, MemoryUse or MemoryPhi per relevant
+      access.
+    definition: MemorySSA gives memory the same SSA form values already have, treating
+      all of memory as one variable. A MemoryDef is an access that may write memory,
+      a MemoryUse reads a version without changing it, and a MemoryPhi merges versions
+      where control flow joins. Its walker returns the nearest access above a use
+      that may write the location it reads, skipping stores that provably cannot
+      touch it.
+    introduced_in: optimize/o9-alias-analysis.md
+    requires:
+    - static-single-assignment
+    - alias-analysis
+    used_in:
+    - optimize/o10-pass-pipelines.md
+    - optimize/p3-roofline.md
+    - optimize/p10-vectorization.md
+    - optimize/p12-fast-gemm.md
+    - optimize/p13-multithreading.md
+    - mlir/m7-bufferization.md
+    recall_question: What are MemoryDef, MemoryUse and MemoryPhi?
+    recall_answer: A new version of all of memory, a read of one version, and a
+      merge of versions at a join; MemorySSA treats all of memory as a single variable.
+  - id: poison-value
+    term: poison value
+    tooltip: true
+    short: A value marking a broken side condition, such as overflow, that hides
+      the failure.
+    definition: A poison value stands for the result of a computation that broke
+      one of its operation's side conditions, such as the no-signed-wrap flag on
+      an add that overflows, without the program stopping or reporting anything.
+      Poison taints whatever is computed from it and may be replaced by any value
+      of its type; it becomes undefined behavior only at specific later uses, such
+      as a branch or an address.
+    introduced_in: optimize/o11-undefined-behavior.md
+    requires:
+    - optimizer-contract
+    - undefined-behavior
+    recall_question: What does a poison value mean, in plain terms?
+    recall_answer: This instruction's side condition, such as no overflow, was violated,
+      but nothing has gone wrong yet. It taints what is computed from it, may be
+      replaced by any value, and becomes undefined behavior only at specific later
+      uses.
+  - id: confidence-interval
+    term: confidence interval
+    tooltip: true
+    aliases:
+    - median and interval
+    short: A range likely to contain the true median of a noisy, repeated measurement.
+    definition: A confidence interval is a range computed so that, if a measurement
+      were repeated many times, a chosen fraction of such ranges would contain the
+      true median. Reporting a median with its interval, instead of the best of
+      several runs, says how sure the data lets you be, and lets two versions be
+      compared by the ratio of their medians.
+    introduced_in: optimize/p1-measure-first.md
+    used_in:
+    - optimize/p3-roofline.md
+    - optimize/p5-microarchitecture.md
+    - optimize/p8-cache-blocking.md
+    - optimize/p15-choosing-parameters.md
+    - optimize/p16-capstone.md
+    - project/measuring.md
+    - project/case-studies/cpu-matmul-ladder.md
+    - project/case-studies/benchmark-harness.md
+    - project/case-studies/native-aarch64-backend.md
+    - project/case-studies/cost-model-autotuner.md
+    - project/case-studies/ml-framework-bridge.md
+    recall_question: Why report a median with a confidence interval rather than
+      the best of several runs?
+    recall_answer: The best run is the least typical one and can fall outside the
+      plausible range of the median. The interval says how sure the data let you
+      be, and two intervals can be compared.
+  - id: cache-line
+    term: cache line
+    tooltip: true
+    short: The fixed-size, aligned chunk of memory a cache moves in one transfer.
+    definition: A cache line is the fixed-size, aligned chunk a cache moves in one
+      transfer, and the smallest unit a fetch actually costs, not one value. Two
+      addresses that fall in the same line move together whether or not the code
+      that touches them is related, which is why access order changes speed with
+      no change in arithmetic.
+    introduced_in: optimize/p2-memory-hierarchy.md
+    requires:
+    - memory
+    - address
+    used_in:
+    - optimize/p3-roofline.md
+    - optimize/p6-dependence-analysis.md
+    - optimize/p7-loop-transformations.md
+    - optimize/p8-cache-blocking.md
+    - optimize/p12-fast-gemm.md
+    - optimize/p13-multithreading.md
+    - optimize/p15-choosing-parameters.md
+    - gpu/g2-simt.md
+    - gpu/g4-memory-performance.md
+    recall_question: What is a cache line?
+    recall_answer: The fixed-size, aligned chunk a cache moves in one transfer;
+      the unit a fetch actually costs, not one value. Two addresses sharing a line
+      move together whether or not the code touching them is related.
+  - id: roofline-model
+    term: roofline model
+    tooltip: true
+    aliases:
+    - operational intensity
+    - roofline bound
+    short: A performance bound, the smaller of peak compute and peak bandwidth times
+      intensity.
+    definition: The roofline model bounds a kernel's attainable performance by the
+      smaller of the machine's peak floating-point rate and its peak memory bandwidth
+      times the kernel's operational intensity, its flops per byte of traffic between
+      the last cache and DRAM. The ridge point, where the two lines meet, marks
+      the intensity below which a kernel is memory-bound and above which it is compute-bound.
+    introduced_in: optimize/p3-roofline.md
+    requires:
+    - cache-line
+    used_in:
+    - optimize/p5-microarchitecture.md
+    - optimize/p8-cache-blocking.md
+    - optimize/p10-vectorization.md
+    - optimize/p16-capstone.md
+    - gpu/g1-throughput-machines.md
+    - gpu/g10-matmul-ladder.md
+    - gpu/g15-systolic-arrays.md
+    - project/measuring.md
+    - project/case-studies/cpu-matmul-ladder.md
+    recall_question: What does the roofline bound say, and which two numbers does
+      it need?
+    recall_answer: Attainable performance is at most the smaller of the machine's
+      peak flop rate and its peak memory bandwidth times the kernel's operational
+      intensity. It needs a measured peak flop rate and a measured peak bandwidth.
+  - id: latency-and-throughput
+    term: latency and throughput
+    tooltip: true
+    aliases:
+    - reciprocal throughput
+    short: How long one instruction takes versus how often independent ones can
+      start.
+    definition: Latency is the number of cycles from when an instruction starts
+      until its result is ready; reciprocal throughput is the average number of
+      cycles between the starts of two independent instructions of the same kind.
+      A loop-carried chain, such as one running sum, is bound by latency; hiding
+      it needs enough independent chains to keep every pipelined port busy.
+    introduced_in: optimize/p5-microarchitecture.md
+    requires:
+    - register
+    used_in:
+    - optimize/p7-loop-transformations.md
+    - optimize/p10-vectorization.md
+    - optimize/p12-fast-gemm.md
+    - optimize/p16-capstone.md
+    - gpu/g1-throughput-machines.md
+    - gpu/g5-occupancy.md
+    - project/case-studies/llvm-backend.md
+    recall_question: What is the difference between latency and reciprocal throughput?
+    recall_answer: Latency is how long one instruction takes to produce its result;
+      reciprocal throughput is how often independent instructions of that kind can
+      start. A loop-carried chain waits on latency; independent chains hide it.
+  - id: loop-carried-dependence
+    term: loop-carried dependence
+    tooltip: true
+    aliases:
+    - distance vector
+    short: A dependence between accesses in different iterations of a loop.
+    definition: A dependence is a pair of accesses to one location, at least one
+      a write, whose relative order the program fixes; it is flow, anti or output
+      depending on which access reads and which writes. A loop-carried dependence
+      links accesses in different iterations, described by a distance or direction
+      vector, and only a loop-carried dependence limits how a compiler may reorder
+      a loop's iterations.
+    introduced_in: optimize/p6-dependence-analysis.md
+    requires:
+    - natural-loop
+    - induction-variable
+    used_in:
+    - optimize/p7-loop-transformations.md
+    - optimize/p9-polyhedral-model.md
+    - optimize/p10-vectorization.md
+    - optimize/p13-multithreading.md
+    - mlir/m8-vectorization.md
+    recall_question: What is the difference between a loop-carried and a loop-independent
+      dependence?
+    recall_answer: A loop-independent dependence links accesses in the same iteration
+      and is never affected by reordering iterations. A loop-carried dependence
+      links accesses in different iterations, and only it constrains how a loop
+      may be run.
+  - id: tiling
+    term: tiling
+    aliases:
+    - blocking
+    - cache blocking
+    - loop tiling
+    short: Splitting a loop nest into tiles so data it reuses stays in cache while
+      it runs.
+    definition: Tiling, also called blocking, strip-mines several loops and moves
+      all the strip loops outside, turning an n-deep nest into a 2n-deep one whose
+      outer loops step from tile to tile. It turns reuse the computation already
+      has into locality the cache can keep, and it is legal exactly when the band
+      of loops being tiled is fully permutable.
+    introduced_in: optimize/p7-loop-transformations.md
+    requires:
+    - loop-carried-dependence
+    - cache-line
+    used_in:
+    - optimize/p8-cache-blocking.md
+    - optimize/p9-polyhedral-model.md
+    - optimize/p12-fast-gemm.md
+    - optimize/p13-multithreading.md
+    - optimize/p15-choosing-parameters.md
+    - gpu/g10-matmul-ladder.md
+    - gpu/g13-tile-languages.md
+    - mlir/m6-affine-and-scf.md
+    - mlir/m9-transform-dialect.md
+    recall_question: What does tiling do to a loop nest, and when is a band of loops
+      legal to tile?
+    recall_answer: 'It strip-mines several loops and moves the strip loops outside,
+      turning reuse into locality. A band may be tiled when it is fully permutable:
+      every dependence stays lexicographically positive under the reordering.'
+  - id: unroll-and-jam
+    term: unroll-and-jam
+    aliases:
+    - register tiling
+    short: Unrolling an outer loop and fusing the copies to create independent chains.
+    definition: Unroll-and-jam unrolls an outer loop a few times and fuses, or jams,
+      the copies of the inner loop into one, so several independent accumulators
+      run at once and each loaded value can serve more than one of them. It buys
+      independent chains that hide instruction latency and reuse of loaded values,
+      until the registers it needs run out.
+    introduced_in: optimize/p7-loop-transformations.md
+    requires:
+    - loop-carried-dependence
+    - latency-and-throughput
+    used_in:
+    - optimize/p12-fast-gemm.md
+    - gpu/g10-matmul-ladder.md
+    - mlir/m6-affine-and-scf.md
+    recall_question: What does unroll-and-jam buy, and what limits how far it can
+      go?
+    recall_answer: Independent sums and reuse of each loaded value, one load per
+      multiply-add instead of two or more, until the registers it needs run out.
+  - id: vectorization
+    term: vectorization
+    short: Widening a loop so one instruction computes several elements at once.
+    definition: Vectorization widens a loop so one instruction operates on several
+      elements at once, in one vector register. It needs a computable trip count,
+      no calls it cannot widen, and either a proof that the arrays involved do not
+      overlap or a runtime check with a scalar fallback; a dependence that crosses
+      several iterations limits how many elements can be widened together.
+    introduced_in: optimize/p10-vectorization.md
+    requires:
+    - loop-carried-dependence
+    - latency-and-throughput
+    used_in:
+    - optimize/p11-floating-point.md
+    - optimize/p12-fast-gemm.md
+    - optimize/p13-multithreading.md
+    - optimize/p14-algorithms-and-schedules.md
+    - optimize/p16-capstone.md
+    - mlir/index.md
+    - mlir/m5-structured-ops.md
+    - mlir/m8-vectorization.md
+    - mlir/m9-transform-dialect.md
+    - project/case-studies/cpu-matmul-ladder.md
+    - project/case-studies/mlir-lowering-path.md
+    recall_question: What must a vectorizer know before it widens a loop, besides
+      a dependence that allows it?
+    recall_answer: A trip count it can compute, no calls it cannot widen, and either
+      a proof that arrays do not overlap or a runtime check with a scalar fallback.
+
+  # ---- GPU book ---------------------------------------------------------
+
+  - id: throughput-optimized-design
+    term: throughput-optimized design
+    tooltip: true
+    short: A design that spends transistors on running many threads at once rather
+      than making one fast.
+    definition: A throughput-optimized design gives most of its transistor budget
+      to arithmetic units and to holding many threads' state, accepting that any
+      one thread runs no faster (often slower) than on a latency-optimized design,
+      in exchange for running thousands of threads side by side so idle hardware
+      is used by other ready work. A GPU is the throughput-optimized example; a
+      general-purpose CPU is latency-optimized, spending its budget on caches, branch
+      prediction and out-of-order execution to finish one chain of dependent work
+      sooner.
+    introduced_in: gpu/g1-throughput-machines.md
+    requires: []
+    used_in:
+    - gpu/g2-simt.md
+    - gpu/g3-memory-hierarchy.md
+    - gpu/g15-systolic-arrays.md
+    recall_question: What is the difference between a latency-optimized and a throughput-optimized
+      design?
+    recall_answer: A latency-optimized design spends its transistors on finishing
+      one chain of dependent work as fast as possible. A throughput-optimized design
+      spends them on running many independent pieces of work at once, so the amount
+      finished per second is high even though no single piece is fast.
+  - id: littles-law
+    term: Little's law
+    tooltip: true
+    short: Parallelism needed for full throughput equals a resource's latency times
+      its throughput.
+    definition: For a pipelined resource with fixed latency and fixed peak throughput,
+      Little's law says the amount of independent work that must be in flight to
+      reach that peak equals latency times throughput. Below that amount, achieved
+      throughput rises in a straight line as more independent work is supplied;
+      at or above it, achieved throughput is flat, because the ceiling is the resource's
+      own peak issue rate.
+    introduced_in: gpu/g1-throughput-machines.md
+    requires: []
+    used_in:
+    - gpu/g2-simt.md
+    - gpu/g5-occupancy.md
+    - gpu/g14-measuring-gpu-code.md
+    recall_question: What does Little's law say about a pipelined resource?
+    recall_answer: The parallelism needed to reach full throughput equals latency
+      times throughput; below that amount of independent work in flight, achieved
+      throughput rises in a straight line, and above it, it is flat.
+  - id: warp
+    term: warp
+    aliases:
+    - wavefront
+    - SIMD-group
+    short: A fixed-size group of threads (32 on NVIDIA and Apple GPUs) issued one
+      instruction at a time.
+    definition: 'A warp (NVIDIA''s and this book''s term; AMD''s wavefront, Apple''s
+      SIMD-group) is the fixed-size group of threads that a GPU core schedules and
+      executes together: one instruction is issued for the whole group each cycle,
+      and a lane is a thread''s position inside its warp. Warps let a throughput-optimized
+      design hide latency cheaply, since switching which warp issues costs nothing.'
+    introduced_in: gpu/g2-simt.md
+    requires:
+    - throughput-optimized-design
+    used_in:
+    - gpu/g3-memory-hierarchy.md
+    - gpu/g4-memory-performance.md
+    - gpu/g5-occupancy.md
+    - gpu/g6-synchronization.md
+    - gpu/g7-programming-models.md
+    - gpu/g9-gpu-compilers-in-llvm.md
+    - gpu/g10-matmul-ladder.md
+    - gpu/g11-matrix-units.md
+    - gpu/g12-flashattention.md
+    - gpu/g13-tile-languages.md
+    recall_question: What is a warp, and how many threads does one NVIDIA warp or
+      Apple SIMD-group hold?
+    recall_answer: A fixed-size group of threads that the GPU issues one instruction
+      to at a time; each thread is one of the warp's lanes. It is 32 threads wide
+      on NVIDIA GPUs and on Apple GPUs.
+  - id: simt
+    term: SIMT
+    abbr: SIMT
+    short: Single instruction, multiple threads - one instruction run together by
+      threads that may still branch.
+    definition: 'SIMT (single instruction, multiple threads) is NVIDIA''s name for
+      how a warp executes: the programmer writes one scalar thread with ordinary
+      ifs, loops and calls, and the hardware runs 32 copies together whenever they
+      are at the same instruction. It differs from SIMD, where a vector instruction''s
+      width is exposed to software, which must pack data and handle masks itself.'
+    introduced_in: gpu/g2-simt.md
+    requires:
+    - warp
+    used_in:
+    - gpu/g3-memory-hierarchy.md
+    - gpu/g4-memory-performance.md
+    - gpu/g5-occupancy.md
+    - gpu/g6-synchronization.md
+    - gpu/g7-programming-models.md
+    - gpu/g8-isas-and-irs.md
+    - gpu/g11-matrix-units.md
+    - gpu/g13-tile-languages.md
+    recall_question: How does SIMT differ from SIMD?
+    recall_answer: A SIMD instruction exposes its width to the software, which must
+      pack data and handle masks itself. A SIMT program describes one thread, and
+      the hardware runs 32 of them together and masks lanes when they disagree.
+  - id: divergence
+    term: divergence
+    short: When lanes of one warp disagree about a branch, so the warp runs every
+      taken path in turn.
+    definition: Divergence happens when the lanes of a warp disagree about a branch.
+      The warp cannot run two paths in the same cycle, so it issues each arm in
+      turn with only the lanes that chose it switched on (its active mask), then
+      continues with every lane active once the paths reconverge. Divergence costs
+      time (the warp issues every arm) and width (lanes not on the current arm sit
+      idle).
+    introduced_in: gpu/g2-simt.md
+    requires:
+    - warp
+    - simt
+    used_in:
+    - gpu/g6-synchronization.md
+    - gpu/g9-gpu-compilers-in-llvm.md
+    - gpu/g11-matrix-units.md
+    recall_question: What does a warp do when its lanes disagree about a branch?
+    recall_answer: It runs both sides, one after the other, with the lanes that
+      did not choose the side currently running masked off. A branch on a value
+      that is the same in every lane costs one pass, because every lane makes the
+      same choice.
+  - id: shared-memory
+    term: shared memory
+    tooltip: true
+    aliases:
+    - threadgroup memory
+    - local data share
+    short: A small, fast on-chip scratchpad that every thread of one block can read
+      and write.
+    definition: Shared memory (CUDA's name; AMD's local data share, Apple's threadgroup
+      memory) is on-chip memory that a whole thread block shares, filled and read
+      at the programmer's or compiler's choice rather than by hardware guesswork.
+      It is invisible to every other block, has a fixed per-block capacity, and
+      a thread may read a value another thread of the block wrote only after both
+      have passed a barrier ordering the store before the load.
+    introduced_in: gpu/g3-memory-hierarchy.md
+    requires:
+    - warp
+    used_in:
+    - gpu/g4-memory-performance.md
+    - gpu/g5-occupancy.md
+    - gpu/g6-synchronization.md
+    - gpu/g7-programming-models.md
+    - gpu/g9-gpu-compilers-in-llvm.md
+    - gpu/g10-matmul-ladder.md
+    - gpu/g11-matrix-units.md
+    - gpu/g12-flashattention.md
+    - gpu/g13-tile-languages.md
+    - mlir/m10-mlir-for-gpus.md
+    - project/case-studies/gpu-matmul-ladder.md
+    recall_question: What is shared memory, and when may a thread read a value that
+      another thread stored there?
+    recall_answer: A small on-chip scratchpad that every thread of one thread block
+      can read and write, much faster than global memory. A thread may read another
+      thread's value only after both have passed a barrier that orders the store
+      before the load.
+  - id: register-spilling
+    term: register spilling
+    tooltip: true
+    short: Writing a live value out to slow device memory because a thread has more
+      values than registers.
+    definition: 'When a thread needs more live values than the registers it has
+      been given, the compiler must spill some of them: write them to memory under
+      the name local memory, which despite the name is not on-chip at all, but an
+      ordinary private slice of the same slow device memory pool everything else
+      calls slow. Spilling trades register pressure for memory traffic, and fewer
+      registers per thread lets more threads be resident at once.'
+    introduced_in: gpu/g3-memory-hierarchy.md
+    requires: []
+    used_in: []
+    recall_question: What happens when a thread needs more live values than the
+      registers it has been given?
+    recall_answer: The compiler spills some of them to local memory, which despite
+      its name is a private slice of slow device memory, not on-chip storage.
+  - id: address-space
+    term: address space
+    tooltip: true
+    short: A tag on a pointer saying which memory it names, from global to one thread's
+      private storage.
+    definition: An address space is a number or keyword attached to a pointer or
+      reference that says which level of the memory hierarchy it names, such as
+      device memory every thread can reach, a block's shared scratchpad, a read-only
+      constant pool, or storage private to one thread. CUDA, HIP, Metal and MLIR's
+      gpu dialect each spell the same four distinctions with keywords, defaults
+      or explicit attributes.
+    introduced_in: gpu/g3-memory-hierarchy.md
+    requires:
+    - shared-memory
+    used_in:
+    - gpu/g4-memory-performance.md
+    - gpu/g7-programming-models.md
+    - gpu/g8-isas-and-irs.md
+    - gpu/g9-gpu-compilers-in-llvm.md
+    - mlir/m10-mlir-for-gpus.md
+    - mlir/m12-vortex-gpu-path.md
+    recall_question: What does an address space on a kernel pointer tell the compiler?
+    recall_answer: 'Which memory the pointed-to value lives in: device memory every
+      thread can reach, a block''s shared scratchpad, a read-only constant pool,
+      or a thread''s own private storage.'
+  - id: coalescing
+    term: coalescing
+    short: Merging a warp's 32 addresses into as few aligned memory transactions
+      as possible.
+    definition: Coalescing is the hardware's merging of a warp's 32 lane addresses
+      into as few aligned transactions as needed to serve them; on current NVIDIA
+      GPUs the unit is a 32-byte sector, so one warp-wide access costs the number
+      of distinct sectors its addresses touch. Neighbouring lanes touching neighbouring
+      addresses costs few sectors; lanes scattered far apart cost one sector each.
+    introduced_in: gpu/g4-memory-performance.md
+    requires:
+    - warp
+    used_in:
+    - gpu/g5-occupancy.md
+    - gpu/g9-gpu-compilers-in-llvm.md
+    - gpu/g10-matmul-ladder.md
+    - gpu/g11-matrix-units.md
+    - gpu/g13-tile-languages.md
+    - gpu/g14-measuring-gpu-code.md
+    recall_question: What does one warp-wide load cost in global memory?
+    recall_answer: The number of distinct aligned 32-byte sectors that the warp's
+      32 addresses touch, not the number of bytes any one lane asked for.
+  - id: bank-conflict
+    term: bank conflict
+    tooltip: true
+    short: Several lanes of a warp wanting different words from the same shared-memory
+      bank at once.
+    definition: Shared memory is divided into banks (32 on current NVIDIA GPUs),
+      with successive words in successive banks, and each bank serving one word
+      per cycle. A bank conflict is several lanes of one access wanting different
+      words from the same bank; the hardware serializes it into that many passes.
+      Padding a tile by one element shifts the bank each row starts in and removes
+      a column access's conflict.
+    introduced_in: gpu/g4-memory-performance.md
+    requires:
+    - shared-memory
+    used_in:
+    - gpu/g10-matmul-ladder.md
+    - gpu/g14-measuring-gpu-code.md
+    - project/case-studies/gpu-matmul-ladder.md
+    recall_question: When do lanes of a warp conflict in shared memory, and what
+      fixes a conflicting column access?
+    recall_answer: When they want different words in the same bank; a stride of
+      s words costs gcd(s, 32) passes. Padding the tile by one element shifts each
+      row's starting bank, so a column access becomes conflict-free.
+  - id: thread-mapping
+    term: thread mapping
+    tooltip: true
+    short: The compiler's choice of which loop variable runs across a warp's lanes.
+    definition: The thread mapping is the choice of which of a parallel loop nest's
+      variables varies across the lanes of a warp, and which stays fixed. Picking
+      the loop variable that is the last subscript of the accesses that run most
+      often makes neighbouring lanes touch neighbouring addresses, so the mapping
+      decides whether a kernel's accesses coalesce, without changing any arithmetic
+      it performs.
+    introduced_in: gpu/g4-memory-performance.md
+    requires:
+    - coalescing
+    used_in:
+    - gpu/g9-gpu-compilers-in-llvm.md
+    - gpu/g10-matmul-ladder.md
+    - gpu/g13-tile-languages.md
+    - mlir/m12-vortex-gpu-path.md
+    recall_question: Which loop index should a Vortex compiler put on a warp's lanes?
+    recall_answer: The loop variable that is the last subscript of the accesses
+      that run most often, so that neighbouring lanes touch neighbouring addresses
+      and the accesses coalesce.
+  - id: occupancy
+    term: occupancy
+    short: The number of warps resident on a core divided by the most it can hold.
+    definition: 'Occupancy is the number of warps resident on an SM (assigned a
+      scheduler, registers and shared memory) divided by the most the SM can hold.
+      It is set by the tightest of several budgets (warp slots, block slots, registers
+      and shared memory), and it counts warps, not work: a kernel can reach full
+      throughput at low occupancy if each resident warp supplies enough independent
+      instructions of its own.'
+    introduced_in: gpu/g5-occupancy.md
+    requires:
+    - warp
+    - register-spilling
+    used_in:
+    - gpu/g6-synchronization.md
+    - gpu/g10-matmul-ladder.md
+    - gpu/g12-flashattention.md
+    - gpu/g14-measuring-gpu-code.md
+    recall_question: What is occupancy, and does maximizing it always raise a kernel's
+      throughput?
+    recall_answer: 'The number of active warps on an SM divided by the most it can
+      hold, set by the tightest of its warp and block slots, registers and shared
+      memory. No: a kernel can reach full throughput at low occupancy through instruction-level
+      parallelism, which often makes it faster.'
+  - id: barrier
+    term: barrier
+    short: A program point every thread of a group must reach before any of them
+      may pass it.
+    definition: A barrier is a program point that every thread of some group (a
+      thread block, typically) must reach before any of them may continue past it;
+      after it, every write issued before the barrier is guaranteed visible to every
+      read issued after it, for that group. A barrier moves no data itself; it adds
+      only the ordering fact.
+    introduced_in: gpu/g6-synchronization.md
+    requires:
+    - shared-memory
+    used_in:
+    - gpu/g7-programming-models.md
+    - gpu/g8-isas-and-irs.md
+    - gpu/g9-gpu-compilers-in-llvm.md
+    - gpu/g10-matmul-ladder.md
+    - gpu/g11-matrix-units.md
+    - gpu/g12-flashattention.md
+    - gpu/g13-tile-languages.md
+    - mlir/m10-mlir-for-gpus.md
+    - mlir/m12-vortex-gpu-path.md
+    recall_question: What must be true before one thread may safely read a value
+      that another thread in its group stored?
+    recall_answer: Both threads must have passed a barrier that orders the store
+      before the load. A barrier moves no data of its own; it adds one fact, that
+      everything written before it is visible to everything reading after it.
+  - id: atomic-operation
+    term: atomic operation
+    tooltip: true
+    aliases:
+    - atomic
+    short: A read-modify-write on one address applied as one indivisible step, so
+      no update is lost.
+    definition: An atomic operation reads a memory location, computes a new value
+      and writes it back as one indivisible step that no other thread's atomic on
+      the same location can interleave with, so no update is lost. It fixes only
+      that every operation happens exactly once and in full; it says nothing about
+      the order different threads' atomics are applied in, which matters for a floating-point
+      sum because addition rounds after every step.
+    introduced_in: gpu/g6-synchronization.md
+    requires: []
+    used_in:
+    - gpu/g8-isas-and-irs.md
+    - gpu/g9-gpu-compilers-in-llvm.md
+    - gpu/g12-flashattention.md
+    - gpu/g14-measuring-gpu-code.md
+    - mlir/m5-structured-ops.md
+    - mlir/m12-vortex-gpu-path.md
+    recall_question: What does an atomic operation guarantee, and what does it leave
+      open?
+    recall_answer: That a read-modify-write on one address happens as one indivisible
+      step, so no update is lost. It does not fix the order in which different threads'
+      atomics are applied, which can change a floating-point sum's rounding.
+  - id: convergent-operation
+    term: convergent operation
+    tooltip: true
+    short: An operation, such as a barrier or shuffle, whose result depends on which
+      threads run it together.
+    definition: A convergent operation is one, such as a barrier or a warp shuffle,
+      whose meaning depends on which threads execute it together; a divergent branch
+      can change that set. A compiler must not move a convergent operation across
+      a divergent branch, even when it could otherwise freely hoist or sink an ordinary
+      instruction, because doing so would change which threads participate.
+    introduced_in: gpu/g6-synchronization.md
+    requires:
+    - divergence
+    - barrier
+    used_in:
+    - gpu/g8-isas-and-irs.md
+    - gpu/g9-gpu-compilers-in-llvm.md
+    - gpu/g11-matrix-units.md
+    - mlir/m12-vortex-gpu-path.md
+    recall_question: What makes a barrier or a shuffle a convergent operation?
+    recall_answer: Its result depends on which threads execute it together. A branch
+      that sends some lanes elsewhere changes that set, so the operation cannot
+      be moved across the branch as freely as an ordinary instruction.
+  - id: single-source
+    term: single source
+    tooltip: true
+    short: A model where one compiler reads a kernel and the code that launches
+      it from one file.
+    definition: A single-source programming model (CUDA, HIP, SYCL) keeps a kernel
+      and the host code that launches it in one file, compiled by one call to a
+      compiler that splits device code from host code itself. A separate-source
+      model (OpenCL, Vulkan, WebGPU, Metal) keeps the kernel as its own text or
+      binary, meeting the host program only at run time, by name, so nothing but
+      a shared build checks that the two agree on the kernel's interface.
+    introduced_in: gpu/g7-programming-models.md
+    requires: []
+    used_in:
+    - gpu/g8-isas-and-irs.md
+    - gpu/g13-tile-languages.md
+    recall_question: Which of CUDA and Metal keeps kernel code and the code that
+      launches it in one source file, compiled together?
+    recall_answer: 'CUDA (and HIP): a __global__ function and its launch live side
+      by side, compiled by one call to nvcc. Metal keeps the two apart: a .metal
+      file holds only the kernel, and launching it is a separate host-side job.'
+  - id: virtual-instruction-set
+    term: virtual instruction set
+    tooltip: true
+    short: A documented ISA-shaped format no chip decodes directly; a further step
+      reaches the real one.
+    definition: A virtual instruction set is a published, ISA-shaped text or binary
+      format, such as NVIDIA's PTX, that no chip executes directly; a driver or
+      separate tool finishes translating it to whichever real machine ISA the installed
+      hardware needs. It lets an application ship one stable format across GPU generations
+      rather than a binary tied to one architecture's encoding.
+    introduced_in: gpu/g8-isas-and-irs.md
+    requires: []
+    used_in:
+    - gpu/g9-gpu-compilers-in-llvm.md
+    - gpu/g11-matrix-units.md
+    recall_question: What is a virtual instruction set, and which vendor publishes
+      one as a full specification?
+    recall_answer: An ISA-shaped format no chip executes directly, translated to
+      the real ISA by a further step, usually a driver. NVIDIA's PTX is the one
+      this book's vendors document in full; AMD instead publishes its real ISA directly.
+  - id: structured-control-flow
+    term: structured control flow
+    tooltip: true
+    short: A rule that every branch and loop nest in a region naming where control
+      reconverges.
+    definition: Structured control flow is a requirement, imposed by formats such
+      as SPIR-V, that every selection and every loop be wrapped in an explicit region
+      naming the one block where its branches reconverge, rather than an arbitrary
+      control-flow graph. A structurizing pass such as LLVM's StructurizeCFG rewrites
+      a function into this shape so a masked machine can linearize its divergent
+      branches.
+    introduced_in: gpu/g8-isas-and-irs.md
+    requires:
+    - divergence
+    used_in:
+    - gpu/g9-gpu-compilers-in-llvm.md
+    - mlir/m1-why-mlir.md
+    - mlir/m6-affine-and-scf.md
+    - mlir/m12-vortex-gpu-path.md
+    recall_question: What must every SPIR-V module do to a conditional branch that
+      an ordinary LLVM IR function is never required to do?
+    recall_answer: Wrap it in an explicit structured region, such as a selection
+      ending in a merge instruction, that names the block where both sides reconverge.
+  - id: uniformity
+    term: uniformity
+    aliases:
+    - uniform value
+    - divergent value
+    short: Whether a value or branch is the same across every lane of a warp, or
+      differs.
+    definition: 'Uniformity analysis classifies every value and branch in a kernel
+      as uniform (the same in every active lane, so it can be computed and stored
+      once per warp) or divergent (different per lane). A value can be divergent
+      even when every operand it reads is uniform: at a join where a divergent branch''s
+      arms meet, or after a loop whose exit is divergent, which LLVM calls temporal
+      divergence.'
+    introduced_in: gpu/g9-gpu-compilers-in-llvm.md
+    requires:
+    - divergence
+    used_in:
+    - gpu/g10-matmul-ladder.md
+    - gpu/g13-tile-languages.md
+    recall_question: How can a value be divergent when every operand it reads is
+      uniform?
+    recall_answer: At a join of a divergent branch, where lanes pick different incoming
+      values of a phi, and after a loop with a divergent exit, where lanes leave
+      on different iterations.
+  - id: tile
+    term: tile
+    short: A rectangle of outputs held in faster memory so its inputs are read once
+      and reused often.
+    definition: 'A tile, in this book''s sense, is a rectangle of outputs held in
+      memory faster than the one its inputs started in, so each input is read once
+      from the slower memory and reused many times from the faster one. The same
+      reuse trick recurs at several levels of the memory hierarchy: a block tile
+      shares data through shared memory, and a thread tile or warp tile shares it
+      through registers, without changing the arithmetic performed.'
+    introduced_in: gpu/g10-matmul-ladder.md
+    requires:
+    - shared-memory
+    - coalescing
+    used_in:
+    - gpu/g11-matrix-units.md
+    - gpu/g12-flashattention.md
+    - gpu/g13-tile-languages.md
+    - gpu/g15-systolic-arrays.md
+    - mlir/m5-structured-ops.md
+    - mlir/m6-affine-and-scf.md
+    - mlir/m8-vectorization.md
+    - mlir/m9-transform-dialect.md
+    - mlir/m12-vortex-gpu-path.md
+    recall_question: What is a tile, and why does widening one raise arithmetic
+      intensity?
+    recall_answer: A rectangle of outputs held in a faster memory than its inputs
+      started in, so each input is read once and reused by every output in the tile.
+      A wider tile lets more outputs share each value read, raising operations performed
+      per byte moved without changing the total work.
+  - id: matrix-unit
+    term: matrix unit
+    tooltip: true
+    aliases:
+    - tensor core
+    short: Hardware that computes a whole small tile's multiply-accumulate, D =
+      A times B plus C, in one instruction.
+    definition: A matrix unit (NVIDIA's tensor core, Apple's SIMD-group matrix function,
+      AMD's MFMA) is hardware that computes a full small matrix multiply-accumulate,
+      D = A times B plus C, for one fixed tile shape in a single instruction issued
+      together by a group of threads (a warp, a warpgroup, or one thread, depending
+      on the generation). A bigger product becomes a loop of these instructions
+      chained along the reduction dimension; vendors document narrowed input types
+      and an unspecified accumulation order, which is why using one changes a kernel's
+      numbers, not only its schedule.
+    introduced_in: gpu/g11-matrix-units.md
+    requires:
+    - tile
+    - warp
+    used_in:
+    - gpu/g12-flashattention.md
+    - gpu/g13-tile-languages.md
+    - gpu/g15-systolic-arrays.md
+    - mlir/m8-vectorization.md
+    - mlir/m12-vortex-gpu-path.md
+    - project/case-studies/cpu-matmul-ladder.md
+    - project/case-studies/gpu-matmul-ladder.md
+    recall_question: What does a GPU matrix unit compute in one instruction?
+    recall_answer: D = A times B plus C over one small tile of fixed shape, issued
+      together by a warp, a warpgroup, a SIMD-group or, for the newest instructions,
+      one thread.
+  - id: kernel-fusion
+    term: kernel fusion
+    tooltip: true
+    aliases:
+    - fusion
+    short: Combining several operations into one pass so an intermediate result
+      is never written to memory.
+    definition: 'Kernel fusion combines a chain of operations, such as two matrix
+      multiplications and a softmax, into one pass that keeps only a small tile
+      of any intermediate result on chip, rather than writing the full intermediate
+      to device memory and reading it back for the next operation. FlashAttention''s
+      online-softmax rescale is a worked example: a running maximum, sum and output,
+      corrected whenever a later block raises the maximum, remove the need for a
+      full score matrix.'
+    introduced_in: gpu/g12-flashattention.md
+    requires:
+    - tile
+    - shared-memory
+    used_in:
+    - gpu/g13-tile-languages.md
+    - mlir/m5-structured-ops.md
+    - mlir/m6-affine-and-scf.md
+    - mlir/m7-bufferization.md
+    - mlir/m9-transform-dialect.md
+    - mlir/m11-ml-compilers.md
+    - mlir/m12-vortex-gpu-path.md
+    - project/case-studies/mlir-lowering-path.md
+    recall_question: What does tiled, fused attention avoid that an unfused implementation
+      cannot?
+    recall_answer: Ever writing the full N by N score matrix to device memory. A
+      running maximum, sum and output, rescaled whenever a new block's maximum is
+      larger, reproduce the same result from blocks that are produced, folded in
+      and discarded on chip.
+  - id: tile-program
+    term: tile program
+    tooltip: true
+    short: A function run once per output tile, whose compiler picks the thread
+      mapping, not its programmer.
+    definition: A tile program is a function run once per output tile, knowing only
+      its program id, that operates on whole tiles with loads and stores masked
+      at the array's edge rather than per-thread guards. Languages built this way
+      (Triton, CUDA Tile) move the thread mapping, shared-memory staging and barrier
+      placement from the programmer to the compiler, while the programmer still
+      chooses the tile shape and the launch order.
+    introduced_in: gpu/g13-tile-languages.md
+    requires:
+    - tile
+    - thread-mapping
+    used_in: []
+    recall_question: What is a tile program, and who decides which thread holds
+      which element inside it?
+    recall_answer: A function run once per output tile, which knows only its program
+      id and operates on whole tiles; the compiler, not the programmer, decides
+      which thread holds which element.
+  - id: speed-of-light-report
+    term: speed of light report
+    tooltip: true
+    short: A profiler's two throughput percentages, compute and memory, each against
+      that pipeline's peak.
+    definition: A speed of light report gives a kernel's achieved throughput on
+      two independent axes, compute and memory, each as a percentage of that pipeline's
+      own hardware peak. High on both means the kernel is close to what the hardware
+      can do; high on exactly one names the bottleneck; low on both means neither
+      pipeline is the limit, and a stall-reason or occupancy report, not this one,
+      is the next question to ask.
+    introduced_in: gpu/g14-measuring-gpu-code.md
+    requires:
+    - coalescing
+    - occupancy
+    used_in: []
+    recall_question: A kernel reports 8% compute throughput and 6% memory throughput.
+      Is it compute-bound or memory-bound?
+    recall_answer: 'Neither. Both percentages are low, so neither pipeline was the
+      bottleneck: the hardware spent most of its cycles issuing nothing, which points
+      at a scheduling problem, and the next report to read is occupancy or stall
+      reasons, not this one.'
+  - id: systolic-array
+    term: systolic array
+    tooltip: true
+    short: A grid of simple identical cells that pass data to neighbours, so memory
+      is read once per cell.
+    definition: A systolic array is a grid of simple, identical multiply-add cells
+      wired to their neighbours, so a value read from memory at the array's edge
+      is used by every cell it passes through and never read again. An output-stationary
+      array keeps each running sum in place and streams the two operands past each
+      other on a skewed schedule; the array's schedule, layout and on-chip memory
+      use must all be fixed before the program runs, since the hardware makes none
+      of those choices at run time.
+    introduced_in: gpu/g15-systolic-arrays.md
+    requires:
+    - matrix-unit
+    used_in: []
+    recall_question: What is a systolic array?
+    recall_answer: A grid of simple, identical cells that pass data to their neighbours
+      in a fixed rhythm, so each value read from memory at the edge is used at every
+      cell it passes, instead of being re-read from memory for each use.
+
+  # ---- MLIR book --------------------------------------------------------
+
+  - id: dialect
+    term: dialect
+    short: A family of operations, types and attributes that MLIR ships as one unit,
+      such as linalg or arith.
+    definition: A family of operations, types and attributes that MLIR ships as
+      one unit, such as `func` for functions, `linalg` for whole-array computations,
+      or `arith` for scalar arithmetic. One module can mix several dialects, all
+      parsed, checked and printed by the same infrastructure.
+    introduced_in: mlir/m1-why-mlir.md
+    requires: []
+    used_in:
+    - mlir/m2-reading-mlir.md
+    - mlir/m4-dialect-conversion.md
+    - mlir/m5-structured-ops.md
+    - mlir/m8-vectorization.md
+    - mlir/m9-transform-dialect.md
+    - mlir/m11-ml-compilers.md
+    - mlir/m12-vortex-gpu-path.md
+    - project/case-studies/mlir-lowering-path.md
+    recall_question: What do we call a family of operations, types and attributes
+      that MLIR ships as one unit, such as linalg or arith?
+    recall_answer: A dialect. One MLIR module can mix several dialects at once,
+      all handled by the same parser, verifier and printer.
+  - id: progressive-lowering
+    term: progressive lowering
+    tooltip: true
+    short: Moving from a high-level dialect to a low-level one through many small,
+      separately checked passes.
+    definition: Moving from a high-level dialect to a low-level one through a sequence
+      of small, separately testable passes, rather than one large translation, so
+      each step can be read, verified and tested on its own.
+    introduced_in: mlir/m1-why-mlir.md
+    requires:
+    - dialect
+    - lowering
+    used_in:
+    - mlir/m3-passes-and-rewriting.md
+    - mlir/m4-dialect-conversion.md
+    - mlir/m5-structured-ops.md
+    recall_question: What do we call moving from a high-level MLIR dialect to a
+      low-level one through many small passes instead of one large translation?
+    recall_answer: Progressive lowering. Each small step produces a file the same
+      verifier and printer accept, so what a step keeps or drops can be checked
+      directly.
+  - id: operation
+    term: operation
+    short: MLIR's unit of meaning; an addition, a loop and a whole function are
+      each one operation.
+    definition: 'MLIR''s unit of meaning. An addition, a loop and a whole function
+      are each one operation, built from the same fixed parts: results, a name,
+      operands, successors, properties, regions, other attributes, a type and a
+      location.'
+    introduced_in: mlir/m2-reading-mlir.md
+    requires:
+    - dialect
+    used_in:
+    - mlir/m3-passes-and-rewriting.md
+    - mlir/m4-dialect-conversion.md
+    - mlir/m5-structured-ops.md
+    - mlir/m6-affine-and-scf.md
+    - mlir/m7-bufferization.md
+    - mlir/m8-vectorization.md
+    - mlir/m9-transform-dialect.md
+    - mlir/m11-ml-compilers.md
+    recall_question: What is MLIR's single unit of meaning, used for everything
+      from one addition to a whole function?
+    recall_answer: An operation. Every operation, whatever its dialect, is built
+      from the same fixed set of parts, results, operands, regions, attributes,
+      a type and a location.
+  - id: region
+    term: region
+    short: An ordered list of blocks that belongs to an operation, whose meaning
+      that operation decides.
+    definition: An ordered list of blocks that belongs to an operation, which decides
+      what the region means. A value defined inside a region never escapes it, but
+      code inside may use a value from an enclosing region unless the owning operation
+      is isolated from above.
+    introduced_in: mlir/m2-reading-mlir.md
+    requires:
+    - operation
+    used_in:
+    - mlir/m3-passes-and-rewriting.md
+    - mlir/m4-dialect-conversion.md
+    - mlir/m5-structured-ops.md
+    - mlir/m6-affine-and-scf.md
+    - mlir/m8-vectorization.md
+    - mlir/m9-transform-dialect.md
+    - mlir/m11-ml-compilers.md
+    recall_question: What do we call an ordered list of blocks that belongs to an
+      operation, whose meaning that operation itself decides?
+    recall_answer: A region. A function's body and a loop's body are each one region.
+  - id: generic-form
+    term: generic form
+    tooltip: true
+    short: The syntax every MLIR operation has, printing all of its parts literally
+      in a fixed order.
+    definition: The syntax every operation has, whatever its dialect, printing each
+      of its parts (results, name, operands, successors, properties, regions, attributes,
+      type, location) literally, in a fixed order, with defaults spelled out instead
+      of hidden.
+    introduced_in: mlir/m2-reading-mlir.md
+    requires:
+    - operation
+    used_in:
+    - mlir/m5-structured-ops.md
+    - mlir/m8-vectorization.md
+    - mlir/m9-transform-dialect.md
+    - mlir/m11-ml-compilers.md
+    recall_question: Which MLIR syntax prints every operation's parts literally,
+      in the same fixed order, whatever its dialect?
+    recall_answer: The generic form. Custom form is shorter because it hides defaults;
+      the generic form is what mlir-opt --mlir-print-op-generic shows.
+  - id: attribute
+    term: attribute
+    aliases:
+    - property
+    short: Constant data attached to an operation; a property it checks itself,
+      or a dialect-named extra.
+    definition: Constant data attached to an operation, never computed at run time.
+      A property, printed inside `<{ }>`, belongs to the operation's own definition
+      and is checked by its verifier; a discardable attribute, in plain `{ }`, carries
+      a dialect prefix that gives it meaning, and a pass may drop it without changing
+      the computation.
+    introduced_in: mlir/m2-reading-mlir.md
+    requires:
+    - operation
+    used_in:
+    - mlir/m3-passes-and-rewriting.md
+    - mlir/m4-dialect-conversion.md
+    - mlir/m5-structured-ops.md
+    - mlir/m6-affine-and-scf.md
+    - mlir/m7-bufferization.md
+    - mlir/m8-vectorization.md
+    - mlir/m9-transform-dialect.md
+    - mlir/m12-vortex-gpu-path.md
+    recall_question: In an operation's generic form, which bracket holds a property,
+      and which holds a discardable attribute?
+    recall_answer: A property sits inside angle-and-curly brackets and is checked
+      by the operation's own verifier; a discardable attribute sits in plain curly
+      brackets and carries a dialect prefix.
+  - id: block-argument
+    term: block argument
+    tooltip: true
+    short: A value a block receives when control enters it, MLIR's replacement for
+      a phi.
+    definition: A value a block receives when control enters it. Every branch into
+      the block must supply one, in place of a phi that would otherwise pick a value
+      by asking which predecessor ran. A loop's induction variable and its loop-carried
+      values are block arguments of the loop body's region.
+    introduced_in: mlir/m2-reading-mlir.md
+    requires:
+    - region
+    - phi
+    - basic-block
+    used_in:
+    - mlir/m4-dialect-conversion.md
+    - mlir/m5-structured-ops.md
+    - mlir/m6-affine-and-scf.md
+    - mlir/m7-bufferization.md
+    recall_question: What does MLIR use in place of a phi at the top of a block?
+    recall_answer: A block argument. Every branch into the block supplies a value
+      for it directly, instead of the block picking one by asking which predecessor
+      ran.
+  - id: isolated-from-above
+    term: isolated from above
+    tooltip: true
+    short: An operation property meaning nothing inside it may use a value defined
+      outside it.
+    definition: A property of an operation meaning that nothing inside it may use
+      a value defined outside it. `func.func` is isolated, so a function body reaches
+      other functions only by symbol, and isolated operations can be compiled or
+      transformed in parallel with no chain crossing the boundary.
+    introduced_in: mlir/m2-reading-mlir.md
+    requires:
+    - region
+    used_in:
+    - mlir/m3-passes-and-rewriting.md
+    recall_question: What does it mean for an operation to be isolated from above?
+    recall_answer: Nothing inside it may use a value defined outside it, so it can
+      be transformed or compiled without seeing its neighbours.
+  - id: memref
+    term: memref
+    short: An MLIR type naming a shaped, typed reference to a region of memory,
+      with a layout.
+    definition: A builtin MLIR type naming a reference to a region of memory, with
+      a shape, an element type and a layout (row-major by default). Storing through
+      a memref argument changes memory its caller can see, the shape of a Vortex
+      `&mut` parameter, but nothing in the type says two memrefs do not alias.
+    introduced_in: mlir/m2-reading-mlir.md
+    requires:
+    - array
+    - reference
+    used_in:
+    - mlir/m4-dialect-conversion.md
+    - mlir/m5-structured-ops.md
+    - mlir/m6-affine-and-scf.md
+    - mlir/m7-bufferization.md
+    - mlir/m8-vectorization.md
+    - mlir/m9-transform-dialect.md
+    - mlir/m11-ml-compilers.md
+    - mlir/m12-vortex-gpu-path.md
+    recall_question: Which MLIR type names a shaped, typed reference to a region
+      of memory, with a layout such as row-major order?
+    recall_answer: A memref. It behaves like a Vortex `&mut` argument, except that
+      nothing in the type itself rules out two memrefs aliasing.
+  - id: verifier
+    term: verifier
+    short: The part of MLIR that checks a module's structure and each operation's
+      own rules.
+    definition: 'The part of MLIR that checks a module every time it is parsed:
+      structural rules that hold for every operation (types agree exactly, values
+      are defined once and used only where they dominate, blocks end in a terminator),
+      then each operation''s own rules, such as a matmul''s shapes agreeing.'
+    introduced_in: mlir/m2-reading-mlir.md
+    requires:
+    - operation
+    used_in:
+    - mlir/m5-structured-ops.md
+    - mlir/m6-affine-and-scf.md
+    - mlir/m8-vectorization.md
+    - mlir/m9-transform-dialect.md
+    recall_question: What checks that every MLIR operation's structure is sound,
+      and that each operation's own rules hold?
+    recall_answer: The verifier. It runs structural checks first, such as dominance
+      and terminators, then each operation's own rules, such as a matmul's shapes
+      agreeing.
+  - id: pass-manager
+    term: pass manager
+    tooltip: true
+    aliases:
+    - OpPassManager
+    short: The infrastructure that runs a list of passes over the operation it is
+      anchored on.
+    definition: 'MLIR''s infrastructure for running passes: an `OpPassManager` holds
+      an ordered list of passes and is anchored on one kind of operation, so it
+      runs its passes on every operation of that kind nested inside whatever its
+      parent runs on. A textual pipeline such as `builtin.module(func.func(canonicalize,
+      cse))` nests pass managers the way the pipeline''s parentheses nest.'
+    introduced_in: mlir/m3-passes-and-rewriting.md
+    requires:
+    - pass
+    - operation
+    used_in:
+    - mlir/m4-dialect-conversion.md
+    recall_question: What runs an ordered list of passes on every operation of one
+      kind nested inside whatever its parent runs on?
+    recall_answer: A pass manager (OpPassManager). Nesting one inside another, as
+      a textual pipeline's parentheses do, mirrors the nesting of the IR itself.
+  - id: rewrite-pattern
+    term: rewrite pattern
+    tooltip: true
+    aliases:
+    - pattern
+    short: Compiler code that matches one shape of IR at a root operation and replaces
+      it.
+    definition: 'A small piece of compiler code that recognizes one shape of IR,
+      rooted at one operation, and replaces it with another, through an object called
+      the `PatternRewriter`. A driver such as the greedy pattern rewrite driver
+      keeps a worklist of operations and applies the highest-benefit matching pattern
+      or fold to each, putting changed operations back on the list until nothing
+      more matches: a fixed point.'
+    introduced_in: mlir/m3-passes-and-rewriting.md
+    requires:
+    - operation
+    used_in:
+    - mlir/m4-dialect-conversion.md
+    - mlir/m5-structured-ops.md
+    - mlir/m8-vectorization.md
+    - mlir/m9-transform-dialect.md
+    - project/case-studies/mlir-lowering-path.md
+    recall_question: What matches one shape of IR at a root operation and replaces
+      it, and what does the driver that applies many of them keep?
+    recall_answer: A rewrite pattern. The greedy driver that applies patterns keeps
+      a worklist, putting changed operations back on it until nothing more matches.
+  - id: canonicalization
+    term: canonicalization
+    short: MLIR's one shared cleanup pass, applying every loaded dialect's own patterns
+      and folds.
+    definition: 'MLIR''s one shared cleanup: a single pass that applies the canonicalization
+      patterns and folds every loaded dialect offers, run by the greedy driver.
+      It removes identities, no-ops and unused values toward one agreed spelling,
+      but must not lose information, must not be required for correctness, and must
+      converge.'
+    introduced_in: mlir/m3-passes-and-rewriting.md
+    requires:
+    - rewrite-pattern
+    - pass
+    used_in:
+    - mlir/m5-structured-ops.md
+    recall_question: What is MLIR's one shared cleanup pass called, and which rule
+      must every rewrite it applies obey?
+    recall_answer: Canonicalization. Its rewrites must not lose information or be
+      required for correctness, since a pipeline must still work with the pass removed.
+  - id: dialect-conversion
+    term: dialect conversion
+    tooltip: true
+    short: A pass that rewrites operations until none disagrees with a target description
+      of what is legal.
+    definition: A pass that, given a `ConversionTarget` naming which operations
+      are legal, illegal or dynamically legal, rewrites operations one matched pattern
+      at a time until nothing left over disagrees with that description. Partial
+      conversion legalizes what it can and leaves the rest, with bridging casts;
+      full conversion requires every operation to end up legal or the whole pass
+      fails.
+    introduced_in: mlir/m4-dialect-conversion.md
+    requires:
+    - dialect
+    - pass
+    used_in:
+    - mlir/m5-structured-ops.md
+    - mlir/m9-transform-dialect.md
+    - mlir/m12-vortex-gpu-path.md
+    recall_question: What does a dialect conversion pass fail on, if an operation
+      is illegal and no pattern rewrites it?
+    recall_answer: It reports a legalization failure and stops. The ConversionTarget's
+      legal, illegal and dynamically legal rules are not a suggestion a pass can
+      ignore.
+  - id: type-converter
+    term: type converter
+    tooltip: true
+    short: The object a conversion pass uses to map each source type to a target
+      type.
+    definition: The object a dialect conversion pass carries to map each source
+      type to a target type, and to rewrite the values that carried the old type.
+      The default lowering of a memref maps it to a five-field descriptor (allocated
+      pointer, aligned pointer, offset, and one size and one stride per dimension),
+      unbundled into separate scalar arguments at a function boundary.
+    introduced_in: mlir/m4-dialect-conversion.md
+    requires:
+    - dialect-conversion
+    - memref
+    used_in:
+    - mlir/m12-vortex-gpu-path.md
+    recall_question: What object does a dialect conversion pass use to turn a source
+      type such as a memref into a target-level type?
+    recall_answer: A type converter. It maps a ranked memref to a five-field descriptor,
+      a pointer pair, an offset, and one size and one stride per dimension.
+  - id: structured-op
+    term: structured operation
+    tooltip: true
+    short: An operation that states its iteration space, its indexing maps and which
+      steps are independent.
+    definition: 'An operation, such as `linalg.generic`, that states the facts a
+      loop nest would otherwise hide: its iteration space, one indexing map per
+      operand saying which element each step touches, one iterator type per dimension
+      (parallel or reduction), and a payload region computing one step. A named
+      operation such as `linalg.matmul` is one with its maps, types and payload
+      already fixed.'
+    introduced_in: mlir/m5-structured-ops.md
+    requires:
+    - operation
+    - region
+    used_in:
+    - mlir/m6-affine-and-scf.md
+    - mlir/m8-vectorization.md
+    - mlir/m9-transform-dialect.md
+    - mlir/m11-ml-compilers.md
+    - project/case-studies/mlir-lowering-path.md
+    recall_question: What kind of operation states its iteration space, an indexing
+      map per operand and an iterator type per dimension, instead of being written
+      as a loop?
+    recall_answer: A structured operation, such as linalg.generic. The verifier
+      checks its shapes; whether a dimension marked parallel really is stays an
+      unchecked promise.
+  - id: tensor-value
+    term: tensor value
+    tooltip: true
+    short: An immutable MLIR value with a shape and element type, unlike a memref,
+      which is a memory reference.
+    definition: 'MLIR''s builtin `tensor` type: an immutable SSA value with a shape
+      and an element type, and no address. An operation that "changes" a tensor
+      produces a new one instead of writing through it, which is what lets a pass
+      reorder or fuse tensor operations by following use-def chains alone.'
+    introduced_in: mlir/m5-structured-ops.md
+    requires:
+    - memref
+    - array
+    used_in:
+    - mlir/m7-bufferization.md
+    - mlir/m11-ml-compilers.md
+    - project/case-studies/mlir-lowering-path.md
+    recall_question: Which MLIR type is an immutable value with a shape and element
+      type but no address, unlike a memref?
+    recall_answer: A tensor value. Nothing can write through it; an operation that
+      appears to change one produces a new tensor instead.
+  - id: destination-passing-style
+    term: destination-passing style
+    tooltip: true
+    short: An operation takes, for each tensor result, an operand giving that result's
+      starting shape and value.
+    definition: 'A shape for an operation on tensor values: for each result, it
+      takes a tensor operand, its "destination", that supplies the result''s shape
+      and starting contents, even though the destination itself is never modified
+      in place. On memrefs the same operand is the memory actually written, and
+      the operation returns nothing.'
+    introduced_in: mlir/m5-structured-ops.md
+    requires:
+    - tensor-value
+    - structured-op
+    used_in:
+    - mlir/m6-affine-and-scf.md
+    - mlir/m7-bufferization.md
+    - mlir/m9-transform-dialect.md
+    - mlir/m11-ml-compilers.md
+    recall_question: What do we call an operand that supplies a tensor result's
+      starting shape and contents, without itself being modified in place?
+    recall_answer: The destination, in destination-passing style. On memrefs the
+      same operand is the memory that is actually written, and the operation returns
+      nothing.
+  - id: iteration-space
+    term: iteration space
+    tooltip: true
+    short: Every point a loop nest or structured operation touches, seen as one
+      object.
+    definition: The set of steps a loop nest or a structured operation performs,
+      seen as one object rather than a sequence of passes through code. A structured
+      operation's indexing maps project its iteration space onto each operand; tiling
+      changes the order the space is visited in without changing which points exist.
+    introduced_in: mlir/m5-structured-ops.md
+    requires:
+    - structured-op
+    used_in:
+    - mlir/m6-affine-and-scf.md
+    - mlir/m8-vectorization.md
+    - mlir/m9-transform-dialect.md
+    recall_question: What do we call the full set of steps a loop nest or a structured
+      operation performs, seen as one object?
+    recall_answer: The iteration space. Tiling changes the order its points are
+      visited in; it does not add, remove or alias any point.
+  - id: affine-dialect
+    term: affine dialect
+    tooltip: true
+    aliases:
+    - affine function
+    short: MLIR's loop dialect restricted to bounds and subscripts built from dims,
+      symbols and constants.
+    definition: MLIR's structured-loop dialect for the case where every loop bound
+      and array subscript is an affine function, built only from a loop's own induction
+      variables (dims), values fixed for the whole computation (symbols) and compile-time
+      constants. That restriction is what lets a dependence test answer exactly,
+      so transformations such as tiling can be applied automatically instead of
+      only under a programmer's promise.
+    introduced_in: mlir/m6-affine-and-scf.md
+    requires:
+    - iteration-space
+    used_in: []
+    recall_question: Which MLIR loop dialect restricts every bound and subscript
+      to a function of induction variables, symbols and constants, and why?
+    recall_answer: The affine dialect. The restriction lets a dependence test answer
+      exactly, so tiling and similar transformations can be applied automatically.
+  - id: bufferization
+    term: bufferization
+    short: The pass that gives every tensor value a memref, choosing which buffers
+      may be reused.
+    definition: 'The pass that gives every tensor value a place in memory by rewriting
+      tensor operations into memref operations. One-Shot Bufferize considers, for
+      each destination-passing result, only two buffers: the destination''s own,
+      or a new allocation, giving the destination''s buffer whenever no later read
+      still needs its old contents (no read-after-write conflict).'
+    introduced_in: mlir/m7-bufferization.md
+    requires:
+    - tensor-value
+    - memref
+    - destination-passing-style
+    used_in:
+    - mlir/m9-transform-dialect.md
+    - mlir/m11-ml-compilers.md
+    - mlir/m12-vortex-gpu-path.md
+    - project/case-studies/mlir-lowering-path.md
+    recall_question: What does the bufferization pass do, and which two buffers
+      does it consider for a destination-passing result?
+    recall_answer: It rewrites tensor values into memrefs. For a destination-passing
+      result it considers only the destination's own buffer or a new allocation.
+  - id: virtual-vector
+    term: virtual vector
+    tooltip: true
+    short: A machine-agnostic SSA-valued vector type, such as vector<2x2xf32>, naming
+      no memory.
+    definition: A machine-agnostic vector type, such as `vector<2x2xf32>`, that
+      names a shape and element type but no memory location; it is an SSA value,
+      produced and consumed like any other, not a description of where its elements
+      live. Only `vector.transfer_read` and `vector.transfer_write` move it to and
+      from a memref. Lowering to a target unrolls a higher-rank virtual vector into
+      the smaller shapes real registers hold.
+    introduced_in: mlir/m8-vectorization.md
+    requires:
+    - operation
+    - memref
+    used_in:
+    - mlir/m9-transform-dialect.md
+    recall_question: What do we call a machine-agnostic vector type such as vector<2x2xf32>
+      that names a shape but no memory location?
+    recall_answer: A virtual vector. Only vector.transfer_read and vector.transfer_write
+      cross the boundary to and from a memref; a lowering later unrolls it toward
+      real registers.
+  - id: transform-dialect
+    term: transform dialect
+    tooltip: true
+    aliases:
+    - schedule
+    short: A second MLIR module whose operations match payload operations and transform
+      them by handle.
+    definition: 'A dialect for writing a schedule as ordinary MLIR: a second module,
+      alongside the payload it transforms, whose operations such as `transform.structured.match`
+      find payload operations and return a handle, an SSA value standing for them,
+      and whose consuming operations such as `tile_using_for` transform what a handle
+      points to and return new handles. A schedule runs once, in the order written,
+      unlike the greedy driver''s unordered patterns.'
+    introduced_in: mlir/m9-transform-dialect.md
+    requires:
+    - rewrite-pattern
+    - static-single-assignment
+    used_in:
+    - mlir/m11-ml-compilers.md
+    - mlir/m12-vortex-gpu-path.md
+    - project/case-studies/mlir-lowering-path.md
+    - project/case-studies/gpu-matmul-ladder.md
+    - project/case-studies/cost-model-autotuner.md
+    recall_question: What kind of MLIR module names payload operations as handles
+      and applies transformations to them in an exact, written order?
+    recall_answer: A schedule, written in the transform dialect. Consuming a handle
+      invalidates it, so reusing one after that point fails to verify.
+  - id: operator-fusion
+    term: operator fusion
+    tooltip: true
+    short: Combining several operators into one kernel so a result is used without
+      a trip to memory first.
+    definition: Combining several operators into one kernel so that an intermediate
+      result is used right away instead of being written to memory and read back;
+      an elementwise operator fused onto the end of a kernel is often called an
+      epilogue. Fusion changes reuse distance, when a value is used relative to
+      when it is produced, not which arithmetic runs or in what order.
+    introduced_in: mlir/m11-ml-compilers.md
+    requires:
+    - structured-op
+    used_in: []
+    recall_question: What does operator fusion change about a computation, and what
+      does it leave alone?
+    recall_answer: It changes reuse distance, so an intermediate result is used
+      right away instead of going to memory and back. It leaves the arithmetic and
+      its order unchanged.
+

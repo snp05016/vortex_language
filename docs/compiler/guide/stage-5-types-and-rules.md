@@ -19,6 +19,16 @@ It is also the stage where Vortex keeps its main promise. The roadmap puts it
 in one sentence: invalid programs must be "rejected before code generation with
 clear explanations".
 
+--8<-- "includes/remember/compiler__guide__stage-5-types-and-rules.md"
+
+!!! goals "In this stage"
+
+    - Work out the type of any expression by tracing types from the leaves of its tree up to the root.
+    - Explain why Vortex has no implicit conversions and what decides a bare literal's type.
+    - Tell a type error, a semantic error and a constant-evaluation error apart, and say which check produces each.
+    - Decide whether a function body terminates by applying the structural rule for `return`, blocks and `if`.
+    - Evaluate an array dimension by hand and predict which of its five errors, if any, it causes.
+
 ## What this stage is for
 
 The job has three parts, and the [architecture page](../architecture.md) gives
@@ -266,6 +276,19 @@ A literal never changes kind. In `let ratio: f32 = 1;` the whole number `1`
 cannot become an `f32`, so it stays an `i32` and the declaration is a type
 error. The rule is local: the checker never looks at later statements to type
 a literal.
+
+??? check "In `let scale: f64 = 2 * 0.5;`, what types do `2` and `0.5` get, and is the declaration accepted?"
+
+    `0.5` becomes an `f64`: neither operand is a typed peer, so the written
+    type decides, and it passes through `*`. `2` keeps its default `i32`,
+    because a literal never changes kind. The `*` then has an `i32` and an
+    `f64` operand, which is a type error; writing `2.0` fixes it.
+
+The next example, a tiny calculator, gives each number its kind from its
+spelling alone and refuses to add a whole number to a decimal one, because
+nothing in it converts one kind into the other.
+
+--8<-- "includes/examples/build-v0.1/stage-5-types-and-rules/literal_kind.cpp.md"
 
 Once a literal has its type, its value must fit. In `let count: u32 = -1;` the
 context asks for an unsigned number and the value is negative, so the program
@@ -575,6 +598,21 @@ looks at the value of a condition, so a function whose body ends in a
 `return` after the loop. Code after a `return` is valid, but it still counts
 as the last statement of its block.
 
+??? check "A function declared `-> i32` has the body `{ return 1; print(2); }`. Every run returns before it reaches `print`. Is the function accepted?"
+
+    No. The rule reads the form of the body, not what happens when it runs.
+    The body's last statement is `print(2);`, which does not terminate, so
+    the body does not terminate either, and the function has a semantic
+    error. The statement after the `return` is valid; it is its position
+    as the last statement that decides.
+
+The next example asks the same kind of question about something that is not a
+program: a quiz flowchart. A checker walks the chart once, without answering
+any question, and lists every route that ends with no answer, including one
+behind a question whose answer never changes.
+
+--8<-- "includes/examples/build-v0.1/stage-5-types-and-rules/path_returns.cpp.md"
+
 ## Array dimensions and constant evaluation
 
 An array type carries its sizes: `[f32; 4, 8]` is four rows of eight. The
@@ -598,6 +636,19 @@ the evaluator must perform the check now, and a failure is a
 constant-evaluation error ([record 39](../../decisions/diagnostics.md#d39)). A
 name or a call is never constant, so `value / divisor` waits for stage 9 even
 when `divisor` holds zero.
+
+??? check "`count` is an `i32` variable. Is `let q = count / 0;` rejected here, or left for stage 9?"
+
+    It is rejected here, as a constant-evaluation error. For division by
+    zero the only deciding operand is the divisor, and `0` is an integer
+    constant expression, so the check must run now. The dividend being a
+    name does not matter; `count / divisor` would wait for stage 9.
+
+The next example makes the two checks a constant folder needs most, on plain
+C++ integers: whether a sum still fits its 32-bit type, and whether a value
+survives being narrowed to an unsigned type.
+
+--8<-- "includes/examples/build-v0.1/stage-5-types-and-rules/checked_constants.cpp.md"
 
 A dimension can fail in five ways, each with a dimension-specific message: it
 uses a name or a call, it is not an integer, its arithmetic goes negative or
@@ -942,6 +993,21 @@ directions are bugs. A checker that ends a borrow at its last use accepts
 programs Vortex rejects, and so does one that tracks array elements
 separately; a checker that rejects more than the rules say breaks valid
 programs.
+
+## Key ideas
+
+!!! recap "Questions you can now answer"
+
+    - **Why does `let bad = count * 2.5;` fail when `count` is an `i32`?** Vortex has no implicit conversions, so `*` needs two operands of the same type; `count` is `i32` and `2.5` defaults to `f32`, and no rule lets one become the other.
+    - **What decides the type of a bare literal, in order?** Its peer operand's type if one is already known, then the expected type from its position (a written type, a parameter or a return type), and only then a default of `i32` for a whole number or `f32` for a decimal.
+    - **Why is `limit = 20;` a semantic error rather than a type error, when `limit` is an `i32` set to `10`?** The value on the right has the right type; the problem is permission. `limit` was declared without `mut`, so its storage may not change at all.
+    - **Why does `sign` from Figure 2 fail even though every `return` in it is correct?** Its body ends in an `if` whose `else` branch is another `if` with no `else`, so by the structural rule the body does not terminate: the path taken when `value` is `0` reaches the closing brace.
+    - **Why is `values[3]` a constant-evaluation error while `values[i]` with `i` holding `3` is accepted here?** A literal index is an integer constant expression the compiler can evaluate now; a variable's value is only known when the program runs, so the same out-of-range access through it is a dynamic rule left to stage 9.
+    - **Why must every array dimension be evaluated before two array types can be compared?** Dimensions are written as expressions, such as `2 + 2`, and array-type equality compares the numbers they evaluate to, not the expressions themselves; `[f32; 2 + 2]` and `[f32; 4]` are the same type only once `2 + 2` has become `4`.
+
+## Where this comes back
+
+--8<-- "includes/next/compiler__guide__stage-5-types-and-rules.md"
 
 ## How others teach this stage
 

@@ -411,7 +411,7 @@ passes could be to blame. A **MIR test** runs one. It starts from a `.mir`
 file, the text form of a machine function from
 [E1](e1-llvm-codegen-pipeline.md#machineinstr-and-mir-a-shared-language-mid-pipeline),
 and uses `-run-pass` so that `llc` parses the file, runs only the named
-pass and prints the result[^mir]. [E3](e3-llvm-allocator-scheduler-mc.md#mir-the-pipeline-made-visible-and-testable)
+pass and prints the result[^mir]. [E3](e3-llvm-allocator-scheduler-mc.md#the-machine-scheduler)
 used this to look at the greedy allocator; here it becomes a test.
 
 This test checks AArch64's load and store optimizer, the pass that turns

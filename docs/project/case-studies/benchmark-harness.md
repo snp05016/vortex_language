@@ -73,9 +73,9 @@ teach them:
   checks only where the hardware is controlled (see the method below).
 
 Chapters: [P1](../../optimize/p1-measure-first.md) teaches the measurement
-protocol, P4 (in the [optimization book](../../optimize/index.md)) teaches
-hardware counters and profilers, and [P16](../../optimize/p16-capstone.md)
-applies all of it to the matrix multiplication ladder.
+protocol, [P4](../../optimize/p4-counters-and-tools.md) teaches hardware
+counters and profilers, and [P16](../../optimize/p16-capstone.md) applies all
+of it to the matrix multiplication ladder.
 [G14](../../gpu/g14-measuring-gpu-code.md) extends the method to GPUs.
 
 This study leaves out:

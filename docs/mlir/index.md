@@ -17,6 +17,6 @@
 | [M7. Bufferization](m7-bufferization.md) | From tensors to memrefs, destination-passing style and One-Shot Bufferize. | Published |
 | [M8. Vectorization in MLIR](m8-vectorization.md) | The vector dialect, vector.contract, transfers and lowering to hardware vectors. | Published |
 | [M9. Schedules as IR: the transform dialect](m9-transform-dialect.md) | Tiling, fusion and vectorization written as IR that transforms IR. | Published |
-| [M10. MLIR for GPUs](m10-mlir-for-gpus.md) | The gpu dialect, kernel outlining, and lowering to NVVM, ROCDL and SPIR-V. | Being written |
+| [M10. MLIR for GPUs](m10-mlir-for-gpus.md) | The gpu dialect, kernel outlining, and lowering to NVVM, ROCDL and SPIR-V. | Published |
 | [M11. End-to-end ML compilers](m11-ml-compilers.md) | XLA and StableHLO, TVM, IREE, Triton and Mojo: their inputs, IR stacks and targets. | Published |
 | [M12. Designing Vortex's GPU path](m12-vortex-gpu-path.md) | The options for taking Vortex to GPUs, with their tradeoffs, and no decision yet. | Published |

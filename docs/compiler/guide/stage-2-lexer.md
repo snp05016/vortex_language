@@ -20,6 +20,18 @@ before starting. They are short.
 
 The [roadmap](../../roadmap.md#milestone-2-lexer) calls this Milestone 2.
 
+--8<-- "includes/remember/compiler__guide__stage-2-lexer.md"
+
+!!! goals "In this stage"
+
+    - Recognize every token kind the specification defines, including
+      keywords, reserved words and the five kinds of literal.
+    - Give every token its kind, its exact spelling and its source span.
+    - Apply the longest-match rule to operators, punctuation and numbers.
+    - Report every lexical error from the specification's list at an accurate
+      span, and keep going afterward.
+    - Print the token stream your tests will check.
+
 ## What this stage is for
 
 The lexer takes the whole source text and produces a sequence of tokens, ending
@@ -93,6 +105,18 @@ lexical error
 : A diagnostic saying that some characters cannot form any valid token.
 
 ## From characters to tokens
+
+Before a lexer can group characters into tokens, it has to tell one kind of
+character from another: a letter from a digit from a space from anything
+else. The example below does exactly that classification, one character at a
+time, on a fixed line of text:
+
+--8<-- "includes/examples/build-v0.1/stage-2-lexer/char_classes.cpp.md"
+
+A real lexer folds this classification into the rules from the next few
+sections (a letter or underscore can start a name, a digit starts a number),
+but the underlying question, "what kind of character is this", is the same
+one.
 
 Figure 1 shows the lexer at work on one line. The characters are read from left
 to right. Each group that forms a token becomes one token, carrying its kind,
@@ -286,6 +310,14 @@ The type names `i32`, `f32`, `usize` and the rest are keywords too. The lexer
 does not need to know they are types. It only needs to recognize their
 spelling.
 
+??? check "A lexer lowercases every word before looking it up in the keyword list. Which of `String`, `Let` and `total` does it now get wrong?"
+
+    `String` and `Let`. Lowercased, `String` becomes `string`, which is not on
+    the list, so a keyword comes out as an identifier. `Let` becomes `let`,
+    which is on the list, so an identifier comes out as a keyword. Only
+    `total` survives. Keyword matching compares the exact spelling, case
+    included.
+
 A second, shorter list holds words reserved for a future version: `i8`, `i16`,
 `i64`, `u8`, `u16`, `u64`, `f16`, `bf16` and `const`
 ([decision 29](../../decisions/lexical.md#d29)). They have no meaning in v0.1.
@@ -320,6 +352,14 @@ A leading minus sign is never part of a number. In `-42` the lexer produces an
 operator token `-` and then an integer literal `42`, and the parser later
 builds a negation from them. The
 [grammar](../../specification/grammar.md#literals) says so directly.
+
+??? check "What does the lexer produce for `1.5x`: a float `1.5` and an identifier `x`, or something else?"
+
+    One malformed numeric literal, a single lexical error covering all four
+    characters. The run that starts at the digit `1` takes the `.` (a digit
+    follows it, not a second `.`) and then the letter `x`, because letters
+    belong to a number's run. Only then is the run checked, and `1.5x` is not
+    exactly one literal.
 
 The lexer also does not check whether a number is too big. A literal like
 `3000000000` is a perfectly good token. Whether it fits the type it ends up
@@ -363,6 +403,12 @@ preserve the "decoded value" of each literal, so it must be worked out
 somewhere before stage 3 finishes. The lexer is the stage that checks the
 escapes are valid.
 
+The example below keeps a spelling and a decoded value side by side, for three
+short spellings, each with one of the five escapes. A fourth spelling holds
+`\q`, and the same decoding step rejects it:
+
+--8<-- "includes/examples/build-v0.1/stage-2-lexer/escape_decode.cpp.md"
+
 ### Whitespace and comments
 
 Spaces, tabs and line breaks separate tokens and are otherwise ignored. A line
@@ -405,6 +451,12 @@ sees `..=`, it could in principle produce `..` and then `=`. The specification
 settles this: "the lexer uses the longest valid token", so `..=` is one
 inclusive-range token. The same rule makes `<=` one token rather than `<`
 followed by `=`, and `->` one token rather than `-` followed by `>`.
+
+The example below applies the same rule to a small set of comparison
+operators, checking the two-character spellings before falling back to a
+single character:
+
+--8<-- "includes/examples/build-v0.1/stage-2-lexer/longest_match.cpp.md"
 
 The rule has one case that surprises people. The range in a `for` loop is
 written like this:
@@ -466,6 +518,14 @@ Test this case explicitly, along with `0..4`. Ranges are how every Vortex `for`
 loop is written, including the loops in the matrix multiplication program at
 the end of the roadmap, so a mistake here breaks a lot.
 
+??? check "Which tokens does `1.0..2.0` produce?"
+
+    Three: the floating-point literal `1.0`, the operator `..` and the
+    floating-point literal `2.0`. The first `.` continues the number because
+    a digit follows it. The second `.` ends the number because another `.`
+    follows it. Longest match then reads `..`, not `..=`, because the next
+    character is `2`.
+
 ## Errors the lexer reports
 
 The [specification](../../specification/lexical-structure.md#27-lexical-errors)
@@ -505,6 +565,13 @@ the same character forever or stop dead in the middle of the file. And
 the end of the file is "one stable end token" that does not consume
 characters again and again. Together these mean that one bad character costs
 one error message, and the lexer then carries on.
+
+??? check "A file has three `@` characters in three different places, none inside a string or comment. How many diagnostics does a correct lexer produce, and does it stop at the first one?"
+
+    Three. Each bad character gets its own lexical error at its own span. The
+    lexer must always make progress after reporting one, so it skips past the
+    `@` and keeps looking for the next token instead of stopping, and the run
+    still ends with exactly one end-of-file token.
 
 ### Where these errors belong {#open-decisions-about-where-errors-belong}
 
@@ -620,6 +687,33 @@ end the whole run. It also must not produce the same message over and over.
 followed by a name, or that braces must match. Those are syntax errors, found
 in stage 3. A lexer that tries to check them duplicates work and gets
 confusing.
+
+## Key ideas
+
+!!! recap "Questions you can now answer"
+
+    - **What three things does every token carry?** Its kind, its exact
+      spelling, and the source span it came from.
+    - **Why keep a token's original spelling instead of just its decoded
+      value?** So later stages, including error messages, can quote the
+      source exactly as written, without rebuilding it from the kind.
+    - **What rule decides between `..` and `..=` when both could start at the
+      same place?** Longest match: the lexer keeps the longer valid token.
+    - **Why doesn't `0..4` start a floating-point literal?** A `.` never
+      continues a number when the character right after it is another `.`.
+    - **Why is `String` a keyword and `string` an identifier?** Keyword
+      matching is exact and case-sensitive; only the spelling on the keyword
+      list counts.
+    - **What must the lexer do right after reporting a lexical error?** Make
+      progress: move past the bad character and keep looking for the next
+      token, rather than reporting the same one forever.
+    - **What can the lexer not check, even though it is tempting to add?**
+      Whether a name was declared, or whether a number fits its type; both
+      need information from later stages.
+
+## Where this comes back
+
+--8<-- "includes/next/compiler__guide__stage-2-lexer.md"
 
 ## How others teach this stage
 

@@ -945,7 +945,7 @@ No single transformation makes the kernel fast, and their order matters. McKinle
 2. Tile, so that blocks of data fit in the caches, which needs the cache sizes, the line size and the data sizes.
 3. Unroll-and-jam and scalar-replace, so that values are reused from registers, which needs the number and kind of registers.
 
-Carr and Kennedy agree from the other side: they unroll-and-jam only inside tiles, because unrolling a loop that steps between tiles would enlarge the data each tile keeps in cache.[^ck94] The matrix-multiplication ladder in the [book overview](index.md) climbs in the same order. It is a guide, not a law: skewing gains nothing by itself and matters only for what it allows, and as Wolf and Lam put it, "the desirability of a transformation cannot be evaluated locally".[^wl91] [O10](o10-pass-pipelines.md) covers choosing and ordering passes.
+Carr and Kennedy agree from the other side: they unroll-and-jam only inside tiles, because unrolling a loop that steps between tiles would enlarge the data each tile keeps in cache.[^ck94] [The CPU matmul ladder](ladder.md) climbs in the same order. It is a guide, not a law: skewing gains nothing by itself and matters only for what it allows, and as Wolf and Lam put it, "the desirability of a transformation cannot be evaluated locally".[^wl91] [O10](o10-pass-pipelines.md) covers choosing and ordering passes.
 
 ### What LLVM does with these
 

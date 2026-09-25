@@ -1079,7 +1079,7 @@ the "Instruction Info" table of `llvm-mca` 18.1.8 gave these latencies:
 The same tool, the same instruction and three answers, because only the table
 changed. The documentation is candid about what that means: the analysis is
 "inevitably affected by the quality of the scheduling models"[^mca].
-[E3](e3-llvm-allocator-scheduler-mc.md#watching-a-schedule-without-running-it-llvm-mca)
+[E3](e3-llvm-allocator-scheduler-mc.md#asking-a-model-llvm-mca)
 uses `llvm-mca` on whole blocks.
 
 The example below keeps both levels of indirection in miniature. Four

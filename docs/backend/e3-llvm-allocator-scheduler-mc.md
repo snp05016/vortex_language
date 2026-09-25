@@ -1,123 +1,575 @@
 # E3. LLVM's allocator, scheduler and MC layer
 
-<p class="page-intro">How LLVM turns machine IR into a scheduled, register-allocated, byte-encoded program: the greedy allocator, the machine scheduler, and the MC layer that emits instructions as relocatable objects. Reading this pipeline closely is the fastest way to see which of your own back end's jobs are genuinely hard and which are bookkeeping.</p>
+<p class="page-intro">This chapter follows three of LLVM's back-end passes on real code: the greedy register allocator, the machine scheduler, and the MC layer that turns final instructions into text or bytes. Each one does a job your own back end does in a simpler way, so reading LLVM's version shows you what a production answer adds and gives you a reference to measure your own against.</p>
 
-<p class="vx-meta" markdown="1">Level: Advanced · Reading time: about 30 minutes · Builds on: [E1. The LLVM code generator pipeline](e1-llvm-codegen-pipeline.md), [C3. Register allocation I: linear scan](c3-linear-scan.md), [C4. Register allocation II: graphs and SSA](c4-graph-coloring.md), [C5. Spilling, splitting and rematerialization](c5-spilling.md), [C6. Instruction scheduling](c6-scheduling.md), [B3. Object files and assemblers](b3-object-files.md)</p>
+<p class="vx-meta" markdown="1">Level: Advanced · Reading time: about 50 minutes · Builds on: [E1. The LLVM code generator pipeline](e1-llvm-codegen-pipeline.md), [C3. Register allocation I: linear scan](c3-linear-scan.md), [C4. Register allocation II: graphs and SSA](c4-graph-coloring.md), [C5. Spilling, splitting and rematerialization](c5-spilling.md), [C6. Instruction scheduling](c6-scheduling.md), [B3. Object files and assemblers](b3-object-files.md)</p>
 
 ???+ remember "Before you start, remember"
 
     ??? question "What is a live range, and why does an allocator care about its length?"
 
-        The span from where a value is computed to its last use. A shorter
-        live range overlaps fewer other values, so it competes with fewer of
-        them for the same physical registers.
+        The stretch of the program from where a value is computed to its
+        last use. A longer live range overlaps more other values, so it
+        competes with more of them for the same registers.
 
         Introduced in [C2. Liveness](c2-liveness.md).
 
-    ??? question "Why can two SSA values share one physical register even though SSA gives every value its own name?"
+    ??? question "Which floating-point registers must a function called on AArch64 leave as it found them?"
 
-        SSA names are a compile-time fiction, not a hardware requirement.
-        Two values can share a register whenever their live ranges never
-        overlap: one has finished being used before the other is defined.
+        The low 64 bits of `v8` to `v15`, the registers `d8` to `d15`. Every
+        other SIMD and floating-point register may be overwritten by the
+        callee, so a value that must survive a call either lives in `d8` to
+        `d15` or is saved to memory around the call.
 
-        Introduced in [C4. Register allocation II: graphs and SSA](c4-graph-coloring.md).
+        Introduced in [A4. Calling conventions and ABIs](a4-calling-conventions.md).
 
-    ??? question "Why must Vortex's floating-point rules forbid the compiler from silently fusing a multiply and an add into one fused multiply-add?"
+    ??? question "Besides true dependences, which edges does a scheduler's dependence graph need?"
 
-        A fused multiply-add rounds once instead of twice, which can change
-        the result. Vortex requires every `+`, `-`, `*` and `/` to be one
-        IEEE 754 operation, rounded to nearest, so any such fusion would
-        make the compiler's output depend on an optimization the source
-        program never asked for.
-        [Specification, 4.4](../specification/types-and-values.md#44-floating-point-values).
+        Edges for anti-dependences (a read that must happen before a later
+        write to the same register), output dependences (two writes to the
+        same register) and memory ordering (a store and another access that
+        may touch the same address).
 
-    ??? question "What does an object file's symbol table let the linker do that the compiler alone cannot?"
+        Introduced in [C6. Instruction scheduling](c6-scheduling.md).
 
-        Join separately compiled pieces: a symbol marked defined tells the
-        linker where a name lives, and a symbol marked undefined tells it
-        which hole to fill with an address from somewhere else.
+    ??? question "What is the difference between a fixup and a relocation?"
 
-        Introduced in [6. The first machine code](../compiler/guide/stage-6-first-machine-code.md#from-object-file-to-executable).
+        A fixup is the assembler's own note that some bits of an instruction
+        wait for an address. When the assembler can compute the address, it
+        patches the bits itself; when it cannot, the note becomes a
+        relocation in the object file, for the linker to apply.
+
+        Introduced in [B3. Object files and assemblers](b3-object-files.md).
+
+    ??? question "What may a Vortex compiler never do to `f32` and `f64` arithmetic?"
+
+        Contract operations (fuse a multiply and an add into one rounding),
+        reassociate or reorder them, evaluate them in a wider format, or
+        flush subnormal values to zero. Each operation is one IEEE 754
+        operation, rounded to nearest with ties to even.
+
+        [Specification, 4.4](../specification/types-and-values.md#44-floating-point-values). Decision: [record 56](../decisions/numbers.md#d56).
 
 !!! goals "In this chapter"
 
-    - Name the concrete passes between instruction selection and code emission, and run them yourself with `llc -debug-pass=Structure`.
-    - Explain the three outcomes the greedy register allocator can give a live range: a register, a split, or a spill.
-    - Distinguish what the machine scheduler is free to reorder from what it must never reorder, and connect that limit to Vortex's floating-point rules.
-    - Read MIR well enough to isolate and test one codegen pass in isolation.
-    - Explain why even a call to a function defined in the same file becomes a relocation, not a resolved address, at the MC layer.
+    - Walk LLVM's greedy register allocator through assignment, eviction, splitting and spilling on a small example by hand.
+    - Explain from a real listing why the greedy allocator keeps a loop free of stack traffic where the fast allocator does not.
+    - Predict what the machine scheduler may reorder, show that its choices depend on the scheduling model, and state why no choice it makes can change a floating-point result.
+    - Trace one instruction from `MachineInstr` through `MCInst` to bytes, and decide which fixups become relocations in Mach-O and in ELF objects.
+    - Recognize branch relaxation on AArch64 and tell it apart from the relaxation an x86 assembler performs.
 
-By the end of [E1](e1-llvm-codegen-pipeline.md), a function has become **MIR**:
-machine instructions, still in SSA form, still using virtual registers that
-have no fixed home yet. Chapters C3 to C6 built, by hand, on toy examples,
-the three jobs that turn that MIR into a real program: choosing an order for
-instructions, deciding where each value lives, and picking apart what goes
-wrong when there are not enough registers to go around. This chapter reads
-LLVM's own answers to those same three jobs, on the same target this whole
-book series already trusts: AArch64, `llc` 18.1.8, run locally on this
-machine (Apple clang 21, macOS 27, `apple-m1` core). Every pass name, every
-line of assembly and every relocation shown below was produced by running
-the commands yourself, not copied from documentation; the LLVM Code
-Generator page itself carries a "work in progress" banner, and its own
-worked allocator example uses a flag, `-regalloc=linearscan`, that this
-build of `llc` rejects outright.[^t1] Braun's 2017 slide deck is a more
-reliable map of the real pipeline, and this chapter follows its shape.[^t14]
-
-## The pipeline, run for real
-
-Ask `llc` what it plans to do before asking it to do it:
+Here is the loop from one function this chapter compiles, as `llc -O2`
+printed it for an Apple M1-class core:
 
 ```text
-$ llc -O2 -mtriple=arm64-apple-macos -debug-pass=Structure reduction_order.ll -o /dev/null
+LBB0_1:                                 ; %loop
+	mov	x0, x20
+	bl	_tick
+	add	w20, w20, #1
+	cmp	w20, w19
+	b.lt	LBB0_1
 ```
 
-Buried inside a much longer list of target-independent passes (constant
-folding, loop simplification, exception-handling lowering) is the sequence
-this chapter is about, in this exact order:[^t1-local]
+Ten `f32` values are live across every one of those calls, and a call may
+destroy most floating-point registers. Yet the loop touches no memory. Three
+passes are responsible for listings like this one. The **register
+allocator** decided where each value lives, the **machine scheduler**
+decided the order of the instructions around it, and the **MC layer** (LLVM's
+library for machine code) turned the result into this text or into bytes.
+[C3](c3-linear-scan.md) to [C6](c6-scheduling.md) built simple versions of
+the first two, and [B3](b3-object-files.md) built a simple assembler. This
+chapter reads LLVM's versions.
 
-1. **AArch64 Instruction Selection**: LLVM IR becomes MachineInstr, still SSA.
-2. **Live Variable Analysis**, **Two-Address instruction pass**, **Register Coalescer**: cleanup that removes instructions and copies a naive lowering introduced, before the expensive passes run.
-3. **Machine Scheduler**: chooses an order for each basic block's instructions.
-4. **Greedy Register Allocator**: assigns physical registers to virtual ones.
-5. **Virtual Register Rewriter**: a mechanical pass that replaces every virtual register operand with the physical one the allocator chose.
-6. **Prologue/Epilogue Insertion & Frame Finalization**: adds the function's entry and exit code, now that the allocator has decided which callee-saved registers were touched.
+All listings were produced on the owner's machine: an Apple M4 Pro, macOS 27,
+`llc`, `llvm-mc` and `llvm-mca` 18.1.8, on 2026-09-24, with
+`-mtriple=arm64-apple-macos`. Where a listing depends on the processor, the
+text says which `-mcpu` produced it. LLVM 18 does not know the M4, so
+`apple-m1` is the closest model it has.
 
-Steps 3 and 4 are this chapter's core: the **machine scheduler** decides
-*when* each already-selected instruction runs, and the **greedy register
-allocator** decides *where* each value lives while it runs. Step 6's object
-file, and the MC layer that produces it, are the chapter's third piece.
+## Where the three jobs sit
 
-## The greedy register allocator
+`llc -O2 -debug-pass=Structure` prints the passes `llc` will run, in order.
+For AArch64 on this machine it printed more than two hundred lines. Figure 1 keeps the
+passes this chapter is about and the ones around them.
 
-Register allocation was covered on toy examples in linear scan
-([C3](c3-linear-scan.md)), graph coloring ([C4](c4-graph-coloring.md)) and
-spilling ([C5](c5-spilling.md)). LLVM's default allocator, `RegAllocGreedy`,
-is none of those by name, but it borrows an idea from each: it processes
-live ranges by priority, like a worklist allocator; it can evict a
-lower-priority range from a register it already holds, the way graph
-coloring's simplify/select rethinks assignments; and when it cannot find a
-register at all, it does not spill outright: it first tries to **split** the
-live range into smaller pieces and place only the expensive part in
-memory.[^t13] For any one live range, the allocator ends in one of three
-states: **assigned** to a physical register for its whole range, **split**
-into two or more shorter ranges (each assigned or spilled independently), or
-**spilled**, meaning the value is stored to a stack slot and reloaded at
-each point it is used.
+<figure class="vx-figure">
+<svg viewBox="0 0 760 250" role="img" aria-label="The llc -O2 pass order from instruction selection to the assembly printer, with the scheduler, the allocator, the post-RA scheduler and the MC layer highlighted" aria-describedby="e3-pipe-desc">
+<title id="e3-pipe-title">The code generator passes around this chapter's three subjects</title>
+<desc id="e3-pipe-desc">Two rows of boxes joined by arrows. First row: LLVM IR; instruction selection; SSA machine passes such as LICM, CSE and sinking; PHI elimination, two-address conversion and the register coalescer; and the machine scheduler, highlighted, which runs before register allocation. A line leads from the end of the first row to the start of the second. Second row: the greedy register allocator, highlighted; the virtual register rewriter; prologue and epilogue insertion; the post-RA machine scheduler, highlighted; and branch relaxation followed by the assembly printer, which lowers MachineInstr to MCInst for the MC layer, highlighted.</desc>
+<g class="vx-seq" style="--vx-i: 0; --vx-n: 10">
+<rect class="vx-box-strong" x="10" y="20" width="130" height="64" rx="4"/>
+<text class="vx-text" x="75" y="47" text-anchor="middle">LLVM IR</text>
+<text class="vx-text-muted" x="75" y="66" text-anchor="middle">SSA values</text>
+</g>
+<g class="vx-seq" style="--vx-i: 1; --vx-n: 10">
+<rect class="vx-box" x="160" y="20" width="130" height="64" rx="4"/>
+<text class="vx-text" x="225" y="42" text-anchor="middle" font-size="12">Instruction</text>
+<text class="vx-text" x="225" y="57" text-anchor="middle" font-size="12">selection</text>
+<text class="vx-text-muted" x="225" y="74" text-anchor="middle">MachineInstr, SSA</text>
+</g>
+<g class="vx-seq" style="--vx-i: 2; --vx-n: 10">
+<rect class="vx-box" x="310" y="20" width="130" height="64" rx="4"/>
+<text class="vx-text" x="375" y="42" text-anchor="middle" font-size="12">SSA machine</text>
+<text class="vx-text" x="375" y="57" text-anchor="middle" font-size="12">passes</text>
+<text class="vx-text-muted" x="375" y="74" text-anchor="middle">LICM, CSE, sinking</text>
+</g>
+<g class="vx-seq" style="--vx-i: 3; --vx-n: 10">
+<rect class="vx-box" x="460" y="20" width="130" height="64" rx="4"/>
+<text class="vx-text" x="525" y="42" text-anchor="middle" font-size="12">PHI elimination,</text>
+<text class="vx-text" x="525" y="57" text-anchor="middle" font-size="12">two-address</text>
+<text class="vx-text-muted" x="525" y="74" text-anchor="middle">register coalescer</text>
+</g>
+<g class="vx-seq" style="--vx-i: 4; --vx-n: 10">
+<rect class="vx-box-accent" x="610" y="20" width="140" height="64" rx="4"/>
+<text class="vx-text-accent" x="680" y="42" text-anchor="middle">Machine</text>
+<text class="vx-text-accent" x="680" y="57" text-anchor="middle">scheduler</text>
+<text class="vx-text-muted" x="680" y="74" text-anchor="middle">before allocation</text>
+</g>
+<g class="vx-seq" style="--vx-i: 5; --vx-n: 10">
+<rect class="vx-box-accent" x="10" y="160" width="130" height="64" rx="4"/>
+<text class="vx-text-accent" x="75" y="182" text-anchor="middle">Greedy</text>
+<text class="vx-text-accent" x="75" y="197" text-anchor="middle">allocator</text>
+<text class="vx-text-muted" x="75" y="214" text-anchor="middle">vreg to register</text>
+</g>
+<g class="vx-seq" style="--vx-i: 6; --vx-n: 10">
+<rect class="vx-box" x="160" y="160" width="130" height="64" rx="4"/>
+<text class="vx-text" x="225" y="182" text-anchor="middle" font-size="12">Virtual register</text>
+<text class="vx-text" x="225" y="197" text-anchor="middle" font-size="12">rewriter</text>
+<text class="vx-text-muted" x="225" y="214" text-anchor="middle">applies the choice</text>
+</g>
+<g class="vx-seq" style="--vx-i: 7; --vx-n: 10">
+<rect class="vx-box" x="310" y="160" width="130" height="64" rx="4"/>
+<text class="vx-text" x="375" y="182" text-anchor="middle" font-size="12">Prologue and</text>
+<text class="vx-text" x="375" y="197" text-anchor="middle" font-size="12">epilogue</text>
+<text class="vx-text-muted" x="375" y="214" text-anchor="middle">callee-saved saves</text>
+</g>
+<g class="vx-seq" style="--vx-i: 8; --vx-n: 10">
+<rect class="vx-box-accent" x="460" y="160" width="130" height="64" rx="4"/>
+<text class="vx-text-accent" x="525" y="182" text-anchor="middle">Post-RA</text>
+<text class="vx-text-accent" x="525" y="197" text-anchor="middle">scheduler</text>
+<text class="vx-text-muted" x="525" y="214" text-anchor="middle">real registers</text>
+</g>
+<g class="vx-seq" style="--vx-i: 9; --vx-n: 10">
+<rect class="vx-box-accent" x="610" y="160" width="140" height="64" rx="4"/>
+<text class="vx-text-accent" x="680" y="182" text-anchor="middle">Branch relaxation,</text>
+<text class="vx-text-accent" x="680" y="197" text-anchor="middle">asm printer</text>
+<text class="vx-text-muted" x="680" y="214" text-anchor="middle">to MCInst, MC layer</text>
+</g>
+<g class="vx-line">
+<line x1="140" y1="52" x2="156" y2="52"/>
+<line x1="290" y1="52" x2="306" y2="52"/>
+<line x1="440" y1="52" x2="456" y2="52"/>
+<line x1="590" y1="52" x2="606" y2="52"/>
+<polyline points="680,84 680,122 75,122 75,156"/>
+<line x1="140" y1="192" x2="156" y2="192"/>
+<line x1="290" y1="192" x2="306" y2="192"/>
+<line x1="440" y1="192" x2="456" y2="192"/>
+<line x1="590" y1="192" x2="606" y2="192"/>
+</g>
+<g class="vx-arrowhead">
+<polygon points="156,52 148,48 148,56"/>
+<polygon points="306,52 298,48 298,56"/>
+<polygon points="456,52 448,48 448,56"/>
+<polygon points="606,52 598,48 598,56"/>
+<polygon points="75,160 71,152 79,152"/>
+<polygon points="156,192 148,188 148,196"/>
+<polygon points="306,192 298,188 298,196"/>
+<polygon points="456,192 448,188 448,196"/>
+<polygon points="606,192 598,188 598,196"/>
+</g>
+</svg>
+<figcaption>Figure 1. The part of the <code>llc -O2</code> pipeline this chapter reads, in the order <code>-debug-pass=Structure</code> printed it for AArch64 (LLVM 18.1.8). Many passes between these boxes are left out. The scheduler runs twice: once on virtual registers before allocation and once on physical registers after it. At <code>-O0</code> the same command shows GlobalISel for selection, the fast allocator instead of greedy, and no machine scheduler.</figcaption>
+</figure>
 
-A live range that never has to compete for a register never sees any of
-this machinery: it is assigned and nothing more happens. The next example makes four live
-ranges compete for the same machine, on purpose, by giving each one work to
-do across the whole function body.
+The order matters. The pre-allocation scheduler works on virtual registers,
+so it may reorder freely but must watch how many values it keeps alive at
+once. The allocator then sees that order as fixed. The **virtual register
+rewriter** replaces each virtual register with the physical one the
+allocator chose, and only after that does prologue and epilogue insertion
+know which callee-saved registers the function touched and must save.
+
+Braun's tutorial on LLVM's machine representation lays out the same
+stages.[^braun] LLVM's own Code Generator guide describes the pipeline too,
+but read it with care: it carries a "work in progress" warning, several of
+its sections still say "To Be Written", and its example
+`llc -regalloc=linearscan` fails on `llc` 18.1.8 with "Cannot find option
+named 'linearscan'".[^cg]
+
+The guide's list of allocators is still accurate. **Fast** works one basic
+block at a time and is the default for debug builds. **Basic** assigns live
+ranges one at a time in priority order and serves as a baseline. **Greedy**
+is the default, and **PBQP** solves allocation as a numerical optimization
+problem.[^cg] `-regalloc=fast`, `basic`, `greedy` and `pbqp` all work in
+`llc` 18.1.8.
+
+## The greedy allocator
+
+LLVM used linear scan ([C3](c3-linear-scan.md)) from 2004 until release
+3.0. Jakob Olesen, who wrote its replacement, gives the reason: when every
+register was taken, linear scan spilled a whole live range, and splitting it
+instead would have required the scan to go back over ranges it had already
+passed.[^olesen] A later rewriter pass cleaned up the resulting mess, and by
+his account it took about half of linear scan's compile time.[^olesen] He
+reported that the greedy allocator's code was 1 to 2% smaller and up to 10%
+faster than linear scan's, measured in 2011 for LLVM 3.0.[^olesen]
+
+Greedy keeps linear scan's live intervals but drops the fixed visiting
+order. It keeps a **priority queue** of live ranges not yet assigned, and it
+takes the largest first.[^olesen] Large ranges then get the pick of the
+registers, and small ranges fit into the gaps between them. For each
+physical register, a **live interval union** records the ranges already
+assigned to it, so the allocator can ask "does this range overlap anything
+in `d9`?" without building an interference graph ([C4](c4-graph-coloring.md)).
+LLVM keeps these unions per register unit in an analysis called the
+`LiveRegMatrix`, which appears in the pass list shortly before the
+allocator.[^matrix]
+
+### Spill weight: what a range is worth
+
+When two ranges want the same register, greedy compares their **spill
+weight**, an estimate of how much it would cost to keep the range in memory
+instead. LLVM 18 computes it as the expected number of times the range's
+definitions and uses execute per call of the function, divided by the
+range's length plus a constant:[^weights]
+
+$$
+\text{weight} = \frac{\sum \text{def and use frequencies}}{K + \text{size}}
+$$
+
+The frequencies come from block frequencies, so a use inside a loop counts
+many times over, and the constant $K$ keeps a short range from getting an
+enormous weight by accident.[^weights] A long range used twice has a low
+weight. A short range used ten times per trip around a hot loop has a high
+one.
+
+### Assign, evict, split, spill
+
+Greedy tries four things for a range, in this order, and records how far
+each range has got in a field LLVM calls its **stage**: `RS_Assign`,
+`RS_Split`, `RS_Split2`, `RS_Spill`, `RS_Memory` and `RS_Done`.[^stages]
+
+1. **Assign.** Take a register the range does not overlap in any live
+   interval union.
+2. **Evict.** Take a register whose occupants all have a lower spill weight,
+   unassign them, and put them back in the queue, where they get a second
+   chance at some other register.[^olesen]
+3. **Split.** Cut the range into pieces around the regions where registers
+   are scarce, and queue the pieces. A piece that covers a busy loop now has
+   a higher weight, since it is shorter but has the same uses, so it may win
+   a register that the whole range could not.[^olesen]
+4. **Spill.** Only when the splitter decides that splitting will not help:
+   store the value to a stack slot and reload it before each use.[^olesen]
+
+Olesen's summary of the effect is that a range "may spill outside the loop
+where it was idle anyway".[^olesen] Where a split piece is stored and
+reloaded is chosen between basic blocks by a separate analysis, **spill
+placement**, which decides for each group of CFG edges whether the value
+crosses it in a register or in a stack slot.[^spillplace]
+
+### The walk, by hand
+
+The example has two registers, R1 and R2, and three live ranges over
+positions 0 to 18. A loop covers positions 6 to 14. Assume the loop runs ten
+times per call, and ignore the constant $K$.
+
+| Range | Span | Defined and used at | Frequency sum | Size | Weight |
+| --- | --- | --- | --- | --- | --- |
+| A | 0 to 18 | 0; 2, 4, 16, 18 | 5 | 18 | 0.28 |
+| B | 2 to 16 | 2; 7, 9, 13 (in loop); 16 | 1 + 30 + 1 = 32 | 14 | 2.3 |
+| C | 8 to 12 | 8, 12 (both in loop) | 20 | 4 | 5 |
+
+Step through the allocator's choices:
+
+<div class="vx-stepper" markdown="1">
+<div class="vx-step" markdown="1">
+
+**Step 1. The queue orders by size: A (18), B (14), C (4).**
+
+A overlaps nothing assigned yet. It takes R1.
+
+| R1 | R2 | Queue |
+| --- | --- | --- |
+| A | free | B, C |
+
+</div>
+<div class="vx-step" markdown="1">
+
+**Step 2. B.**
+
+R1 holds A over all of B's span. R2 is free, so B takes R2.
+
+| R1 | R2 | Queue |
+| --- | --- | --- |
+| A | B | C |
+
+</div>
+<div class="vx-step" markdown="1">
+
+**Step 3. C: nothing free, so evict.**
+
+C overlaps A in R1 and B in R2. Both have a lower weight than C (0.28 and
+2.3 against 5), so C may evict either. Evicting A costs less, so A leaves R1
+and goes back in the queue, and C takes R1.
+
+| R1 | R2 | Queue |
+| --- | --- | --- |
+| C | B | A |
+
+</div>
+<div class="vx-step" markdown="1">
+
+**Step 4. A again: nothing free, nothing to evict, so split.**
+
+In R1, C (5) is heavier than A; in R2, B (2.3) is heavier too. A cannot
+evict either. But A has no uses inside the loop, where both registers are
+busy. Greedy cuts A at the loop's edges into A1 (0 to 6), A2 (6 to 14) and
+A3 (14 to 18), and queues the pieces.
+
+| R1 | R2 | Queue |
+| --- | --- | --- |
+| C | B | A1, A2, A3 |
+
+</div>
+<div class="vx-step" markdown="1">
+
+**Step 5. The pieces.**
+
+A1 ends before C starts, so it takes R1. A3 starts after C ends, so it takes
+R1 too. A2 overlaps C and B, has no uses at all, and cannot be split
+further to any benefit, so it is spilled: A is stored once as the loop is
+entered and reloaded once after it.
+
+| R1 | R2 | Stack slot |
+| --- | --- | --- |
+| A1, C, A3 | B | A2 |
+
+</div>
+</div>
+
+Figure 2 shows the result. Compare it with spilling A whole: one store after the definition and a reload before each
+of the four uses, where the split version needs one store and one reload.
+Neither version touches memory inside the loop in this example, because A
+is never used there. When a spilled value is used inside a loop, the
+difference is a reload on every trip.
+
+<figure class="vx-figure">
+<svg viewBox="0 0 760 260" role="img" aria-label="Final assignment of the worked example: A split around the loop, C and the outer parts of A in R1, B in R2, and the middle of A in a stack slot" aria-describedby="e3-greedy-desc">
+<title id="e3-greedy-title">The greedy allocator's result for ranges A, B and C</title>
+<desc id="e3-greedy-desc">A horizontal time axis from position 0 to 18, with a shaded band from 6 to 14 marking the loop. Three rows. Row R1 holds A from 0 to 6, C from 8 to 12 inside the loop, and A again from 14 to 18. Row R2 holds B from 2 to 16. The stack slot row holds the middle piece of A, dashed, from 6 to 14. A store arrow runs down from R1 to the stack slot at position 6, and a reload arrow runs up at position 14. Dots on A's pieces mark its uses at 2, 4, 16 and 18, all outside the loop.</desc>
+<rect class="vx-box" x="278" y="16" width="264" height="190" rx="2"/>
+<text class="vx-text-muted" x="410" y="32" text-anchor="middle">loop: positions 6 to 14, ten trips</text>
+<text class="vx-text" x="14" y="72">R1</text>
+<text class="vx-text" x="14" y="122">R2</text>
+<text class="vx-text" x="14" y="176">stack</text>
+<rect class="vx-box-strong" x="80" y="52" width="198" height="30" rx="3"/>
+<text class="vx-mono" x="170" y="72" text-anchor="middle">A1</text>
+<rect class="vx-box-accent" x="344" y="52" width="132" height="30" rx="3"/>
+<text class="vx-mono" x="410" y="72" text-anchor="middle">C</text>
+<rect class="vx-box-strong" x="542" y="52" width="132" height="30" rx="3"/>
+<text class="vx-mono" x="590" y="72" text-anchor="middle">A3</text>
+<rect class="vx-box" x="146" y="102" width="462" height="30" rx="3"/>
+<text class="vx-mono" x="377" y="122" text-anchor="middle">B</text>
+<rect class="vx-box-bad" x="278" y="156" width="264" height="30" rx="3"/>
+<text class="vx-mono" x="410" y="176" text-anchor="middle">A2, in its stack slot</text>
+<circle class="vx-dot" cx="146" cy="67" r="4"/>
+<circle class="vx-dot" cx="212" cy="67" r="4"/>
+<circle class="vx-dot" cx="608" cy="67" r="4"/>
+<circle class="vx-dot" cx="668" cy="67" r="4"/>
+<g class="vx-line">
+<line x1="270" y1="82" x2="270" y2="150"/>
+<line x1="550" y1="156" x2="550" y2="88"/>
+<line x1="80" y1="226" x2="740" y2="226"/>
+</g>
+<g class="vx-arrowhead">
+<polygon points="270,154 266,146 274,146"/>
+<polygon points="550,84 546,92 554,92"/>
+</g>
+<text class="vx-text-muted" x="264" y="120" text-anchor="end">store</text>
+<text class="vx-text-muted" x="558" y="146">reload</text>
+<text class="vx-text-muted" x="80" y="244" text-anchor="middle">0</text>
+<text class="vx-text-muted" x="278" y="244" text-anchor="middle">6</text>
+<text class="vx-text-muted" x="542" y="244" text-anchor="middle">14</text>
+<text class="vx-text-muted" x="674" y="244" text-anchor="middle">18</text>
+</svg>
+<figcaption>Figure 2. The worked example after step 5. A is cut at the loop's edges. Its outer pieces share R1 with C, which won R1 by eviction, and its middle piece lives in a stack slot, so the only memory traffic is one store before the loop and one reload after it. Dots mark A's uses. The numbers are invented for the exercise; the next section shows the same behavior in real output.</figcaption>
+</figure>
+
+??? check "In step 3, C could have evicted B instead of A. Why is A the better victim, and what would evicting B have cost?"
+
+    B has a higher weight: its uses sit inside the loop, so storing it
+    would mean memory traffic on every trip. A's weight is the lowest of
+    the three because its few uses are spread over a long span. Evicting B
+    would have pushed the expensive range back into the queue, and
+    whatever it ended up with (a split piece in the loop, or a spill) would
+    have cost more than moving A, whose uses are all outside the loop.
+
+## Greedy on a real function
+
+The example below keeps ten `f32` values live across a loop that calls an
+outside function on every trip, and adds them up after the loop.
+
+--8<-- "includes/examples/backend/e3-llvm-allocator-scheduler-mc/keep_across_calls.ll.md"
+
+The procedure call standard says a callee must preserve only the low 64 bits
+of `v8` to `v15`, the registers `d8` to `d15`; everything else in the
+floating-point register file may be destroyed by `tick`.[^aapcs64] So at
+most eight of the ten values can stay in registers across the calls. With
+`llc -O2 -mcpu=apple-m1`, the greedy allocator produces this (the prologue
+and epilogue are shortened):
+
+```text
+	stp	d15, d14, [sp, #16]             ; 16-byte Folded Spill
+	...                                     ; d13 to d8, x20, x19, x29, x30
+	ldp	s1, s9, [x0]
+	ldp	s10, s11, [x0, #8]
+	ldp	s12, s13, [x0, #16]
+	ldp	s14, s15, [x0, #24]
+	ldp	s8, s0, [x0, #32]
+	stp	s0, s1, [sp, #8]                ; 8-byte Folded Spill
+LBB0_1:                                 ; %loop
+	mov	x0, x20
+	bl	_tick
+	add	w20, w20, #1
+	cmp	w20, w19
+	b.lt	LBB0_1
+	ldp	s1, s0, [sp, #8]                ; 8-byte Folded Reload
+	fadd	s0, s0, s9
+	...                                     ; eight more fadd
+```
+
+Eight values went to `s8` to `s15`, the low halves of the callee-saved
+registers, and the prologue saves `d8` to `d15` once for the whole call.
+Two values could not stay in registers: one `stp` stores both right before
+the loop, and one `ldp` reloads both after it. The loop counter and the
+bound went to `w20` and `x19`, callee-saved general registers. That is the
+worked example's result on a real function: the two spilled values are cut
+around the loop and kept in memory only where nothing uses them.
+
+Add two more values, making twelve, and predict the listing before you run
+it. On the owner's machine, `llc` added a second `stp` before the loop and
+a second `ldp` after it, and the loop body stayed the same five
+instructions: values unused inside the loop add nothing inside the loop.
+
+Now the same file with `-regalloc=fast`, everything else unchanged:
+
+```text
+LBB0_1:                                 ; %loop
+	ldr	w0, [sp, #20]                   ; 4-byte Folded Reload
+	bl	_tick
+	ldr	w9, [sp, #4]                    ; 4-byte Folded Reload
+	ldr	w8, [sp, #20]                   ; 4-byte Folded Reload
+	add	w8, w8, #1
+	str	w8, [sp, #20]                   ; 4-byte Folded Spill
+	cmp	w8, w9
+	b.lt	LBB0_1
+```
+
+The fast allocator works one basic block at a time.[^cg] A value that is
+live out of a block goes to its stack slot, and the next block reloads it.
+So the loop counter and the bound travel through memory on every trip: three
+loads and one store per iteration. Before the loop, the same listing stores
+all ten `f32` values with ten separate `str` instructions, and the
+prologue saves no callee-saved register except the frame pointer and the
+link register.
+
+Two details trip people up when they count spills in LLVM's output. The
+`Folded Spill` and `Folded Reload` comments mark the prologue's saves of
+callee-saved registers as well as the allocator's own spill code, as the
+first line of the greedy listing shows, so count the body separately from
+the prologue and epilogue. And a spill is a count of instructions, not of
+values: here one `stp` spills two values.
+
+## The machine scheduler
+
+LLVM's **MachineScheduler** pass cuts each basic block into **scheduling
+regions** and schedules each region on its own. A call ends a region:
+nothing moves across it.[^misched-cpp] For each region it builds a
+dependence graph with one node per instruction and four kinds of edge: data
+(a true dependence), anti, output, and "order" for everything else, such as
+memory ordering.[^sdag] Then it runs list scheduling, the algorithm of
+[C6](c6-scheduling.md), and can fill the order from the top and from the
+bottom of the region at once.[^misched-h]
+
+The interesting part is how it picks among ready instructions. The default
+strategy, `GenericScheduler`, compares two candidates by a fixed list of
+reasons, and LLVM's header lists them "by decreasing priority": physical
+register constraints, then two register-pressure checks, then stalls,
+clustering and a third pressure check, then resource use, and only then
+latency along the critical path.[^misched-h] **Register pressure** is the number of values live at the
+same point. Ranking it ahead of latency means that when the two conflict,
+the scheduler prefers an order that keeps pressure within what the
+registers can hold, even if long operations overlap less.
+[C6](c6-scheduling.md#scheduling-against-register-pressure) explains why the
+two goals pull in opposite directions.
+
+The heuristics read their numbers from the **scheduling model** of the
+processor named by `-mcpu`: latencies, the units each instruction occupies,
+how many instructions issue per cycle. [E2](e2-describing-a-target.md#scheduling-models-one-instruction-several-machines)
+shows how a target describes one. A different model can give a different
+order for the same code.
+
+After allocation a second pass, the **post-RA machine scheduler**, schedules
+again on physical registers, top-down only, with a strategy of its own,
+`PostGenericScheduler`.[^misched-h] Allocation is done by then, so a
+register reused by two values adds anti and output edges that limit what
+it can move.
+
+### Same sum, two models, two orders
+
+--8<-- "includes/examples/backend/e3-llvm-allocator-scheduler-mc/reduction_order.ll.md"
+
+In `chain_sum` each `fadd` reads the one before it, so there is one legal
+order, and every model produces it. `tree_sum` has two independent `fadd`s.
+With no `-mcpu`, which on `llc` 18.1.8 gave the same code as
+`-mcpu=generic`, the pre-RA scheduler moved `c + d` first:
+
+```text
+_tree_sum:
+	fadd	s2, s2, s3
+	fadd	s0, s0, s1
+	fadd	s0, s0, s2
+```
+
+With `-mcpu=apple-m1` it kept the order written in the IR:
+
+```text
+_tree_sum:
+	fadd	s0, s0, s1
+	fadd	s1, s2, s3
+	fadd	s0, s0, s1
+```
+
+MIR shows which pass made the change. `llc -stop-after=machine-scheduler`
+writes the function as MIR right after that pass,[^mir] and in the
+default-model output the `FADDSrr` for `c + d` already comes first. The
+post-RA scheduler did not move it. The same dump shows each `FADDSrr` marked
+`nofpexcept` and reading `implicit $fpcr`, the floating-point control
+register that holds the rounding mode. That implicit operand puts an edge
+in the dependence graph between each addition and any instruction that
+writes the rounding mode, so no scheduler can move one past the other.
+
+Both orders compute exactly the same bits, and so does any order a scheduler
+could choose. Every `fadd` still reads the same two operands, so every
+rounding happens on the same values. Reordering independent operations is
+not what [record 56](../decisions/numbers.md#d56) forbids. What it forbids
+is changing which values meet: turning `(a + b) + (c + d)` into
+`((a + b) + c) + d` can change the rounded result, and a scheduler cannot do
+that, because it never rewrites an instruction's operands.
+
+The middle end can, with permission. The checker runs this example through
+`opt -passes='default<O3>'`, and the expected output shows `chain_sum` and
+`tree_sum` unchanged, while `tree_sum_reassoc`, whose `fadd`s carry the
+`reassoc` and `nsz` flags, comes back rebuilt as a chain. Those
+**fast-math flags** allow rewrites that are otherwise unsafe.[^fmf] A Vortex
+compiler must never emit them for `f32` or `f64` arithmetic.[^spec]
+
+### When the order changes the register count
 
 --8<-- "includes/examples/backend/e3-llvm-allocator-scheduler-mc/four_accumulators.ll.md"
 
-Four independent running sums (an unrolled reduction, the same shape
-[P7](../optimize/p7-loop-transformations.md) studies for loops in general)
-are combined only at the end, so each accumulator's live range spans
-the entire function. Compiled for AArch64, `llc -O2` gives each one a
-dedicated register, `s0` through `s3`, from the first load to the final
-combine (observed locally, LLVM 18.1.8, `arm64-apple-macos`, `apple-m1`,
-2026-09-24):
+Four running sums over sixteen values. With the default model, the
+scheduler issues four `ldp` pairs first, eight values in `s0` to `s7`, and
+then the first four additions:
 
 ```text
 	ldp	s0, s1, [x0]
@@ -128,340 +580,436 @@ combine (observed locally, LLVM 18.1.8, `arm64-apple-macos`, `apple-m1`,
 	fadd	s1, s1, s5
 	fadd	s2, s2, s6
 	fadd	s3, s3, s7
-	; (two more groups of loads and fadds, same four registers)
-	fadd	s0, s0, s1
-	fadd	s1, s2, s3
-	fadd	s0, s0, s1
 ```
 
-`s0`, `s1`, `s2` and `s3` never change meaning across the whole function:
-that is register allocation working exactly as C3 and C4 described it, on
-real code. AArch64 has 32 floating-point registers, so four live ranges cost
-nothing. Nothing in this chapter tells you the exact unroll factor at which
-`RegAllocGreedy` starts to spill on this machine: that number depends on the
-target, the version of LLVM and everything else alive in the function, and
-this book will not invent it. The exercise below asks you to find it.
-
-??? check "Why does the allocator give each accumulator a fixed register for the whole function, instead of reusing s0 for the second accumulator once the first one is momentarily idle?"
-
-    Because it is never idle: every accumulator's live range runs from its
-    first load to the final combine, so all four live ranges overlap for
-    the entire function. There is no point at which two of them could share
-    one register without one clobbering the other.
-
-## The machine scheduler: choosing an order, not a value
-
-Instruction scheduling ([C6](c6-scheduling.md)) reorders already-selected
-instructions to hide latency: while one instruction's result is not ready
-yet, the processor can be doing other, independent work. LLVM's pre-register-
-allocation **MachineScheduler** builds a small dependency DAG for each basic
-block (an SUnit per instruction, an edge for every true dependency) and
-picks an order that respects every edge, using a scheduling model built from
-target-specific latency and throughput data. It is completely free to
-reorder two instructions with no edge between them; it is never free to
-reorder two that do, because that would change what the program computes,
-not only when it runs.
-
-That distinction is exactly the line Vortex's floating-point rules draw.
-Reordering *when* an addition executes never changes its result. Changing
-*which* additions happen, or in what association, can: floating-point
-addition is not associative, so `(a + b) + c` and `a + (b + c)` can round to
-different `f32` values. Vortex's specification forbids the compiler from
-reassociating floating-point operations for exactly this reason.[^spec-fp]
-The scheduler never violates that rule, because it only ever changes
-execution order among instructions that were already independent; an
-associativity change would require inventing a new dependency graph, which
-is a job for a different kind of pass (and one LLVM's default pipeline does
-not run on plain IR without an explicit `contract` or `reassoc` flag).[^t18-local]
-
-The next example makes the distinction concrete: two functions that add the
-same four numbers, with two different dependency graphs.
-
---8<-- "includes/examples/backend/e3-llvm-allocator-scheduler-mc/reduction_order.ll.md"
-
-`chain_sum` folds left to right: each `fadd` genuinely depends on the one
-before it, so there is exactly one legal order, and `llc -O2` emits the
-three additions in that one order, no matter what. `tree_sum` groups the
-four numbers into two independent pairs, combined last: the two partial
-sums have no dependency on each other, and the scheduler is free to run them
-in either order. On this machine, it chooses to compute the second pair
-first (observed locally, same build and date as above):
+With `-mcpu=apple-m1` it interleaves loads and additions, so each new pair
+of values is consumed before the next arrives, and six registers suffice:
 
 ```text
-_tree_sum:
-	fadd	s2, s2, s3
-	fadd	s0, s0, s1
-	fadd	s0, s0, s2
+	ldp	s0, s1, [x0]
+	ldp	s2, s3, [x0, #8]
+	ldp	s4, s5, [x0, #16]
+	fadd	s0, s0, s4
+	fadd	s1, s1, s5
+	ldp	s4, s5, [x0, #24]
+	fadd	s2, s2, s4
+	fadd	s3, s3, s5
 ```
 
-Nothing here changes what `tree_sum` computes: it still adds `%a+%b` and
-`%c+%d` before adding those two partial sums, exactly as the IR said. What
-changed is only the order those two additions run in, and the scheduler
-chose that order because it had a real choice, which `chain_sum` never
-gave it.
+Neither order spills; AArch64 has 32 floating-point registers. But the
+difference is the one that matters in a larger kernel: issuing loads early
+hides their latency and raises the number of live values, and interleaving
+does the reverse. The scheduler makes that trade before the allocator runs,
+from numbers in a model.
 
-??? check "chain_sum and tree_sum both compute a sum of four numbers, but Vortex's floating-point rules treat them as two different operations, not one. Why?"
+## Asking a model: `llvm-mca`
 
-    Because they can round differently. `chain_sum` computes
-    `((a + b) + c) + d`; `tree_sum` computes `(a + b) + (c + d)`. IEEE 754
-    addition is not associative, so for some inputs these two evaluation
-    orders produce different `f32` results. A compiler is never allowed to
-    turn one into the other on its own, which is a stronger and different
-    guarantee from "the scheduler may not reorder two dependent
-    instructions."
+The scheduler consults a model once and moves on. `llvm-mca` lets you ask
+the same kind of model directly: given a sequence of instructions and a
+`-mcpu`, it simulates how that processor's model would dispatch, execute and
+retire them.[^mca] Figure 3 puts the three additions of `chain_sum` and of
+`tree_sum` side by side, from `llvm-mca -mcpu=apple-m1 -iterations=1
+-timeline`.
 
-## MIR: the pipeline made visible and testable
+<figure class="vx-figure">
+<svg viewBox="0 0 760 250" role="img" aria-label="llvm-mca timelines for three dependent additions and for a tree of three additions on the apple-m1 model" aria-describedby="e3-mca-desc">
+<title id="e3-mca-title">Execution cycles of the chain and the tree</title>
+<desc id="e3-mca-desc">A cycle axis from 0 to 13. Upper group, chain_sum: the first fadd executes in cycles 1 to 4, the second waits and executes in cycles 5 to 8, the third executes in cycles 9 to 12. Lower group, tree_sum: the first two fadds both execute in cycles 1 to 4, and the third executes in cycles 5 to 8. The chain finishes executing four cycles later than the tree.</desc>
+<text class="vx-text" x="10" y="24">chain_sum</text>
+<text class="vx-mono" x="10" y="54">fadd s0, s0, s1</text>
+<text class="vx-mono" x="10" y="84">fadd s0, s0, s2</text>
+<text class="vx-mono" x="10" y="114">fadd s0, s0, s3</text>
+<g class="vx-seq" style="--vx-i: 0; --vx-n: 3">
+<rect class="vx-box-accent" x="240" y="40" width="160" height="20" rx="2"/>
+</g>
+<g class="vx-seq" style="--vx-i: 1; --vx-n: 3">
+<rect class="vx-box-accent" x="400" y="70" width="160" height="20" rx="2"/>
+</g>
+<g class="vx-seq" style="--vx-i: 2; --vx-n: 3">
+<rect class="vx-box-accent" x="560" y="100" width="160" height="20" rx="2"/>
+</g>
+<text class="vx-text" x="10" y="144">tree_sum</text>
+<text class="vx-mono" x="10" y="174">fadd s4, s0, s1</text>
+<text class="vx-mono" x="10" y="194">fadd s5, s2, s3</text>
+<text class="vx-mono" x="10" y="214">fadd s0, s4, s5</text>
+<rect class="vx-box-strong" x="240" y="161" width="160" height="16" rx="2"/>
+<rect class="vx-box-strong" x="240" y="181" width="160" height="16" rx="2"/>
+<rect class="vx-box-strong" x="400" y="201" width="160" height="16" rx="2"/>
+<line class="vx-line" x1="200" y1="232" x2="740" y2="232"/>
+<text class="vx-text-muted" x="200" y="248" text-anchor="middle">0</text>
+<text class="vx-text-muted" x="240" y="248" text-anchor="middle">1</text>
+<text class="vx-text-muted" x="400" y="248" text-anchor="middle">5</text>
+<text class="vx-text-muted" x="560" y="248" text-anchor="middle">9</text>
+<text class="vx-text-muted" x="720" y="248" text-anchor="middle">13</text>
+</svg>
+<figcaption>Figure 3. Cycles in which each <code>fadd</code> executes in <code>llvm-mca</code>'s <code>apple-m1</code> model (LLVM 18.1.8), which gives <code>fadd</code> a latency of 4 cycles. The chain's additions wait for each other; the tree's first two run together. The whole block took 15 simulated cycles for the chain and 11 for the tree, counting dispatch and retirement. This is a model's prediction, not a measurement of any chip.</figcaption>
+</figure>
 
-Every stage above operates on **MIR**, machine IR: a textual, YAML-based
-serialization of a MachineFunction that `llc` can print and re-read.[^t4]
-Two flags turn the whole pipeline into something you can stop, inspect and
-resume one pass at a time: `-stop-after=<pass>` writes MIR after the named
-pass finishes, and `-run-pass=<pass>` reads MIR back in and runs exactly one
-pass on it. `llc -mtriple=arm64-apple-macos -stop-after=finalize-isel
-four_accumulators.ll -o accs.mir` captures the function immediately after
-instruction selection, before the scheduler or allocator have touched it;
-`llc -run-pass=greedy accs.mir -o -` then runs only the greedy allocator on
-that saved state. This is the same technique LLVM's own test suite uses to
-test one codegen pass at a time, independent of everything upstream of
-it,[^t10] and it is the mechanism the exercise below asks you to borrow.
+The figure makes the cost of `chain_sum`'s shape visible, and it also shows
+what no back-end pass can do about it. The scheduler can only choose among
+orders the dependence graph allows, and the chain allows one. Getting the
+tree's overlap needs a different graph, which here means a different sum.
 
-## The MC layer: instructions become bytes, calls become relocations
+Keep the tool's limits in mind. Its documentation says the quality of its
+analysis depends on the quality of LLVM's scheduling models, and that it
+does not model the instruction fetch and decode stages or branch
+prediction.[^mca] [E2](e2-describing-a-target.md#seeing-the-model-with-llvm-mca)
+shows where its numbers come from, and
+[P5](../optimize/p5-microarchitecture.md) compares models with measurements.
 
-Once the allocator, the rewriter and the prologue/epilogue pass have run,
-every instruction refers only to physical registers and concrete stack
-offsets. The **MC layer** (`MCInst`, the in-memory form of one encoded
-instruction, and `MCStreamer`, an interface with two implementations: one
-that prints assembly text, one that emits object-file bytes) turns that
-final MachineInstr stream into either form, from the same code.[^t12] Doing
-this at the target-independent MC layer, rather than the target-independent
-codegen layer that came before it, is what lets `llc -filetype=asm` and
-`llc -filetype=obj` produce the same program in two different containers
-from one pipeline.
+??? check "The tree is four cycles shorter in the model. Why may a Vortex compiler still not turn `chain_sum` into `tree_sum`, and what could make the kernel's loop faster without breaking that rule?"
 
-A **fixup** is what the MC layer records whenever an instruction's encoding
-depends on an address it does not know yet: a branch to a label later in the
-function, or a call to a symbol defined in another file entirely. B3
-develops this idea by hand, in a hand-written assembler, for straight-line
-forward branches.[^b3-see] LLVM's MC layer generalizes it: every call
-becomes a fixup at the point it is encoded, and the object file's relocation
-table is where an unresolved fixup ends up once assembly finishes, to be
-patched by the linker.
+    Because the two groupings can round differently, and record 56 forbids
+    reassociation. Legal speedups keep every addition's operands the same:
+    overlapping independent work that already exists, such as different
+    output elements of a matrix product, whose sums do not depend on each
+    other. That changes which loop is innermost, a middle-end
+    transformation ([P7](../optimize/p7-loop-transformations.md)), not a
+    scheduling decision.
 
-The next example asks a question whose answer is worth guessing before
-reading on: does a call to a function defined in the same file need a
-relocation at all?
+## The MC layer
+
+After the last machine pass, the assembly printer lowers each
+`MachineInstr` into an **MCInst**: a target opcode and a list of operands,
+each an immediate, a register, or a symbolic expression such as a label.[^cg]
+An `MCInst` knows nothing about functions, basic blocks or virtual
+registers. It is the form that LLVM's instruction printer, instruction
+encoder, assembly parser and disassembler all share.[^cg]
+
+From there every instruction and every directive goes to an **MCStreamer**,
+an interface with one method per assembler directive and one for
+instructions.[^cg] It has two main implementations. `MCAsmStreamer` prints
+text, and `MCObjectStreamer` implements a full assembler that writes an
+object file.[^cg] The standalone assembler, `llvm-mc`, parses a `.s` file
+and drives the same interface, so text printed by the compiler and parsed
+back produces the same streamer calls as the compiler's direct
+path.[^mc-blog] Inside the object streamer, a target's **MCCodeEmitter**
+turns each `MCInst` into bytes and a list of **fixups**.[^cg]
+
+### One instruction, followed down
+
+The next example has a conditional branch and three calls whose targets the
+assembler knows to different degrees.
 
 --8<-- "includes/examples/backend/e3-llvm-allocator-scheduler-mc/calls_and_fixups.ll.md"
 
-`caller` calls `internal_helper`, defined two functions down in the same
-module; `internal_helper` calls `external_sink`, only declared. Compile both
-straight to an object file and disassemble it (observed locally, same build
-and date as above):
+The last MIR, printed with `-stop-after=branch-relaxation`, holds `caller`'s
+first instruction as `CBZW renamable $w0, %bb.2`. `llc -show-mc-encoding
+-asm-show-inst` prints what the MC layer made of it and of the first call:
 
 ```text
-$ llc -O2 -mtriple=arm64-apple-macos -filetype=obj calls_and_fixups.ll -o cf.o
-$ llvm-objdump -dr cf.o
-0000000000000000 <ltmp0>:
-       0: a9bf7bfd     stp   x29, x30, [sp, #-0x10]!
-       4: 94000000     bl    0x4 <ltmp0+0x4>
-                0000000000000004:  ARM64_RELOC_BRANCH26  _external_sink
-       8: a8c17bfd     ldp   x29, x30, [sp], #0x10
-       c: d65f03c0     ret
-
-0000000000000010 <_caller>:
-      10: a9bf7bfd     stp   x29, x30, [sp, #-0x10]!
-      14: 94000000     bl    0x14 <_caller+0x4>
-                0000000000000014:  ARM64_RELOC_BRANCH26  _internal_helper
-      18: a8c17bfd     ldp   x29, x30, [sp], #0x10
-      1c: d65f03c0     ret
+	cbz	w0, LBB2_2                      ; encoding: [0bAAA00000,A,A,0x34]
+                                        ;   fixup A - offset: 0, value: LBB2_2, kind: fixup_aarch64_pcrel_branch19
+                                        ; <MCInst #1892 CBZW
+                                        ;  <MCOperand Reg:204>
+                                        ;  <MCOperand Expr:(LBB2_2)>>
+	...
+	mov	x19, x0                         ; encoding: [0xf3,0x03,0x00,0xaa]
+                                        ; <MCInst #4936 ORRXrs
+	...
+	bl	_local_helper                   ; encoding: [A,A,A,0b100101AA]
+                                        ;   fixup A - offset: 0, value: _local_helper, kind: fixup_aarch64_pcrel_call26
 ```
 
-Both calls carry an `ARM64_RELOC_BRANCH26` relocation, including the one to
-`internal_helper`, defined a few bytes away in the same object. LLVM's
-MC layer does not special-case "the target happens to be nearby, in this
-same translation unit": it emits every symbol reference the same way,
-because it compiles one function at a time and never assumes it knows the
-final layout of the object it is building until the linker has placed every
-section. This is also why branch range limits matter at all: AArch64's
-unconditional branch-and-link reaches only ±128 MiB from the instruction
-that uses it, `B.cond` only ±1 MiB, and `TBZ` only ±32 KiB, all computed
-from the field width the relocation's addend must fit inside; a linker that
-cannot satisfy one of those limits inserts a veneer, a short trampoline,
-which may clobber `x16`/`x17` under the platform's reserved-register
-rules.[^m5][^m8]
+Read the encoding bytes in memory order: AArch64 stores the low byte of each
+32-bit word first, so `0x34` is the top byte. The `A` bits are the ones the
+encoder could not fill: the branch offset, which depends on where `LBB2_2`
+ends up. The fixup records where those bits are, which symbol they wait
+for, and a **fixup kind** that says how to compute and insert them:
+`pcrel_branch19` is a 19-bit offset from the branch itself, counted in
+4-byte words.
 
-??? check "Why does even a call to a function defined earlier in the same file get a relocation, instead of the assembler computing the branch offset itself?"
+Two more things show in the `MCInst` lines. The opcode numbers and register
+numbers are indexes into tables that TableGen generates
+([E2](e2-describing-a-target.md)); they are specific to this build of LLVM.
+And `mov x19, x0` is an `ORRXrs`, an OR with the zero register: the printer
+chose the `mov` alias for display, but the instruction is an OR.
 
-    Because MC compiles and lays out code incrementally and does not commit
-    to a final address for any symbol until the whole object's sections are
-    assembled; a later pass (function splitting, section reordering, or
-    linking against other objects) could still move things around.
-    Deferring every cross-symbol reference to a relocation, resolved once,
-    is simpler and more uniform than tracking which ones happen to be safe
-    to resolve early.
+Figure 4 traces that path from the `MachineInstr` to the two possible fates
+of a fixup.
 
 <figure class="vx-figure">
-<svg viewBox="0 0 920 300" role="img" aria-labelledby="e3-belt-title e3-belt-desc">
-<title id="e3-belt-title">The MIR pipeline from instruction selection to object bytes</title>
-<desc id="e3-belt-desc">Eight stages in a row, each a box connected by an arrow to the next: LLVM IR, Instruction Selection, SSA cleanup (two-address and coalescing), Machine Scheduler, Greedy Register Allocator, Virtual Register Rewriter, Prologue and Epilogue Insertion, and the MC layer producing bytes. The Machine Scheduler and Greedy Register Allocator boxes are highlighted as this chapter's core; the MC layer box is highlighted as the chapter's third topic.</desc>
-<g class="vx-seq" style="--vx-i: 0; --vx-n: 8">
-<rect class="vx-box-strong" x="10" y="90" width="92" height="60" rx="4"/>
-<text class="vx-text" x="56" y="115" text-anchor="middle">LLVM IR</text>
-<text class="vx-text-muted" x="56" y="132" text-anchor="middle">SSA values</text>
-</g>
-<g class="vx-seq" style="--vx-i: 1; --vx-n: 8">
-<rect class="vx-box" x="122" y="90" width="98" height="60" rx="4"/>
-<text class="vx-text" x="171" y="112" text-anchor="middle" font-size="12">Instruction</text>
-<text class="vx-text" x="171" y="127" text-anchor="middle" font-size="12">selection</text>
-<text class="vx-text-muted" x="171" y="143" text-anchor="middle">MI, SSA</text>
-</g>
-<g class="vx-seq" style="--vx-i: 2; --vx-n: 8">
-<rect class="vx-box" x="240" y="90" width="98" height="60" rx="4"/>
-<text class="vx-text" x="289" y="112" text-anchor="middle" font-size="12">Two-address,</text>
-<text class="vx-text" x="289" y="127" text-anchor="middle" font-size="12">coalesce</text>
-<text class="vx-text-muted" x="289" y="143" text-anchor="middle">SSA cleanup</text>
-</g>
-<g class="vx-seq" style="--vx-i: 3; --vx-n: 8">
-<rect class="vx-box-accent" x="358" y="84" width="98" height="72" rx="4"/>
-<text class="vx-text-accent" x="407" y="108" text-anchor="middle" font-size="12">Machine</text>
-<text class="vx-text-accent" x="407" y="123" text-anchor="middle" font-size="12">Scheduler</text>
-<text class="vx-text-muted" x="407" y="145" text-anchor="middle" font-size="11">orders MI</text>
-</g>
-<g class="vx-seq" style="--vx-i: 4; --vx-n: 8">
-<rect class="vx-box-accent" x="476" y="84" width="98" height="72" rx="4"/>
-<text class="vx-text-accent" x="525" y="102" text-anchor="middle" font-size="12">Greedy</text>
-<text class="vx-text-accent" x="525" y="117" text-anchor="middle" font-size="12">register</text>
-<text class="vx-text-accent" x="525" y="132" text-anchor="middle" font-size="12">allocator</text>
-<text class="vx-text-muted" x="525" y="150" text-anchor="middle" font-size="11">vreg &#8594; preg</text>
-</g>
-<g class="vx-seq" style="--vx-i: 5; --vx-n: 8">
-<rect class="vx-box" x="594" y="90" width="98" height="60" rx="4"/>
-<text class="vx-text" x="643" y="112" text-anchor="middle" font-size="12">Virtual reg.</text>
-<text class="vx-text" x="643" y="127" text-anchor="middle" font-size="12">rewriter</text>
-<text class="vx-text-muted" x="643" y="143" text-anchor="middle">mechanical</text>
-</g>
-<g class="vx-seq" style="--vx-i: 6; --vx-n: 8">
-<rect class="vx-box" x="712" y="90" width="98" height="60" rx="4"/>
-<text class="vx-text" x="761" y="108" text-anchor="middle" font-size="11">Prologue /</text>
-<text class="vx-text" x="761" y="122" text-anchor="middle" font-size="11">epilogue</text>
-<text class="vx-text-muted" x="761" y="138" text-anchor="middle" font-size="10">frame finalized</text>
-</g>
-<g class="vx-seq" style="--vx-i: 7; --vx-n: 8">
-<rect class="vx-box-accent" x="830" y="90" width="82" height="60" rx="4"/>
-<text class="vx-text-accent" x="871" y="112" text-anchor="middle" font-size="12">MC layer</text>
-<text class="vx-text-muted" x="871" y="129" text-anchor="middle" font-size="10">MCInst,</text>
-<text class="vx-text-muted" x="871" y="143" text-anchor="middle" font-size="10">fixups</text>
-</g>
+<svg viewBox="0 0 760 320" role="img" aria-label="The path of a cbz instruction through the MC layer, from MachineInstr to MCInst, then to text or to bytes with a fixup, which is either resolved or becomes a relocation" aria-describedby="e3-mc-desc">
+<title id="e3-mc-title">From MachineInstr to text or bytes</title>
+<desc id="e3-mc-desc">A MachineInstr box, CBZW renamable w0 to bb.2, feeds an arrow labelled asm printer to an MCInst box, CBZW with a register operand and an expression operand LBB2_2. From the MCInst, one arrow goes right to the instruction printer, which gives the text cbz w0, LBB2_2 through MCAsmStreamer. Another arrow goes down to the MCCodeEmitter, which gives the word 0x34000000 with a fixup of kind pcrel_branch19. From there two arrows lead down. Left: the target is in the same section and cannot move, so the assembler patches the word to 0x34000120. Right: the target may be elsewhere or may move, so the fixup becomes a relocation in the object file for the linker.</desc>
+<rect class="vx-box" x="10" y="20" width="220" height="64" rx="4"/>
+<text class="vx-text" x="120" y="44" text-anchor="middle">MachineInstr</text>
+<text class="vx-mono" x="120" y="68" text-anchor="middle">CBZW $w0, %bb.2</text>
+<rect class="vx-box-accent" x="270" y="20" width="220" height="64" rx="4"/>
+<text class="vx-text-accent" x="380" y="44" text-anchor="middle">MCInst</text>
+<text class="vx-mono" x="380" y="68" text-anchor="middle">CBZW Reg, Expr(LBB2_2)</text>
+<rect class="vx-box" x="530" y="20" width="220" height="64" rx="4"/>
+<text class="vx-text" x="640" y="44" text-anchor="middle">Instruction printer</text>
+<text class="vx-mono" x="640" y="68" text-anchor="middle">cbz w0, LBB2_2</text>
+<rect class="vx-box" x="270" y="130" width="220" height="64" rx="4"/>
+<text class="vx-text" x="380" y="154" text-anchor="middle">MCCodeEmitter</text>
+<text class="vx-mono" x="380" y="178" text-anchor="middle">0x34000000 + fixup</text>
+<rect class="vx-box-strong" x="60" y="240" width="300" height="64" rx="4"/>
+<text class="vx-text" x="210" y="264" text-anchor="middle">Target fixed in this section</text>
+<text class="vx-mono" x="210" y="288" text-anchor="middle">patched: 0x34000120</text>
+<rect class="vx-box-bad" x="400" y="240" width="300" height="64" rx="4"/>
+<text class="vx-text" x="550" y="264" text-anchor="middle">Distance not fixed yet</text>
+<text class="vx-mono" x="550" y="288" text-anchor="middle">relocation for the linker</text>
 <g class="vx-line">
-<line x1="102" y1="120" x2="118" y2="120"/>
-<line x1="220" y1="120" x2="236" y2="120"/>
-<line x1="338" y1="120" x2="354" y2="120"/>
-<line x1="456" y1="120" x2="472" y2="120"/>
-<line x1="574" y1="120" x2="590" y2="120"/>
-<line x1="692" y1="120" x2="708" y2="120"/>
-<line x1="810" y1="120" x2="826" y2="120"/>
+<line x1="230" y1="52" x2="266" y2="52"/>
+<line x1="490" y1="52" x2="526" y2="52"/>
+<line x1="380" y1="84" x2="380" y2="126"/>
+<line x1="330" y1="194" x2="230" y2="236"/>
+<line x1="430" y1="194" x2="530" y2="236"/>
 </g>
 <g class="vx-arrowhead">
-<polygon points="118,120 110,116 110,124"/>
-<polygon points="236,120 228,116 228,124"/>
-<polygon points="354,120 346,116 346,124"/>
-<polygon points="472,120 464,116 464,124"/>
-<polygon points="590,120 582,116 582,124"/>
-<polygon points="708,120 700,116 700,124"/>
-<polygon points="826,120 818,116 818,124"/>
+<polygon points="266,52 258,48 258,56"/>
+<polygon points="526,52 518,48 518,56"/>
+<polygon points="380,126 376,118 384,118"/>
+<polygon points="230,236 234,227 240,233"/>
+<polygon points="530,236 520,233 526,227"/>
 </g>
-<text class="vx-text-muted" x="460" y="225" text-anchor="middle">Pass names and order observed locally: `llc -O2 -mtriple=arm64-apple-macos -debug-pass=Structure`, LLVM 18.1.8, 2026-09-24.</text>
-<text class="vx-text-muted" x="460" y="245" text-anchor="middle">Highlighted stages: this chapter's three subjects, in pipeline order.</text>
+<text class="vx-text-muted" x="248" y="108" text-anchor="middle">asm printer</text>
+<text class="vx-text-muted" x="508" y="108" text-anchor="middle">MCAsmStreamer: text</text>
+<text class="vx-text-muted" x="392" y="112">MCObjectStreamer: bytes</text>
+<text class="vx-text-muted" x="380" y="218" text-anchor="middle">kind: pcrel_branch19</text>
 </svg>
-<figcaption>Figure 1. The MIR pipeline from LLVM IR to object bytes, as observed on this machine. Every basic block passes through the scheduler once, before allocation; every function passes through the allocator once, before the rewriter makes its choice permanent. The MC layer at the far right is a separate library, reused by the assembler text printer, the object-file writer, and (E2 covers TableGen's role in generating the tables it consults) the JIT.</figcaption>
+<figcaption>Figure 4. The <code>cbz</code> from <code>caller</code> on its way through the MC layer. One <code>MCInst</code> feeds both the text path and the byte path. On the byte path the offset bits start empty, and the fixup that describes them ends in one of two places: patched by the assembler inside the object streamer, or written out as a relocation.</figcaption>
 </figure>
 
-## Watching a schedule without running it: llvm-mca
+### Resolving a fixup by hand
 
-`llc`'s machine scheduler decides an order once, at compile time, and moves
-on. A separate tool, `llvm-mca`, takes a finished sequence of instructions
-and a `-mcpu` scheduling model and simulates how a specific microarchitecture
-would execute it: how many cycles the whole block takes, how full its
-issue ports run, whether a value's user is stalled waiting for it.[^t7] It
-answers a different question from the scheduler pass: not "in what order
-should these instructions run" but "given this order, how well does this
-model of this microarchitecture do." Run against `four_accumulators`'
-compiled body with `-mcpu=apple-m1`, `llvm-mca` produces a report of modeled
-cycles and per-instruction port pressure; this is a **model**, built from
-LLVM's scheduling description of the target, not a measurement taken on
-real hardware, and the tool says so in its own documentation.[^t7] [P5](../optimize/p5-microarchitecture.md)
-returns to `llvm-mca` and to the gap between a modeled schedule and a
-measured one.
+Here is the start of `caller` in the Mach-O object, from
+`llc -filetype=obj` and `llvm-objdump -dr`:
+
+```text
+0000000000000020 <_caller>:
+      20: 34000120     	cbz	w0, 0x44 <_caller+0x24>
+      24: a9be4ff4     	stp	x20, x19, [sp, #-0x20]!
+      28: a9017bfd     	stp	x29, x30, [sp, #0x10]
+      2c: aa0003f3     	mov	x19, x0
+      30: 94000000     	bl	0x30 <_caller+0x10>
+		0000000000000030:  ARM64_RELOC_BRANCH26	_local_helper
+      34: aa1303e0     	mov	x0, x19
+      38: 94000000     	bl	0x38 <_caller+0x18>
+		0000000000000038:  ARM64_RELOC_BRANCH26	_shared_helper
+      3c: a9417bfd     	ldp	x29, x30, [sp, #0x10]
+      40: a8c24ff4     	ldp	x20, x19, [sp], #0x20
+      44: d65f03c0     	ret
+```
+
+The `cbz` sits at `0x20` and its target, `LBB2_2`, turned out to be the
+`ret` at `0x44`. The distance is `0x44 - 0x20 = 0x24` bytes, which is 9
+words. The encoding put the `A` bits above the low five bits (which hold
+the register, `w0`, number 0), so the field is bits 5 to 23:
+$9 \times 2^5 = 288 =$ `0x120`, and `0x34000000 | 0x120 = 0x34000120`, the
+word in the listing. The assembler resolved this fixup itself, and no
+relocation remains.
+
+Now finish one yourself. In the ELF object for the same file, `caller`'s
+`cbz` is also at `0x20`, but the ELF prologue is shorter, and the `ret` it
+jumps to is at `0x3c`. The distance is `0x1c` bytes. What word does the
+assembler write?
+
+??? check "Work out the ELF `cbz` word, then say whether it needs a relocation."
+
+    `0x1c` bytes is 7 words, and $7 \times 2^5 = 224 =$ `0xe0`, so the word
+    is `0x340000e0`, which is what `llvm-objdump` shows. No relocation:
+    the target is a label in the same function, in the same section, and
+    nothing can move one relative to the other after assembly.
+
+## Which fixups become relocations
+
+The two calls in the Mach-O listing are different. `bl` has the word
+`0x94000000` with an all-zero offset, and an `ARM64_RELOC_BRANCH26`
+relocation follows it. Both callees are defined in the same file, yet the
+assembler left both for the linker. The ELF object for the same IR
+(`-mtriple=aarch64-linux-gnu`) decides differently:
+
+```text
+      2c: 97fffff5     	bl	0x0 <local_helper>
+      30: aa1303e0     	mov	x0, x19
+      34: 94000000     	bl	0x34 <caller+0x14>
+		0000000000000034:  R_AARCH64_CALL26	shared_helper
+```
+
+| Call target | Mach-O object | ELF object |
+| --- | --- | --- |
+| Label in the same function (`cbz`) | resolved | resolved |
+| `local_helper`, internal linkage, defined in the file | relocation | resolved (`0x97fffff5`) |
+| `shared_helper`, global, defined in the file | relocation | relocation |
+| `external_sink`, only declared | relocation | relocation |
+
+Each row follows from what the linker is allowed to do later. `llc` ended
+this Mach-O file with `.subsections_via_symbols`, and the Mach-O header flag
+that directive sets tells the linker it may divide sections into pieces at
+symbols for dead-code stripping.[^loader] Each function is then a separate
+piece the linker may drop, so even the distance to an internal function is
+not known until link time.
+
+[B4](b4-linking-and-loading.md#which-definition-wins-and-which-code-survives)
+covers the directive. On ELF, a global symbol with default visibility may be
+**preempted**, replaced by another definition of the same name when the
+program is linked or loaded, so the assembler cannot bind a call to the copy
+it happens to see; [B4](b4-linking-and-loading.md#position-independent-code-and-executables)
+explains why. An internal function cannot be preempted and stays at a fixed
+distance within the section, so the ELF assembler patched the call itself. Its word
+checks out by hand: the distance from `0x2c` back to `0x0` is -11 words,
+which in a 26-bit field is `0x3fffff5`, and `0x94000000 | 0x3fffff5` is
+`0x97fffff5`.
+
+The rule for your own back end follows directly: a fixup may be resolved at
+assembly time only when both ends are in the same piece of the object that
+nothing later can split, move or replace.
+
+## Relaxation: when the distance changes the instruction
+
+On x86-64 many branches have a short form with an 8-bit offset and a long
+form with a 32-bit one. The assembler cannot pick until it knows the
+distance, and the distance depends on the sizes of the instructions in
+between, some of them branches themselves. Choosing the forms is
+**relaxation**, one of the jobs the MC assembler performs.[^mc-blog]
+[B3](b3-object-files.md#relaxation-when-a-jumps-size-depends-on-its-distance)
+works through it, including why it must be repeated until nothing changes.
+
+AArch64 instructions are all four bytes, so there is no shorter or longer
+form to choose, only a range.
+
+The conditional forms have short ones. AAELF64
+limits a `TBZ` offset to ±32 KiB, the 19-bit field of a conditional branch
+to ±1 MiB, and `B` and `BL` to ±128 MiB.[^aaelf64] `CBZ` has the same 19-bit
+field, which is why its fixup above has the same kind as a `b.eq`. LLVM deals with a
+conditional branch that cannot reach before the MC layer, in the **branch
+relaxation** pass near the end of Figure 1, which counts the conditional
+branches it rewrites.[^brelax] Its limits come from the target, and
+AArch64 exposes them as hidden debugging options: `-aarch64-cbz-offset-bits`
+defaults to 19 bits and `-aarch64-tbz-offset-bits` to 14.[^aii] Shrinking one
+forces the rewrite on a small function:
+
+```text
+$ llc -O2 -mcpu=apple-m1 -aarch64-cbz-offset-bits=3 calls_and_fixups.ll -o -
+_caller:
+	cbnz	w0, LBB2_1
+	b	LBB2_2
+LBB2_1:                                 ; %work
+	...
+LBB2_2:                                 ; %done
+	ret
+```
+
+With three bits of offset, the `cbz` cannot reach nine words ahead, so the
+pass inverted the condition and jumped over an unconditional `b`, whose
+range is ±128 MiB. Without the option, the same function keeps its single
+`cbz`.
+
+A `BL` that cannot reach its target is the linker's problem. The linker
+inserts a **veneer**, a short stub that reaches farther, AAPCS64 allows a
+veneer to change `x16`, `x17` and the flags, and requires code to assume
+that one may be inserted at any branch the linker can redirect this
+way.[^aapcs64]
+[B4](b4-linking-and-loading.md#when-a-call-cannot-reach-thunks-and-code-models)
+covers veneers and thunks.
+
+??? check "Why does LLVM relax AArch64 branches in a machine pass instead of in the MC assembler, as it does for x86?"
+
+    Because on AArch64 fixing an out-of-range branch is not a choice of
+    encoding size; it needs a new instruction, a new label and an inverted
+    condition, which is a change to the control-flow graph. The machine
+    pass can make that change while it still has basic blocks and knows
+    each instruction's size. On x86 the fix is a longer encoding of the
+    same instruction, which the assembler can choose on its own.
 
 ## For Vortex
 
 !!! vortex "Exercise"
 
-    **Build.** Nothing in your own compiler yet: this chapter's job is to
-    read LLVM's pipeline closely enough to know what your own C3 to C6 work
-    is standing in for. Instead, build an experiment. Take the dot-product
-    or matmul kernel you lowered to IR in earlier stages, or write a small
-    Vortex-shaped one by hand as plain LLVM IR (no Vortex compiler code
-    involved), and unroll its reduction by increasing factors: 4, 8, 16, 32
-    accumulators. For each one, compile it with `llc -O2` for your own
-    machine's target and record, from the emitted assembly alone, how many
-    of the accumulators still live in a register for the whole function and
-    at what factor spill code (loads and stores through the stack pointer)
-    first appears.
+    **Build a report that compares your back end's allocation with LLVM's,
+    and make it a regression test.** This is test tooling beside your
+    compiler, not a change to it. Pick three programs:
 
-    **Do not build yet.** Your own register allocator; C3 to C5 are where
-    that begins, once you have decided which allocation strategy your back
-    end will use. Any attempt to force LLVM to spill by a specific,
-    predicted amount; the goal here is to observe the real threshold on
-    your own machine, not to hit a number stated in advance.
+    1. the [stage 10](../compiler/guide/stage-10-matrix-multiplication.md#the-program-the-milestone-asks-for)
+       matmul kernel;
+    2. a program you write in which at least ten `f32` values stay live
+       across a loop that calls `print` on every trip, the shape of this
+       chapter's `keep_across_calls`;
+    3. a program with array accesses guarded by bounds checks, so the
+       runtime-error call from [stage 9](../compiler/guide/stage-9-runtime-safety.md#stopping-with-a-clear-runtime-error)
+       sits inside a loop.
 
-    **The test that proves it works.** A short table: unroll factor, number
-    of registers the allocator kept live throughout, whether any spill code
-    appeared. State the machine, the `llc` version and the date, the same
-    way this chapter's own numbers are stated. If your target has more or
-    fewer allocatable floating-point registers than AArch64's 32, say how
-    many, and where you read that count.
+    Compile each twice: with your native back end, and as LLVM IR through
+    `llc -O2 -mcpu=apple-m1` (the IR from your stage 6 LLVM path if you have
+    one; otherwise write it by hand once and keep it in the test folder,
+    with plain `fadd` and `fmul` and no fast-math flags). For every
+    function, the report counts from each assembly listing: stack loads and
+    stores inside loop bodies; other stack loads and stores, not counting
+    the prologue and epilogue; and callee-saved registers the prologue
+    saves. For the kernel's innermost loop body alone, it also runs
+    `llvm-mca -mcpu=apple-m1` on both versions and records the modeled
+    cycles per iteration.
+
+    **Not yet.** Do not change your allocator to copy greedy's eviction or
+    splitting; C5 decides what your allocator does, and this report only
+    tells you where it stands. Do not count spills by searching for
+    LLVM's `Folded Spill` comments, which also mark callee-saved saves, and
+    which your own listings will not have: find prologue and epilogue by
+    position and count memory instructions against `sp` or `x29`. Do not
+    time anything; the `llvm-mca` numbers are a model's.
+
+    **Done when** three things hold. The report runs in your test suite on
+    macOS arm64 and prints the table below. Each program's output is
+    identical, bit for bit, through both paths. And the test compares your
+    back end's counts with a baseline file checked into the repository and
+    fails when any count rises: prove it by lowering the register cap from
+    [C5](c5-spilling.md)'s debug option until the kernel's inner loop
+    must spill, and watching the test fail and name the function.
+
+    | Program | Function | Stack accesses in loops (yours / `llc`) | Other stack accesses | Callee-saved saved | `llvm-mca` cycles per iteration |
+    | --- | --- | --- | --- | --- | --- |
+    | | | | | | |
+
+    Record the machine, the `llc` version and the date with the table.
 
 ## Key ideas
 
-!!! recap
+!!! recap "You can now answer"
 
-    - **What three outcomes can the greedy register allocator choose for one live range?** Assign it a physical register for its whole span, split it into shorter pieces handled separately, or spill it to a stack slot.
-    - **What is the machine scheduler allowed to reorder, and what is it never allowed to reorder?** It may reorder any two instructions with no data dependency between them; it may never reorder two that do, because that would change what the program computes, not only the order it runs in.
-    - **Why does the scheduler never violate Vortex's floating-point rules, even though it changes instruction order?** Because reordering independent instructions never changes which values feed which operation or how many roundings occur; only reassociation or contraction would, and the scheduler does neither.
-    - **What is MIR, and what does `-stop-after` / `-run-pass` let you do with it?** A textual, re-readable serialization of a MachineFunction; together the two flags let you capture the function at one point in the pipeline and run exactly one later pass on that saved state, in isolation.
-    - **Why does a call to a function defined in the same file still need a relocation?** Because the MC layer commits to a symbol's final address only once the whole object's layout is fixed, and it treats every symbol reference the same way regardless of where it happens to be defined.
-    - **What is the difference between what `llc`'s machine scheduler does and what `llvm-mca` does?** The scheduler pass chooses an instruction order once, at compile time; `llvm-mca` takes a finished order and models how a specific microarchitecture would run it, without compiling or running anything.
+    - **In what order does the greedy allocator try to place a live range?** Assign a free register, evict lighter ranges, split the range, and spill it only when splitting will not help.
+    - **What is a spill weight in LLVM 18?** The expected executions of the range's definitions and uses, weighted by block frequency, divided by its length plus a constant: busy short ranges weigh most.
+    - **Why did the greedy loop in `keep_across_calls` touch no memory while the fast allocator's did?** Greedy kept eight values in callee-saved registers and split the other two around the loop; fast works per block and sends values live across blocks through their stack slots.
+    - **What may the machine scheduler change, and what decides its choice?** The order of instructions within a region, never their operands; its heuristics put register pressure ahead of latency and read their numbers from the `-mcpu` scheduling model.
+    - **Why can't any scheduler choice change a Vortex floating-point result?** Every operation still reads the same operands, so every rounding happens on the same values; only regrouping, which needs `reassoc`, could change a result.
+    - **What is an `MCInst`, and where does a fixup come from?** A target opcode with immediate, register and expression operands; the code emitter produces a fixup for each expression whose value is not known yet.
+    - **When does an AArch64 fixup become a relocation?** When the distance to the target is not fixed at assembly time: a symbol in another file, a Mach-O function the linker may strip, or a preemptible ELF global.
 
 ## Where this comes back
 
 !!! next "You will use this again in"
 
-    - [E4. Testing back ends](e4-testing-backends.md): *MIR tests that isolate one pass*, *`llvm-mc` as an encoding oracle*
-    - [D2. JIT compilation](d2-jit.md): *the same MC layer, now writing bytes into memory instead of into a file*
-    - [D3. Reading real back ends](d3-real-backends.md): *regalloc2's Ion allocator, a different answer to the same allocate/split/spill decision*
-    - [P5. The microarchitecture shelf](../optimize/p5-microarchitecture.md): *`llvm-mca`'s scheduling model, and where a model and a measurement can disagree*
+    - [E4. Testing back ends](e4-testing-backends.md): *MIR tests that run one pass*, *encoding tests against `llvm-mc`*
+    - [D3. Reading real back ends](d3-real-backends.md): *eviction and splitting in regalloc2*, *a different answer to the same assign, evict, split, spill question*
+    - [P5. The microarchitecture shelf](../optimize/p5-microarchitecture.md): *scheduling models*, *where a model and a measurement disagree*
+    - [G9. GPU compilers inside LLVM](../gpu/g9-gpu-compilers-in-llvm.md): *a target that skips register allocation*, *two register files to allocate*
 
 ## Sources and further reading
 
-This chapter's pass list, assembly and relocations were all produced by
-running `llc`, `opt` and `llvm-objdump` locally (LLVM 18.1.8, Apple clang
-21, macOS 27, `apple-m1`), not transcribed from a secondary source. LLVM's
-own Code Generator page is the starting reference for the pipeline's shape,
-but it is explicitly unfinished in places this chapter had to work around;
-Braun's slide deck and Olesen's allocator write-up are more current
-descriptions of the same passes.[^t1][^t14][^t13]
+Every listing on this page was produced with LLVM 18.1.8 on an Apple M4 Pro
+running macOS 27, on 2026-09-24; the commands are given beside each one.
+Olesen's post is the best short account of why the greedy allocator works
+the way it does, and the LLVM headers cited below are the most exact
+description of LLVM 18's behavior.
 
-[^t1]: LLVM Project, "The LLVM Target-Independent Code Generator" (carries a "Work In Progress" notice; its register-allocator example passes `-regalloc=linearscan`, which `llc` 18.1.8 rejects with "Cannot find option named 'linearscan'", checked locally). <https://llvm.org/docs/CodeGenerator.html>
-[^t1-local]: Pass list and order observed locally: `llc -O2 -mtriple=arm64-apple-macos -debug-pass=Structure`, LLVM 18.1.8, `apple-m1`, 2026-09-24.
-[^t14]: Matthias Braun, "Welcome to the Back End: The LLVM Machine Representation", LLVM Developers' Meeting 2017. <https://llvm.org/devmtg/2017-10/slides/Braun-Welcome%20to%20the%20Back%20End.pdf>
-[^t13]: Jakob Olesen, "Greedy Register Allocation in LLVM 3.0", LLVM Blog, 18 September 2011. <https://blog.llvm.org/2011/09/greedy-register-allocation-in-llvm-30.html>
-[^t4]: LLVM Project, "MIR Language Reference Manual". <https://llvm.org/docs/MIRLangRef.html>
-[^t10]: LLVM Project, "LLVM Testing Infrastructure Guide". <https://llvm.org/docs/TestingGuide.html>
-[^t12]: Chris Lattner, "Intro to the LLVM MC Project", LLVM Blog, 9 April 2010. <https://blog.llvm.org/2010/04/intro-to-llvm-mc-project.html>
-[^t7]: LLVM Project, `llvm-mca` command guide. <https://llvm.org/docs/CommandGuide/llvm-mca.html>
-[^t18-local]: Observed locally: `opt`/`llc` do not fuse a plain `fmul`/`fadd` pair into `fmadd` on AArch64 without a `contract` fast-math flag on the IR, LLVM 18.1.8, 2026-09-24.
-[^m5]: Arm, "ELF for the Arm 64-bit Architecture (AAELF64)", 2025Q4 release, relocation types `R_AARCH64_JUMP26`/`CALL26`, `CONDBR19`, `TSTBR14`. <https://github.com/ARM-software/abi-aa/blob/main/aaelf64/aaelf64.rst>
-[^m8]: Apple, "Writing ARM64 code for Apple platforms" (`x16`/`x17` as the platform's reserved scratch registers for veneers and the linker). <https://developer.apple.com/documentation/xcode/writing-arm64-code-for-apple-platforms>
-[^spec-fp]: [Vortex specification, 4.4, "Floating-point values"](../specification/types-and-values.md#44-floating-point-values): "An implementation must not contract operations ... reassociate or reorder them, evaluate them in a wider format, or flush subnormal inputs or results to zero."
-[^b3-see]: [B3. Object files and assemblers](b3-object-files.md), on forward-branch fixups in a hand-written assembler.
+[^olesen]: Jakob Stoklund Olesen, "Greedy Register Allocation in LLVM 3.0", LLVM Project Blog, 18 September 2011. <https://blog.llvm.org/2011/09/greedy-register-allocation-in-llvm-30.html>
+[^cg]: LLVM Project, "The LLVM Target-Independent Code Generator": "Built in register allocators", "The MC Layer" and "Code Emission". <https://llvm.org/docs/CodeGenerator.html>
+[^braun]: Matthias Braun, "Welcome to the Back End: The LLVM Machine Representation", LLVM Developers' Meeting, 2017. <https://llvm.org/devmtg/2017-10/slides/Braun-Welcome%20to%20the%20Back%20End.pdf>
+[^matrix]: LLVM Project, `llvm/include/llvm/CodeGen/LiveRegMatrix.h`, LLVM 18.1.8, file comment. <https://github.com/llvm/llvm-project/blob/llvmorg-18.1.8/llvm/include/llvm/CodeGen/LiveRegMatrix.h>
+[^weights]: LLVM Project, `llvm/include/llvm/CodeGen/CalcSpillWeights.h`, LLVM 18.1.8, `normalizeSpillWeight`. <https://github.com/llvm/llvm-project/blob/llvmorg-18.1.8/llvm/include/llvm/CodeGen/CalcSpillWeights.h>
+[^stages]: LLVM Project, `llvm/lib/CodeGen/RegAllocEvictionAdvisor.h`, LLVM 18.1.8, `enum LiveRangeStage`. <https://github.com/llvm/llvm-project/blob/llvmorg-18.1.8/llvm/lib/CodeGen/RegAllocEvictionAdvisor.h>
+[^spillplace]: LLVM Project, `llvm/lib/CodeGen/SpillPlacement.h`, LLVM 18.1.8, file comment. <https://github.com/llvm/llvm-project/blob/llvmorg-18.1.8/llvm/lib/CodeGen/SpillPlacement.h>
+[^aapcs64]: Arm, "Procedure Call Standard for the Arm 64-bit Architecture (AAPCS64)", 2025Q4: "SIMD and Floating-Point registers" (v8 to v15 callee-saved, low 64 bits only) and the veneer rules for IP0 and IP1. <https://github.com/ARM-software/abi-aa/blob/main/aapcs64/aapcs64.rst>
+[^misched-cpp]: LLVM Project, `llvm/lib/CodeGen/MachineScheduler.cpp`, LLVM 18.1.8, `isSchedBoundary` and `scheduleRegions`. <https://github.com/llvm/llvm-project/blob/llvmorg-18.1.8/llvm/lib/CodeGen/MachineScheduler.cpp>
+[^sdag]: LLVM Project, `llvm/include/llvm/CodeGen/ScheduleDAG.h`, LLVM 18.1.8, `SDep::Kind`. <https://github.com/llvm/llvm-project/blob/llvmorg-18.1.8/llvm/include/llvm/CodeGen/ScheduleDAG.h>
+[^misched-h]: LLVM Project, `llvm/include/llvm/CodeGen/MachineScheduler.h`, LLVM 18.1.8: file comment, `GenericSchedulerBase::CandReason`, `GenericScheduler` and `PostGenericScheduler`. <https://github.com/llvm/llvm-project/blob/llvmorg-18.1.8/llvm/include/llvm/CodeGen/MachineScheduler.h>
+[^mir]: LLVM Project, "Machine IR (MIR) Format Reference Manual", on `-stop-after`, `-stop-before` and `-run-pass`. <https://llvm.org/docs/MIRLangRef.html>
+[^fmf]: LLVM Project, "LLVM Language Reference Manual", "Fast-Math Flags". <https://llvm.org/docs/LangRef.html#fast-math-flags>
+[^spec]: [Vortex specification, 4.4 "Floating-point values"](../specification/types-and-values.md#44-floating-point-values), and [decision record 56](../decisions/numbers.md#d56).
+[^mca]: LLVM Project, "llvm-mca - LLVM Machine Code Analyzer", command guide: description and "Instruction Dispatch" and timeline sections. <https://llvm.org/docs/CommandGuide/llvm-mca.html>
+[^mc-blog]: Chris Lattner, "Intro to the LLVM MC Project", LLVM Project Blog, 9 April 2010. <https://blog.llvm.org/2010/04/intro-to-llvm-mc-project.html>
+[^loader]: Apple, XNU `EXTERNAL_HEADERS/mach-o/loader.h`, `MH_SUBSECTIONS_VIA_SYMBOLS`. <https://github.com/apple-oss-distributions/xnu/blob/main/EXTERNAL_HEADERS/mach-o/loader.h>
+[^aaelf64]: Arm, "ELF for the Arm 64-bit Architecture (AAELF64)", 2025Q4, relocations `R_AARCH64_TSTBR14`, `R_AARCH64_CONDBR19`, `R_AARCH64_JUMP26` and `R_AARCH64_CALL26`. <https://github.com/ARM-software/abi-aa/blob/main/aaelf64/aaelf64.rst>
+[^brelax]: LLVM Project, `llvm/lib/CodeGen/BranchRelaxation.cpp`, LLVM 18.1.8. <https://github.com/llvm/llvm-project/blob/llvmorg-18.1.8/llvm/lib/CodeGen/BranchRelaxation.cpp>
+[^aii]: LLVM Project, `llvm/lib/Target/AArch64/AArch64InstrInfo.cpp`, LLVM 18.1.8, options `aarch64-tbz-offset-bits`, `aarch64-cbz-offset-bits` and `aarch64-bcc-offset-bits`. <https://github.com/llvm/llvm-project/blob/llvmorg-18.1.8/llvm/lib/Target/AArch64/AArch64InstrInfo.cpp>

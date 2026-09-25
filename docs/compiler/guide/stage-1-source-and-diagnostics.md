@@ -22,6 +22,16 @@ source storage and locations" and must not interpret language syntax. The
 [roadmap](../../roadmap.md#milestone-1-source-files-and-diagnostics) calls this
 stage Milestone 1.
 
+--8<-- "includes/remember/compiler__guide__stage-1-source-and-diagnostics.md"
+
+!!! goals "In this stage"
+
+    - Read a source file and keep its text unchanged for the whole compilation.
+    - Name any position or stretch of source as an offset, or as a file name, line and column.
+    - Decode UTF-8 correctly, and report invalid bytes as a lexical error at their position.
+    - Report a diagnostic in one format, with a category, a message and a marker, that every later stage reuses.
+    - Print a source line with a marker that lands on the exact span, tabs included.
+
 ## What this stage is for
 
 This stage has three jobs. It reads a source file and keeps its text available,
@@ -252,6 +262,12 @@ For most test files these rules change nothing, because most test files are
 plain ASCII. That is exactly why they need tests of their own: one file with
 bytes that are not valid UTF-8, and one that starts with a byte order mark.
 
+--8<-- "includes/examples/build-v0.1/stage-1-source-and-diagnostics/chars_vs_bytes.cpp.md"
+
+??? check "A one-line file is the six bytes `c`, `a`, `f`, `\xC3`, `\xA9`, `;`, where the fourth and fifth bytes are one UTF-8 character (an accented `e`). At what column does Vortex report the semicolon?"
+
+    Column 5. The file has five characters (`c`, `a`, `f`, the accented `e`, `;`), and columns count characters from 1, not bytes: the two-byte character still counts once. A compiler that counted bytes instead would report column 6, one too high, and land the marker on the wrong character in any line with a multi-byte character before it.
+
 ## Positions and spans
 
 Inside the compiler, the simplest way to name a place is an offset: how many
@@ -352,6 +368,12 @@ of source covers all of it: the location of `left + right` covers both operands
 and the operator, while each part keeps its own narrower span. At this stage
 that only means a span must be able to cover any stretch of text, including
 several lines.
+
+--8<-- "includes/examples/build-v0.1/stage-1-source-and-diagnostics/line_column_locate.cpp.md"
+
+??? check "A file saved on Windows has three lines, each ending with a carriage return and a line feed. A compiler counts every carriage return and every line feed as a line break of its own. What line number does it print for an error on the file's third line?"
+
+    Line 5. Each carriage return and line feed pair adds two to its line counter, so the third line comes after four breaks instead of two. Vortex counts the pair as one break and prints line 3, while the offsets still count both bytes of each pair.
 
 ## One format for every diagnostic
 
@@ -467,6 +489,12 @@ The suggested default in [I2](../../decisions/implementation.md#i2) answers
 the first three: mark a span over several lines on its first line only, make
 every marker at least one `^` wide, and copy the tabs before the span into the
 marker line.
+
+--8<-- "includes/examples/build-v0.1/stage-1-source-and-diagnostics/caret_marker.cpp.md"
+
+??? check "A diagnostic points at `value` on a line that starts with one tab. The marker line starts with one space, then `^^^^^`. In a terminal that shows a tab as eight columns wide, where do the carets appear?"
+
+    Seven columns too far left, under the blank space the tab fills rather than under `value`. The tab pushes `value` to the ninth screen column, but the single space moves the carets only one column. A tab copied into the marker line sits at the same place as the one in the quoted line, expands to the same width, and puts the carets under `value`.
 
 ## Testing it before there is a lexer
 
@@ -587,6 +615,22 @@ about their code. The specification asks for the second kind.
 **Crashing instead of reporting.** When something unexpected happens, the
 tempting shortcut is to stop the program. The conformance chapter treats a
 crash as non-conforming. Report an implementation-limit error instead.
+
+## Key ideas
+
+!!! recap "Questions you can now answer"
+
+    - **Why does a compiler need both byte offsets and line-column positions?** Offsets are simple for the compiler to store and compare; people need a file name, a line and a column to find the spot in an editor. A compiler can store the first and compute the second only when it prints a message.
+    - **Why do Vortex columns count characters instead of bytes?** Character columns give the same answer in every editor, while bytes would put every column after a multi-byte character such as `λ` one or more too high.
+    - **What counts as one line break, and why does it matter that a carriage return followed by a line feed is only one?** A line feed, or a carriage return immediately followed by a line feed; treating the pair as two breaks would count every line ending of a file saved on Windows twice, so every later line number would come out too high.
+    - **What must every diagnostic contain, at minimum?** A category, a concise primary message, a primary span, and the unexpected or invalid construct, with room for optional notes at related spans.
+    - **Why does a diagnostic need a category from the start, before the compiler can detect most kinds of error?** So that a construct the compiler recognizes but cannot yet handle gets an honest "not implemented" (implementation-limit) report instead of a crash or a silent skip.
+    - **Why does a marker line copy the tabs before a span instead of using spaces?** So the marker still lines up under the right character once a terminal or editor expands the tab to its usual width.
+    - **Why is this stage built before there is a lexer to produce real errors?** So every later stage reports through the same tested format from its first error, instead of each stage inventing its own format with its own position bugs.
+
+## Where this comes back
+
+--8<-- "includes/next/compiler__guide__stage-1-source-and-diagnostics.md"
 
 ## How others teach this stage
 

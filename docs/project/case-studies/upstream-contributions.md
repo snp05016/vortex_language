@@ -77,7 +77,8 @@ LLVM's own guides set out the process. In short:
 - A change is approved when a reviewer accepts it, usually with the message
   "LGTM" ("looks good to me").[^code-review]
 - After three or more merged pull requests, a contributor may ask for commit
-  access (the developer policy as read on 2026-09-23).[^dev-policy]
+  access, with the support of two current contributors (the developer policy
+  as read on 2026-09-23).[^dev-policy]
 
 ### Using AI tools upstream
 
@@ -133,6 +134,16 @@ ledger.
 2. Every row links to the pull request and its review thread.
 3. Every merged row says what review taught.
 4. Later: enough merged pull requests to request commit access.
+
+## Setup
+
+| Field | Value |
+| --- | --- |
+| Machine and chip |  |
+| Operating system |  |
+| LLVM/MLIR build used to reproduce bugs and test patches before submitting |  |
+| `clang-format` version used to format patches |  |
+| Date of the first patch |  |
 
 ## Results
 

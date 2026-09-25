@@ -22,7 +22,7 @@
 
         No. The "parallel" marker on a `linalg.generic` survives `--convert-linalg-to-parallel-loops` but not `--convert-linalg-to-affine-loops`, although both start from the same file.
 
-        Introduced in [M1. Why MLIR](m1-why-mlir.md#what-survives-a-step-and-what-does-not).
+        Introduced in [M1. Why MLIR](m1-why-mlir.md#what-each-step-keeps-and-what-it-drops).
 
     ??? question "What does `transform.structured.fuse_into_containing_op` do to a producer?"
 

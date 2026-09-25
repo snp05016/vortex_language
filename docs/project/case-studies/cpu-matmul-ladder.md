@@ -61,15 +61,15 @@ Chapter ids refer to the [optimization book](../../optimize/index.md).
 | Rung | Transformation | Keeps the bits? | Taught in |
 | --- | --- | --- | --- |
 | 0 | None: the v0.1 triple loop, with its bounds and overflow checks | Baseline | [Stage 10](../../compiler/guide/stage-10-matrix-multiplication.md) |
-| 1 | Scalar cleanup: constant folding, dead-code removal, redundant address arithmetic removed, checks deleted only where a range proof exists | Yes | O5 to O8 |
+| 1 | Scalar cleanup: constant folding, dead-code removal, redundant address arithmetic removed, checks deleted only where a range proof exists | Yes | [O5](../../optimize/o5-constants-and-dead-code.md) to [O8](../../optimize/o8-loops.md) |
 | 2 | Loop interchange from i-j-k to i-k-j, so the inner loop walks `B` and `C` along rows | Yes | [P7](../../optimize/p7-loop-transformations.md) |
-| 3 | Vectorization along `j` with NEON | Yes, if no multiply-add is fused | P10 |
-| 4 | Cache tiling, with tile sizes derived from the machine's cache sizes | Yes, if `C` is accumulated in place and the `k` tiles run in order | P8 |
-| 5 | Packing blocks of `A` and panels of `B` into contiguous buffers | Yes: packing only copies | P12 |
-| 6 | Register-blocked micro-kernel: unroll-and-jam, accumulators held in registers | Yes, if the accumulators start from the loaded `C` tile | P12 |
-| 7 | Fused multiply-add | No: allowed only when the program opts in | P11 |
-| 8 | Multithreading over blocks of `i` or `j` | Yes, as long as `k` is never split across threads | P13 |
-| 9 | Block sizes chosen by a model or by search | Yes, if the search space holds only bit-preserving variants | P15 and [A9](cost-model-autotuner.md) |
+| 3 | Vectorization along `j` with NEON | Yes, if no multiply-add is fused | [P10](../../optimize/p10-vectorization.md) |
+| 4 | Cache tiling, with tile sizes derived from the machine's cache sizes | Yes, if `C` is accumulated in place and the `k` tiles run in order | [P8](../../optimize/p8-cache-blocking.md) |
+| 5 | Packing blocks of `A` and panels of `B` into contiguous buffers | Yes: packing only copies | [P12](../../optimize/p12-fast-gemm.md) |
+| 6 | Register-blocked micro-kernel: unroll-and-jam, accumulators held in registers | Yes, if the accumulators start from the loaded `C` tile | [P12](../../optimize/p12-fast-gemm.md) |
+| 7 | Fused multiply-add | No: allowed only when the program opts in | [P11](../../optimize/p11-floating-point.md) |
+| 8 | Multithreading over blocks of `i` or `j` | Yes, as long as `k` is never split across threads | [P13](../../optimize/p13-multithreading.md) |
+| 9 | Block sizes chosen by a model or by search | Yes, if the search space holds only bit-preserving variants | [P15](../../optimize/p15-choosing-parameters.md) and [A9](cost-model-autotuner.md) |
 | Stretch | SME outer-product instructions, on chips that have them | Depends on the mode used | The [back-end book](../../backend/index.md); Remke and Breuer show SME matrix kernels[^hellosme] |
 
 The "Keeps the bits?" column follows from one observation. For each element
@@ -97,7 +97,8 @@ Around the rungs, the work includes:
   the SDK on 2026-09-23);
 - ceiling microbenchmarks for peak arithmetic with separate multiplies and
   adds, peak arithmetic with fused multiply-adds, and memory bandwidth, built
-  as [P1](../../optimize/p1-measure-first.md) and P3 describe.
+  as [P1](../../optimize/p1-measure-first.md) and
+  [P3](../../optimize/p3-roofline.md) describe.
 
 This study leaves out:
 

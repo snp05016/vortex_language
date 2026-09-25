@@ -13,7 +13,7 @@
         read unless the value is also computed on its own, so the selector
         has to choose between computing it once and repeating it at each use.
 
-        Introduced in [C1. Instruction selection](c1-instruction-selection.md#where-trees-stop-working).
+        Introduced in [C1. Instruction selection](c1-instruction-selection.md#shared-values-break-trees).
 
     ??? question "What does plain linear scan lose by giving each value one interval?"
 
@@ -31,7 +31,7 @@
         registers at every point, a greedy pass in the right order colors
         the rest without ever getting stuck.
 
-        Introduced in [C5. Spilling, splitting and rematerialization](c5-spilling.md#deciding-spills-before-coloring-in-ssa-form).
+        Introduced in [C5. Spilling, splitting and rematerialization](c5-spilling.md#deciding-spills-before-assigning-registers).
 
     ??? question "How can you check an allocation without trusting the allocator that produced it?"
 
@@ -161,7 +161,7 @@ heuristic based on loop analysis, and a linear allocator with **hinting**,
 meaning it prefers a register that a related value already uses so that a
 copy between them disappears[^qbe-home]. It calls the design simpler and
 faster than graph coloring. That is the separation
-[C5](c5-spilling.md#deciding-spills-before-coloring-in-ssa-form) derived
+[C5](c5-spilling.md#deciding-spills-before-assigning-registers) derived
 from Hack's result: once the spiller guarantees that no point has more live
 values than registers, SSA form guarantees that a single greedy pass, in
 the right order, can assign them all.
@@ -262,7 +262,7 @@ Seven values became three. `And64` with a constant operand became
 `ANDconst`, which carries the 63 as an immediate. The shift, the pointer add
 and the load became one `MOVWloadidx4`: a 32-bit load whose index is scaled
 by 4. The two constants are gone because nothing uses them any more. This
-is the addressing-mode tile [C1](c1-instruction-selection.md#folding-a-memory-operand-is-a-tiling-decision)
+is the addressing-mode tile [C1](c1-instruction-selection.md#the-same-tree-on-x86-64)
 built by hand, produced here by rules in `ARM64.rules`. The file reaches
 `MOVWloadidx4` by more than one route (for example, from a load whose
 address is a shifted add, and from an indexed load whose index is a shift),
@@ -444,7 +444,7 @@ back end's lowering function looks up the tree of producers behind each
 operand and decides what to absorb: a shift into an add's second operand,
 an add of a constant into a load's address, a constant into an
 immediate[^cl-isel1]. Absorbing a producer creates the problem
-[C1](c1-instruction-selection.md#where-trees-stop-working) described: the
+[C1](c1-instruction-selection.md#shared-values-break-trees) described: the
 producer may have other consumers, and if none of them needs its result in
 a register, it should not be computed at all.
 
@@ -812,7 +812,7 @@ each diff is one feature and the code that emits it.
 </figure>
 
 The selection column of Figure 3 reads well against the ladder
-[C1](c1-instruction-selection.md#where-trees-stop-working) took from Hjort
+[C1](c1-instruction-selection.md#shared-values-break-trees) took from Hjort
 Blindell's survey: macro expansion, tree covering, DAG covering, graph
 covering[^hjort].
 

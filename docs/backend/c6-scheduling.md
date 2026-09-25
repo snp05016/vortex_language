@@ -417,7 +417,7 @@ and AArch64 below `-O3`[^gcc-sched].
 LLVM's generic machine scheduler, which can run before allocation, compares
 two candidates early on by whether they would push pressure over the target's
 limit, then by critical pressure, and only later by latency[^llvm-misched].
-[E3](e3-llvm-allocator-scheduler-mc.md#the-machine-scheduler-choosing-an-order-not-a-value)
+[E3](e3-llvm-allocator-scheduler-mc.md#the-machine-scheduler)
 places it in LLVM's pipeline.
 
 Figure 3 shows the choice in real output: the vector block compiled by `llc`
@@ -499,7 +499,7 @@ its comment:
 --8<-- "includes/examples/backend/c6-scheduling/len2.ll.md"
 
 Now give the four sequences to llvm-mca, the machine code analyzer
-[E3](e3-llvm-allocator-scheduler-mc.md#watching-a-schedule-without-running-it-llvm-mca)
+[E3](e3-llvm-allocator-scheduler-mc.md#asking-a-model-llvm-mca)
 introduces, which simulates code on a scheduling model. For an in-order model
 it issues each instruction once its operand registers are available and its
 resources free, up to the issue width[^llvm-mca]. The sequences are the bodies
@@ -780,7 +780,7 @@ balance.
 
     - [C7. Peephole optimization](c7-peephole.md): *pairing loads into `ldp`*, *rewrites that must respect the same dependences*
     - [E2. Describing a target](e2-describing-a-target.md#scheduling-models-one-instruction-several-machines): *scheduling models*, *latency tables*
-    - [E3. LLVM's allocator, scheduler and MC layer](e3-llvm-allocator-scheduler-mc.md#the-machine-scheduler-choosing-an-order-not-a-value): *the machine scheduler*, *llvm-mca*
+    - [E3. LLVM's allocator, scheduler and MC layer](e3-llvm-allocator-scheduler-mc.md#the-machine-scheduler): *the machine scheduler*, *llvm-mca*
     - [P7. Loop transformations](../optimize/p7-loop-transformations.md#unroll-and-jam-and-register-blocks): *unroll-and-jam*, *independent recurrences*
     - [P10. Vectorization](../optimize/p10-vectorization.md#reductions-ordered-or-reassociated): *ordered reductions*, *reassociation*
     - [P12. Anatomy of a fast GEMM](../optimize/p12-fast-gemm.md#the-register-blocked-micro-kernel): *latency times units*, *register pressure*

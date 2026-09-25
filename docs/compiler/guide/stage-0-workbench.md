@@ -19,6 +19,19 @@ The [roadmap](../../roadmap.md#milestone-0-project-foundation) calls this
 Milestone 0, "Project foundation". It is short, and it is easy to rush. Most of
 the traps on this page come from rushing it.
 
+--8<-- "includes/remember/compiler__guide__stage-0-workbench.md"
+
+!!! goals "In this stage"
+
+    - Build a `vortex` driver that accepts a source path and reports a usage
+      error for anything else.
+    - Return the exit statuses from the command-line decision, which the test
+      runner and scripts depend on.
+    - Set up a build that works the same way from a clean checkout every time.
+    - Write a test runner that finds its own test cases and reports a verdict
+      for each.
+    - Prove the runner can fail, on purpose, before trusting it to say pass.
+
 ## What this stage is for
 
 The job of this stage is to make every later stage checkable. When you finish,
@@ -34,6 +47,23 @@ The second is a repeatable **build**: a fixed recipe that turns the
 compiler's own source code into the `vortex` program, the same way on every
 machine and from a clean start. The third is a **test runner** with folders of
 example programs and the results they are expected to produce.
+
+The driver's exit status is how every script and test runner learns what
+happened, so different outcomes get different numbers. That is an old
+convention, not a Vortex invention. The POSIX `grep` command ends with 0 when
+it found a match, 1 when it found none, and a larger status when an error
+stopped it.[^grep] The example below follows the same rule in a tiny text
+search, which is not a compiler: each pretend command line earns a status that
+says which of the three things happened.
+
+--8<-- "includes/examples/build-v0.1/stage-0-workbench/usage_and_exit.cpp.md"
+
+??? check "Why does the driver need a distinct exit status for a usage mistake, rather than reusing the status for a source-code error?"
+
+    A script or a test runner that only sees "nonzero" cannot tell "the
+    command line was wrong" from "the program was rejected". Separate
+    statuses let a caller react differently: retry with corrected arguments,
+    or go read the diagnostic.
 
 ## Words for this stage
 
@@ -134,6 +164,13 @@ not a list of steps you have to remember. Trusted means that "all tests pass"
 actually tells you something, which is harder than it sounds. A runner that
 cannot fail will always report success.
 
+??? check "Your runner prints a verdict for every test but always ends with exit status 0, even when some verdicts are FAIL. A script runs it after every change. What can the script not tell?"
+
+    Whether anything failed. The script reads only the exit status, so a run
+    with ten failures looks the same to it as a clean run; the verdicts exist
+    only on a screen nobody may be watching. The runner cannot be trusted until
+    its exit status is failing whenever any test fails.
+
 ## What goes in a test case
 
 A compiler test has two halves: a program, and a statement of what the compiler
@@ -194,6 +231,14 @@ down. The suggested default,
 [implementation choice I3](../../decisions/implementation.md#i3), compares the
 exit status and, for every error in order, its category and the position where
 it starts, never the wording.
+
+??? check "You improve a diagnostic's wording without changing what it means or where it points. Under a whole-message comparison, and under I3's comparison, what happens to the existing tests?"
+
+    Under a whole-message comparison, every test whose message changed now
+    fails and has to be updated by hand, even though nothing about the
+    compiler's behavior is wrong. Under I3's comparison, the category and
+    position are unchanged, so the tests keep passing: the wording was never
+    part of what they checked.
 
 <figure class="vx-figure">
 <svg viewBox="0 0 760 290" role="img" aria-labelledby="grid-title grid-desc">
@@ -278,6 +323,20 @@ inside it is swallowed and reported as success.
 The simple way to know is to make a test fail on purpose, see the runner say
 so clearly (which test, what was expected, what happened), and see the whole
 command end with a failing exit status. Then remove the deliberate failure.
+
+The runner below checks a small classifier, not a compiler, but the shape is
+the one to copy: one line per case naming what was expected and what
+happened, then a summary and the exit status the run ends with. Its last case is wrong on purpose, the way yours
+should be at least once before you trust it.
+
+--8<-- "includes/examples/build-v0.1/stage-0-workbench/mini_test_runner.cpp.md"
+
+??? check "Suppose a slip in the runner above compared each case's expected answer with itself. What would the run print, and which line would warn you?"
+
+    Every case would pass: "4 passed, 0 failed" and exit status 0. The warning
+    is the `deliberate_failure` line. A case known to be wrong reported as PASS
+    means the runner is not comparing what it should, which is exactly what the
+    planted failure is there to reveal.
 
 At this stage almost every interesting test will fail, because the compiler
 does nothing yet. That is expected, and you have a choice about how to treat
@@ -396,6 +455,37 @@ test. Each test case should stand alone.
 output and configuration files are pleasant to write and easy to justify. None
 of them helps you tell whether the lexer works. Leave them.
 
+## Key ideas
+
+!!! recap "Questions you can now answer"
+
+    - **Why does stage 0 produce a compiler that translates nothing?** Because
+      every later claim, "the compiler accepts this and rejects that", is only
+      worth something once a machine can check it automatically, and that
+      checking machinery is what this stage builds.
+    - **What are the three pieces the bench needs?** A driver (`vortex`), a
+      repeatable build, and a test runner with folders of test cases.
+    - **Why does an invalid-program test need a category and a position, not
+      only "the compiler failed"?** Because a compiler that fails for the
+      wrong reason, or crashes, would otherwise also pass the test.
+    - **Why should tests be written before the compiler does anything?** A
+      test written first records the rule as understood before any code
+      exists to bias it; a test written after tends to record what the code
+      already does, mistakes included.
+    - **What must you prove about a test runner before trusting its "all
+      tests pass"?** That it can also report a failure: plant one on purpose,
+      see it named and described, and see the whole command's exit status go
+      nonzero.
+    - **What does exit status 2 mean under the command-line decision, and who
+      relies on it?** A usage error or a failure outside the source, such as
+      an unreadable file, distinct from 0 (success) and 1 (the source has
+      errors); the test runner and any scripts around it depend on the
+      difference.
+
+## Where this comes back
+
+--8<-- "includes/next/compiler__guide__stage-0-workbench.md"
+
 ## How others teach this stage
 
 **Ghuloum.** Abdulaziz Ghuloum's paper on incremental compiler construction
@@ -431,5 +521,6 @@ written, and what counts as a failure.
 [^ghuloum]: Abdulaziz Ghuloum, "An Incremental Approach to Compiler Construction", *Proceedings of the 2006 Scheme and Functional Programming Workshop*, University of Chicago Technical Report TR-2006-06, section 2.7 "Testing Infrastructure". <http://scheme2006.cs.uchicago.edu/11-ghuloum.pdf>
 [^sandler-blog]: Nora Sandler, "Writing a C Compiler, Part 1", 29 November 2017. <https://norasandler.com/2017/11/29/Write-a-Compiler.html>
 [^sandler-book]: Nora Sandler, *Writing a C Compiler: Build a Real Programming Language from Scratch*, No Starch Press, 2024. <https://nostarch.com/writing-c-compiler>
+[^grep]: The Open Group, "grep", *The Open Group Base Specifications Issue 8* (IEEE Std 1003.1-2024), section "Exit status". <https://pubs.opengroup.org/onlinepubs/9799919799/utilities/grep.html>
 [^lit]: LLVM Project, "lit - LLVM Integrated Tester". <https://llvm.org/docs/CommandGuide/lit.html>
 [^filecheck]: LLVM Project, "FileCheck - Flexible pattern matching file verifier". <https://llvm.org/docs/CommandGuide/FileCheck.html>

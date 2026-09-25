@@ -287,6 +287,13 @@ Columns in both ladder tables:
 - **Ridge point:** peak throughput divided by bandwidth, the arithmetic
   intensity at which a kernel stops being limited by memory.
 
+## Analysis
+
+Empty until the first measured run. For each rung, on each GPU, this section
+will say why it moved as it did: which counter changed, and in the predicted
+direction; which generated kernel changed, and how; and where the rung's
+point falls on the roofline.
+
 ## What did not work
 
 Filled in as the work goes: one row per attempt that failed or was dropped,
@@ -316,6 +323,14 @@ including rungs that got faster for a reason other than the one predicted.
   on counters and source rather than on reading machine code.
 - **Scope.** FP32, one family of shapes and one GPU per vendor. The results
   say nothing about other GPUs.
+
+## Reproduce
+
+Empty until the first measured run. This section will give one command per
+track that, from a clean checkout and on a machine matching the setup table,
+builds the generated kernels, runs the correctness gate, times every rung
+against the vendor library, writes the raw data into the repository and
+regenerates the tables on this page.
 
 ## What a reviewer should look at
 
