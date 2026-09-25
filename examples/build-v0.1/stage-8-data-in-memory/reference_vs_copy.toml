@@ -1,0 +1,4 @@
+follows = [
+  "https://en.cppreference.com/w/cpp/language/reference",
+  "https://en.cppreference.com/w/cpp/container/array",
+]

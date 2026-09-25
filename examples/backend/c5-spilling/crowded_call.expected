@@ -1,0 +1,45 @@
+; ModuleID = 'crowded_call.ll'
+source_filename = "crowded_call.ll"
+
+declare void @tick()
+
+define i64 @crowded(ptr %p) {
+entry:
+  %v0 = load volatile i64, ptr %p, align 4
+  %g1 = getelementptr inbounds i64, ptr %p, i64 1
+  %v1 = load volatile i64, ptr %g1, align 4
+  %g2 = getelementptr inbounds i64, ptr %p, i64 2
+  %v2 = load volatile i64, ptr %g2, align 4
+  %g3 = getelementptr inbounds i64, ptr %p, i64 3
+  %v3 = load volatile i64, ptr %g3, align 4
+  %g4 = getelementptr inbounds i64, ptr %p, i64 4
+  %v4 = load volatile i64, ptr %g4, align 4
+  %g5 = getelementptr inbounds i64, ptr %p, i64 5
+  %v5 = load volatile i64, ptr %g5, align 4
+  %g6 = getelementptr inbounds i64, ptr %p, i64 6
+  %v6 = load volatile i64, ptr %g6, align 4
+  %g7 = getelementptr inbounds i64, ptr %p, i64 7
+  %v7 = load volatile i64, ptr %g7, align 4
+  %g8 = getelementptr inbounds i64, ptr %p, i64 8
+  %v8 = load volatile i64, ptr %g8, align 4
+  %g9 = getelementptr inbounds i64, ptr %p, i64 9
+  %v9 = load volatile i64, ptr %g9, align 4
+  %g10 = getelementptr inbounds i64, ptr %p, i64 10
+  %v10 = load volatile i64, ptr %g10, align 4
+  %g11 = getelementptr inbounds i64, ptr %p, i64 11
+  %v11 = load volatile i64, ptr %g11, align 4
+  call void @tick()
+  %s1 = add i64 %v0, %v1
+  %s2 = add i64 %s1, %v2
+  %s3 = add i64 %s2, %v3
+  %s4 = add i64 %s3, %v4
+  %s5 = add i64 %s4, %v5
+  %s6 = add i64 %s5, %v6
+  %s7 = add i64 %s6, %v7
+  %s8 = add i64 %s7, %v8
+  %s9 = add i64 %s8, %v9
+  %s10 = add i64 %s9, %v10
+  %s11 = add i64 %s10, %v11
+  %s12 = add i64 %s11, 81985529216486895
+  ret i64 %s12
+}

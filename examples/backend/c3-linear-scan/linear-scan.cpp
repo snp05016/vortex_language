@@ -7,7 +7,7 @@
 // ends furthest in the future.
 //
 // Follows: Poletto and Sarkar, "Linear Scan Register Allocation", ACM
-// TOPLAS 21(5), 1999, section 3, "LinearScanRegisterAllocation".
+// TOPLAS 21(5), 1999, section 4.1 and its Figure 1.
 
 #include <algorithm>
 #include <cstdio>

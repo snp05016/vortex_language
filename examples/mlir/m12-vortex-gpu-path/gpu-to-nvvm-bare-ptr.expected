@@ -1,0 +1,31 @@
+module {
+  gpu.module @ids {
+    llvm.func @where_am_i(%arg0: !llvm.ptr) attributes {gpu.kernel, nvvm.kernel} {
+      %0 = llvm.mlir.undef : !llvm.struct<(ptr, ptr, i64, array<1 x i64>, array<1 x i64>)>
+      %1 = llvm.insertvalue %arg0, %0[0] : !llvm.struct<(ptr, ptr, i64, array<1 x i64>, array<1 x i64>)> 
+      %2 = llvm.insertvalue %arg0, %1[1] : !llvm.struct<(ptr, ptr, i64, array<1 x i64>, array<1 x i64>)> 
+      %3 = llvm.mlir.constant(0 : index) : i64
+      %4 = llvm.insertvalue %3, %2[2] : !llvm.struct<(ptr, ptr, i64, array<1 x i64>, array<1 x i64>)> 
+      %5 = llvm.mlir.constant(2 : index) : i64
+      %6 = llvm.insertvalue %5, %4[3, 0] : !llvm.struct<(ptr, ptr, i64, array<1 x i64>, array<1 x i64>)> 
+      %7 = llvm.mlir.constant(1 : index) : i64
+      %8 = llvm.insertvalue %7, %6[4, 0] : !llvm.struct<(ptr, ptr, i64, array<1 x i64>, array<1 x i64>)> 
+      %9 = llvm.mlir.constant(0 : index) : i64
+      %10 = llvm.mlir.constant(1 : index) : i64
+      %11 = nvvm.read.ptx.sreg.ctaid.x : i32
+      %12 = llvm.sext %11 : i32 to i64
+      %13 = nvvm.read.ptx.sreg.tid.x : i32
+      %14 = llvm.sext %13 : i32 to i64
+      %15 = llvm.trunc %12 : i64 to i32
+      %16 = llvm.trunc %14 : i64 to i32
+      %17 = llvm.extractvalue %8[1] : !llvm.struct<(ptr, ptr, i64, array<1 x i64>, array<1 x i64>)> 
+      %18 = llvm.getelementptr %17[%9] : (!llvm.ptr, i64) -> !llvm.ptr, i32
+      llvm.store %15, %18 : i32, !llvm.ptr
+      %19 = llvm.extractvalue %8[1] : !llvm.struct<(ptr, ptr, i64, array<1 x i64>, array<1 x i64>)> 
+      %20 = llvm.getelementptr %19[%10] : (!llvm.ptr, i64) -> !llvm.ptr, i32
+      llvm.store %16, %20 : i32, !llvm.ptr
+      llvm.return
+    }
+  }
+}
+

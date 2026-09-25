@@ -1,0 +1,5 @@
+flags = ["-ffp-contract=off"]
+follows = [
+  "https://siboehm.com/articles/22/CUDA-MMM",
+  "https://docs.nvidia.com/cutlass/latest/media/docs/cpp/efficient_gemm.html",
+]

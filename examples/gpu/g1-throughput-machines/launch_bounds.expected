@@ -1,0 +1,14 @@
+n = 64: 4096 threads, 4096 at once, 32768 bytes in flight
+  arithmetic peak        480.00
+  arithmetic latency     227.56
+  memory bandwidth        16.00
+  memory latency           5.12  <- binds
+  bound: 5.12 multiply-adds per cycle, 1.1% of peak
+
+n = 1024: 1048576 threads, 23040 at once, 184320 bytes in flight
+  arithmetic peak        480.00
+  arithmetic latency    1280.00
+  memory bandwidth        16.00  <- binds
+  memory latency          28.80
+  bound: 16.00 multiply-adds per cycle, 3.3% of peak
+

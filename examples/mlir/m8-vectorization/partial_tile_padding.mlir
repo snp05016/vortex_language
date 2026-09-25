@@ -1,8 +1,8 @@
-// A 2x2 read at the bottom-right corner of a 3x3 memref only has one real
-// row and one real column left. transfer_read pads the missing lanes with
-// %pad instead of needing a separate scalar remainder loop the way a
-// vectorized LLVM loop needs a scalar epilogue for a trip count that does
-// not divide evenly (see P10, "Trip counts and the scalar epilogue").
+// A 2x2 read at the bottom-right corner of a 3x3 memref: only element
+// [2, 2] exists. Without in_bounds, every lane past the edge receives %pad.
+// Lowering the transfer to 1-D rows shows what padding costs: row 3 is out
+// of bounds for every lane, so it folds to a constant of %pad, while row 2
+// stays a 1-D read that may run past the edge and keeps its padding.
 func.func @read_partial_tile(%src: memref<3x3xf32>) -> vector<2x2xf32> {
   %c2 = arith.constant 2 : index
   %pad = arith.constant -1.0 : f32

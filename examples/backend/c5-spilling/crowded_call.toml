@@ -1,0 +1,4 @@
+follows = [
+  "https://github.com/ARM-software/abi-aa/blob/main/aapcs64/aapcs64.rst",
+  "https://llvm.org/docs/LangRef.html#load-instruction",
+]

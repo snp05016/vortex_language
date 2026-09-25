@@ -1,0 +1,4 @@
+follows = [
+  "https://llvm.org/docs/tutorial/MyFirstLanguageFrontend/LangImpl02.html",
+  "https://matklad.github.io/2020/04/13/simple-but-powerful-pratt-parsing.html",
+]

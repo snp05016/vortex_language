@@ -1,0 +1,5 @@
+"42": accepted, value 42
+"042": rejected, leading-zero
+"0": accepted, value 0
+"7a": rejected, not-digits
+"": rejected, not-digits

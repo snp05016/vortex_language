@@ -1,6 +1,23 @@
 module {
-  llvm.func @identity(%arg0: !llvm.array<2 x vector<2xf32>>) -> !llvm.array<2 x vector<2xf32>> {
-    llvm.return %arg0 : !llvm.array<2 x vector<2xf32>>
+  llvm.func @twice(%arg0: !llvm.array<4 x vector<8xf32>>) -> !llvm.array<4 x vector<8xf32>> {
+    %0 = llvm.mlir.undef : !llvm.array<4 x vector<8xf32>>
+    %1 = llvm.extractvalue %arg0[0] : !llvm.array<4 x vector<8xf32>> 
+    %2 = llvm.extractvalue %arg0[0] : !llvm.array<4 x vector<8xf32>> 
+    %3 = llvm.fadd %1, %2  : vector<8xf32>
+    %4 = llvm.insertvalue %3, %0[0] : !llvm.array<4 x vector<8xf32>> 
+    %5 = llvm.extractvalue %arg0[1] : !llvm.array<4 x vector<8xf32>> 
+    %6 = llvm.extractvalue %arg0[1] : !llvm.array<4 x vector<8xf32>> 
+    %7 = llvm.fadd %5, %6  : vector<8xf32>
+    %8 = llvm.insertvalue %7, %4[1] : !llvm.array<4 x vector<8xf32>> 
+    %9 = llvm.extractvalue %arg0[2] : !llvm.array<4 x vector<8xf32>> 
+    %10 = llvm.extractvalue %arg0[2] : !llvm.array<4 x vector<8xf32>> 
+    %11 = llvm.fadd %9, %10  : vector<8xf32>
+    %12 = llvm.insertvalue %11, %8[2] : !llvm.array<4 x vector<8xf32>> 
+    %13 = llvm.extractvalue %arg0[3] : !llvm.array<4 x vector<8xf32>> 
+    %14 = llvm.extractvalue %arg0[3] : !llvm.array<4 x vector<8xf32>> 
+    %15 = llvm.fadd %13, %14  : vector<8xf32>
+    %16 = llvm.insertvalue %15, %12[3] : !llvm.array<4 x vector<8xf32>> 
+    llvm.return %16 : !llvm.array<4 x vector<8xf32>>
   }
 }
 

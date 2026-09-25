@@ -1,1 +1,2 @@
-follows = ["https://mlir.llvm.org/docs/Dialects/Vector/"]
+flags = ["--convert-vector-to-scf=full-unroll", "--canonicalize"]
+follows = ["https://mlir.llvm.org/docs/Dialects/Vector/", "https://mlir.llvm.org/docs/Passes/"]

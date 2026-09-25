@@ -1,0 +1,7 @@
+sizeof(Reading)      = 12
+alignof(Reading)     = 4
+offsetof(valid)      = 0
+offsetof(value)      = 4
+offsetof(calibrated) = 8
+padding after valid  = 3
+trailing padding     = 3

@@ -1,3 +1,0 @@
-follows = [
-  "https://llvm.org/docs/LangRef.html#fast-math-flags",
-]

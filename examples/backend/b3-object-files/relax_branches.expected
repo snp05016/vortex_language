@@ -1,0 +1,9 @@
+round 1: 198 bytes
+  jump at   0 to Lx: disp 126, short
+  jump at  62 to Ly: disp 134, too far, widen
+round 2: 202 bytes
+  jump at   0 to Lx: disp 130, too far, widen
+  jump at  62 to Ly: disp 134, near
+round 3: 206 bytes
+  jump at   0 to Lx: disp 130, near
+  jump at  66 to Ly: disp 134, near

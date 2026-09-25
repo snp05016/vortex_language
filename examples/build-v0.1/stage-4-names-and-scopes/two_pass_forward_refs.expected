@@ -1,0 +1,10 @@
+one pass:
+  step 0: jump finish -> unknown label
+  step 1: jump loop -> step 1
+  step 2: jump start -> step 0
+  step 3: jump nowhere -> unknown label
+two passes:
+  step 0: jump finish -> step 2
+  step 1: jump loop -> step 1
+  step 2: jump start -> step 0
+  step 3: jump nowhere -> unknown label

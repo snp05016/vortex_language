@@ -1,0 +1,2 @@
+good: all 2 patterns matched, in order
+wrong_order: pattern 1 ("4:3: divide error") never appeared in order

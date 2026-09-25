@@ -1,0 +1,3 @@
+newcomer      spilled: r t  (2 intervals, 4 memory accesses)
+furthest end  spilled: p  (1 interval, 8 memory accesses)
+fewest uses   spilled: q s  (2 intervals, 3 memory accesses)

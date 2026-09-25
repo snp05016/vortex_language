@@ -1,16 +1,18 @@
-// Two address spaces a GPU compiler chooses between for every value. Here
-// "private" memory is one buffer per thread, holding a value that only that
-// thread ever touches (what a register does, and what a register spills to
-// when the compiler runs out of them). "workgroup" memory is one buffer
-// shared by the whole block, the only way to move a value from one thread's
-// lane to another's. mlir-opt only parses, verifies and prints this file;
-// nothing runs.
+// The three kinds of memory a gpu.func can name. The kernel's memref
+// arguments carry no address space: they point at buffers the host
+// allocated in device memory. A "workgroup" attribution is one buffer per
+// block, seen by every thread of that block. A "private" attribution is one
+// buffer per thread, which no other thread can reach; a back end keeps it in
+// registers when it can and in the thread's slice of device memory when it
+// cannot. mlir-opt 18 parses, verifies and prints this file; nothing runs.
+// Follows: MLIR, 'gpu' Dialect, "GPU address spaces" and "Memory attribution".
 
 module attributes {gpu.container_module} {
   gpu.module @kernels {
-    // Reverses one 32-wide block's slice of x into y. Thread tx doubles its
-    // own value privately, then stages it so thread (31 - tx) can read it:
-    // that hand-off is only possible through workgroup memory.
+    // Doubles and reverses each 32-element slice of x into y. Thread tx
+    // keeps its doubled value privately, then stores it in the block's tile
+    // so that thread 31 - tx can read it after the barrier. A private buffer
+    // could not make that hand-off: no other thread can address it.
     gpu.func @reverse_block(%x: memref<64xf32>, %y: memref<64xf32>)
         workgroup(%tile: memref<32xf32, #gpu.address_space<workgroup>>)
         private(%doubled: memref<1xf32, #gpu.address_space<private>>)

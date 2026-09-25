@@ -1,11 +1,18 @@
-; Sum sixteen f32 values from a[0..15] using four independent running
-; accumulators, one per lane of a 4-wide unroll, combined only at the end.
-; Each accumulator is live across the whole function body: the register
-; allocator must give each one its own physical register throughout, not
-; just at the point it is used.
+; Sum sixteen f32 values from a[0..15] with four independent running
+; accumulators (acc0 to acc3), combined only at the end. The IR lists the
+; loads and adds in one fixed order, but most of them do not depend on each
+; other, so the machine scheduler has real choices here.
+;
+; The page compiles this file twice with llc -O2: once with the default
+; processor and once with -mcpu=apple-m1. The two scheduling models order the
+; loads differently, and that changes how many floating-point registers the
+; allocator then needs (eight in one listing, six in the other). Neither
+; order changes a single result: every fadd still reads the same operands.
 ;
 ; Follows: LLVM Language Reference Manual, "getelementptr" instruction
-; (https://llvm.org/docs/LangRef.html#getelementptr-instruction).
+; (https://llvm.org/docs/LangRef.html#getelementptr-instruction), and
+; llvm/include/llvm/CodeGen/MachineScheduler.h, LLVM 18.1.8
+; (https://github.com/llvm/llvm-project/blob/llvmorg-18.1.8/llvm/include/llvm/CodeGen/MachineScheduler.h).
 
 define float @four_accumulators(ptr %a) {
 entry:

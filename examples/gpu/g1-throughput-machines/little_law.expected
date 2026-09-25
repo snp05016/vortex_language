@@ -1,9 +1,11 @@
-SM          latency  throughput  parallelism
-G80-GT200        24           8          192
-GF100            18          32          576
-GF104            18          48          864
+pipe                 latency  per cycle  in flight
+arithmetic, one SM        18         32        576 multiply-adds
+arithmetic, 15 SMs        18        480       8640 multiply-adds
+memory, 400 cycles       400        128      51200 bytes
+memory, 800 cycles       800        128     102400 bytes
 
-SM          threads  ILP needed
-G80-GT200       192           1
-GF100           192           3
-GF104           192           5
+bytes in flight per thread   threads to hold 102400 bytes
+                         4                       25600
+                         8                       12800
+                        16                        6400
+                       100                        1024

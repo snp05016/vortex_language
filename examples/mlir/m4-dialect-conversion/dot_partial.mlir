@@ -1,14 +1,15 @@
-// The same function as dot_full, converted with one pattern set only:
-// arith to llvm. scf, memref and func stay legal, so the driver leaves
-// their operations alone; it does not fail just because llvm and scf now
-// sit in the same function.
+// The same function as dot_full, converted by one pass only:
+// convert-arith-to-llvm. Its conversion target knows two things, that the
+// llvm dialect is legal and that the bridging cast is legal. Every other
+// operation, scf.for, memref.load and func.func included, is unknown to it,
+// and a partial conversion leaves unknown operations alone.
 //
 // arith.constant 0 : index becomes an i64 llvm.mlir.constant, because the
-// TypeConverter maps MLIR's index type to a fixed-width integer. But
-// scf.for still declares its loop variable as index, so the converted
-// constant cannot feed it directly: the driver inserts an
-// unrealized_conversion_cast, a materialization that stands in for the
-// missing i64-to-index pattern until a later pass removes it.
+// type converter maps index to a 64-bit integer. But scf.for, which nobody
+// converted, still wants index operands. So the driver inserts an
+// unrealized_conversion_cast from i64 back to index for each bound: a
+// materialization that keeps the module well typed until a later pass
+// converts the loop and the cast can go.
 
 func.func @dot(%a: memref<8xf32>, %b: memref<8xf32>) -> f32 {
   %c0 = arith.constant 0 : index

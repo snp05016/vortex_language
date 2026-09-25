@@ -1,3 +1,4 @@
 elements visited: 512, elements per line: 32
-line transitions, row order (stride 1):    16
-line transitions, column order (stride 64): 512
+lines the array occupies: 16
+line transitions, row order (stride 1 element):     16
+line transitions, column order (stride 64 elements): 512

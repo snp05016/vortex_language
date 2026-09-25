@@ -1,4 +1,5 @@
-elements: 6
-two-pass reads of the input: 12
-online reads of the input: 6
-outputs match within tolerance: yes
+safe softmax:   18 loads, 6 stores
+online softmax: 12 loads, 6 stores
+outputs match within 1e-12: yes
+running max 3.5, running sum 2.0259
+merged halves give the same pair: yes

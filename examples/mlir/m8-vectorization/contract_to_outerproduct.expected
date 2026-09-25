@@ -1,0 +1,22 @@
+module {
+  func.func @mm2x2(%arg0: vector<2x2xf32>, %arg1: vector<2x2xf32>, %arg2: vector<2x2xf32>) -> vector<2x2xf32> {
+    %0 = vector.transpose %arg0, [1, 0] : vector<2x2xf32> to vector<2x2xf32>
+    %1 = vector.extract %0[0] : vector<2xf32> from vector<2x2xf32>
+    %2 = vector.extract %arg1[0] : vector<2xf32> from vector<2x2xf32>
+    %3 = vector.outerproduct %1, %2, %arg2 {kind = #vector.kind<add>} : vector<2xf32>, vector<2xf32>
+    %4 = vector.extract %0[1] : vector<2xf32> from vector<2x2xf32>
+    %5 = vector.extract %arg1[1] : vector<2xf32> from vector<2x2xf32>
+    %6 = vector.outerproduct %4, %5, %3 {kind = #vector.kind<add>} : vector<2xf32>, vector<2xf32>
+    return %6 : vector<2x2xf32>
+  }
+  module attributes {transform.with_named_sequence} {
+    transform.named_sequence @__transform_main(%arg0: !transform.any_op {transform.readonly}) {
+      %0 = transform.structured.match ops{["func.func"]} in %arg0 : (!transform.any_op) -> !transform.any_op
+      transform.apply_patterns to %0 {
+        transform.apply_patterns.vector.lower_contraction
+      } : !transform.any_op
+      transform.yield 
+    }
+  }
+}
+

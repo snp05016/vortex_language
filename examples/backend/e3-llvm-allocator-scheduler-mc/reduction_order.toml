@@ -1,1 +1,2 @@
-follows = ["https://llvm.org/docs/LangRef.html#fadd-instruction"]
+flags = ["-passes=default<O3>"]
+follows = ["https://llvm.org/docs/LangRef.html#fadd-instruction", "https://llvm.org/docs/LangRef.html#fast-math-flags"]

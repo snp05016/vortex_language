@@ -1,0 +1,5 @@
+flags = ["-ffp-contract=off"]
+follows = [
+  "https://www.akkadia.org/drepper/cpumemory.pdf",
+  "https://perfwiki.github.io/main/tutorial/",
+]

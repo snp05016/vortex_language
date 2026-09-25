@@ -1,0 +1,14 @@
+--- !Passed
+Pass:            loop-interchange
+Name:            Interchanged
+Function:        down_2d
+Args:
+  - String:          Loop interchanged with enclosing loop.
+...
+--- !Missed
+Pass:            loop-interchange
+Name:            Dependence
+Function:        down_flat
+Args:
+  - String:          Cannot interchange loops due to dependences.
+...

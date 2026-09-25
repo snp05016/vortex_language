@@ -1,0 +1,3 @@
+font_size: 14 (from the nearest section that sets it)
+theme: dark (from the nearest section that sets it)
+margin: not set in any enclosing section

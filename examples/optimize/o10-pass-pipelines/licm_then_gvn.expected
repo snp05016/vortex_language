@@ -1,0 +1,27 @@
+; ModuleID = 'licm_then_gvn.ll'
+source_filename = "licm_then_gvn.ll"
+
+define void @row_total(ptr %table, i32 %row, i32 %n) {
+entry:
+  %start = mul i32 %row, 64
+  br label %header
+
+header:                                           ; preds = %body, %entry
+  %col = phi i32 [ 0, %entry ], [ %col.next, %body ]
+  %total = phi i32 [ 0, %entry ], [ %total.next, %body ]
+  %more = icmp slt i32 %col, %n
+  br i1 %more, label %body, label %exit
+
+body:                                             ; preds = %header
+  %index = add i32 %start, %col
+  %cell = getelementptr i32, ptr %table, i32 %index
+  %value = load i32, ptr %cell, align 4
+  %total.next = add i32 %total, %value
+  %col.next = add i32 %col, 1
+  br label %header
+
+exit:                                             ; preds = %header
+  %first = getelementptr i32, ptr %table, i32 %start
+  store i32 %total, ptr %first, align 4
+  ret void
+}

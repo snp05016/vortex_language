@@ -1,0 +1,8 @@
+work 137.1 GFLOP; least traffic 268 MB; ridge point 39.1 FLOP/B
+naive with no cache reuse: 548 GB, bound 192 GFLOP/s
+
+kernel         time s   FP32 %   DRAM %   DRAM GB     FLOP/B roof GFLOP/s
+1 naive         0.444      1.0      2.0       6.7       20.6        15821
+2 coalesced     0.069      6.6     14.3       7.6       18.1        13869
+
+remark: kernel 2 is 6.4x faster; derived DRAM traffic went from 6.7 GB to 7.6 GB, so it is not the cause; next counter to read: L1 sectors per request (G4).

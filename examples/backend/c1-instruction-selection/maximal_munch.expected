@@ -1,3 +1,9 @@
-t1 = madd i, 4, j
-t2 = ldr [a, t1, lsl #2]
-2 instructions
+add-shifted listed first:
+  add  t1, j, i, lsl #2
+  ldr  t2, [a, t1, lsl #2]
+  2 instructions
+madd listed first:
+  mov  t1, #4
+  madd t2, i, t1, j
+  ldr  t3, [a, t2, lsl #2]
+  3 instructions

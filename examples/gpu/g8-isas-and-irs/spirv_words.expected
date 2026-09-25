@@ -1,0 +1,16 @@
+magic   0x07230203
+version 1.0
+bound   44 (every id is below this)
+
+0x00020011  2 words  OpCapability         1
+0x0003000e  3 words  OpMemoryModel        0 1
+0x000500ba  5 words  OpFOrdGreaterThan    %32 %33 %30 %31
+0x000300f7  3 words  OpSelectionMerge     %39 0
+0x000400fa  4 words  OpBranchConditional  %33 %37 %38
+0x000200f8  2 words  OpLabel              %37
+0x0003003e  3 words  OpStore              %35 %30
+0x000200f9  2 words  OpBranch             %39
+0x000200f8  2 words  OpLabel              %38
+0x0003003e  3 words  OpStore              %35 %31
+0x000200f9  2 words  OpBranch             %39
+0x000200f8  2 words  OpLabel              %39

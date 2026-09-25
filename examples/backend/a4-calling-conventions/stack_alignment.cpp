@@ -1,50 +1,45 @@
-// Follows: ARM-software/abi-aa, AAPCS64, section 6.4.2 "The Stack" (the
-// stack must be quad-word aligned at a public interface).
-// <https://github.com/ARM-software/abi-aa/blob/main/aapcs64/aapcs64.rst>
-// Follows: x86-64-ABI (SysV AMD64 psABI), section 3.2.2 "The Stack Frame"
-// ("%rsp + 8 is always a multiple of 16 when control is transferred to the
-// function entry point"). <https://gitlab.com/x86-psABIs/x86-64-ABI>
+// Follows: Arm, AAPCS64, "Stack constraints at a public interface"
+//   (SP mod 16 = 0) and "Subroutine calls" (BL puts the return address in LR).
+// Follows: x86-64 psABI, "The Stack Frame" (16-byte aligned before the call
+//   instruction; rsp + 8 a multiple of 16 at the function entry).
 //
-// Both ABIs require the stack pointer to be 16-byte aligned at a call, but
-// they disagree about where the return address lives, so what the callee
-// sees at entry differs. AArch64's `bl` leaves the return address in the
-// link register and never touches the stack pointer; x86-64's `call`
-// pushes eight bytes of return address. A compiler laying out stack
-// arguments has to account for that difference.
-
+// A caller that is itself a function must reserve its locals and outgoing
+// stack arguments so that the stack pointer is 16-byte aligned at its own
+// call. This computes how much it reserves on each ISA, starting from the
+// state the ABI guarantees at the caller's entry.
 #include <cstdio>
 #include <initializer_list>
 
-struct Rule {
+int round_up(int n, int to) { return (n + to - 1) / to * to; }
+
+struct Isa {
     const char* name;
-    int call_pushes_return_address;  // 0 for bl, 8 for call
+    int entry_offset;  // sp mod 16 at a function's entry
+    int call_pushes;   // bytes the call instruction pushes
 };
 
-bool aligned_at_the_call(int sp_before_call, int stack_argument_bytes) {
-    int sp_at_call = sp_before_call - stack_argument_bytes;
-    return sp_at_call % 16 == 0;
-}
-
-bool aligned_at_callee_entry(const Rule& abi, int sp_at_call) {
-    int sp_at_entry = sp_at_call - abi.call_pushes_return_address;
-    int required_remainder = abi.call_pushes_return_address == 0 ? 0 : 8;
-    return sp_at_entry % 16 == required_remainder;
+// Bytes the caller subtracts from sp so that sp mod 16 == 0 at its call.
+int reserve(const Isa& isa, int needed) {
+    return round_up(needed + isa.entry_offset, 16) - isa.entry_offset;
 }
 
 int main() {
-    Rule aarch64{"AArch64 (bl)", 0};
-    Rule x86_64{"x86-64 (call)", 8};
-    int sp_before_call = 64;  // any 16-aligned starting point
-
-    for (int bytes : {0, 8, 16, 24}) {
-        for (const auto& abi : {aarch64, x86_64}) {
-            bool call_ok = aligned_at_the_call(sp_before_call, bytes);
-            int sp_at_call = sp_before_call - bytes;
-            bool entry_ok = call_ok && aligned_at_callee_entry(abi, sp_at_call);
-            std::printf("%-14s %2d stack-argument bytes: call %s, entry %s\n",
-                        abi.name, bytes,
-                        call_ok ? "aligned" : "MISALIGNED",
-                        entry_ok ? "aligned" : "MISALIGNED");
+    const Isa isas[] = {{"AArch64 (bl)", 0, 0}, {"x86-64 (call)", 8, 8}};
+    const int frame_record = 16;  // saved frame pointer and return address
+    for (const Isa& isa : isas) {
+        std::printf("%s: sp mod 16 at entry = %d\n", isa.name,
+                    isa.entry_offset);
+        for (int stack_args : {0, 8, 16, 24, 32}) {
+            // AArch64 saves x29 and x30 in the frame. On x86-64 the return
+            // address is already on the stack; the caller keeps 8 bytes of
+            // its own (a saved rbp, or the padding clang pushes).
+            int needed = stack_args + (isa.call_pushes ? 8 : frame_record);
+            int r = reserve(isa, needed);
+            int sp_at_call = (isa.entry_offset - r % 16 + 16) % 16;
+            int sp_in_callee = (sp_at_call - isa.call_pushes + 16) % 16;
+            std::printf("  %2d stack-argument bytes: reserve %2d, sp mod 16 at "
+                        "the call = %d, in the callee = %d\n",
+                        stack_args, r, sp_at_call, sp_in_callee);
         }
     }
 }

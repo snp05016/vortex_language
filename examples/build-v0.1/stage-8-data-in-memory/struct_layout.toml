@@ -1,0 +1,5 @@
+follows = [
+  "https://en.cppreference.com/w/cpp/types/offsetof",
+  "https://en.cppreference.com/w/cpp/language/alignof",
+  "https://en.cppreference.com/w/cpp/language/sizeof",
+]

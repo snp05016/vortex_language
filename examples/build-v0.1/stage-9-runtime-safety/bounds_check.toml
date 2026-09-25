@@ -1,0 +1,4 @@
+follows = [
+  "https://en.cppreference.com/w/cpp/utility/optional.html",
+  "https://en.cppreference.com/w/cpp/utility/pair.html",
+]

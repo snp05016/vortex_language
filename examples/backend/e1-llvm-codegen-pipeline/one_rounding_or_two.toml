@@ -1,0 +1,7 @@
+# Contraction off, so the only fused operation is the explicit std::fma
+# (GCC fuses separate statements by default; Clang fuses within one).
+flags   = ["-ffp-contract=off"]
+follows = [
+  "https://en.cppreference.com/w/cpp/numeric/math/fma",
+  "https://llvm.org/docs/LangRef.html#fast-math-flags",
+]

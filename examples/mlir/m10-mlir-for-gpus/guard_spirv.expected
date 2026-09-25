@@ -1,0 +1,53 @@
+module attributes {gpu.container_module, spirv.target_env = #spirv.target_env<#spirv.vce<v1.3, [Shader], [SPV_KHR_storage_buffer_storage_class]>, #spirv.resource_limits<>>} {
+  spirv.module @__spv__kernels Logical GLSL450 requires #spirv.vce<v1.0, [Shader], [SPV_KHR_storage_buffer_storage_class]> {
+    spirv.GlobalVariable @__builtin__LocalInvocationId__ built_in("LocalInvocationId") : !spirv.ptr<vector<3xi32>, Input>
+    spirv.GlobalVariable @__builtin__WorkgroupId__ built_in("WorkgroupId") : !spirv.ptr<vector<3xi32>, Input>
+    spirv.func @halve(%arg0: !spirv.ptr<!spirv.struct<(!spirv.array<250 x f32, stride=4> [0])>, StorageBuffer> {spirv.interface_var_abi = #spirv.interface_var_abi<(0, 0)>}) "None" attributes {spirv.entry_point_abi = #spirv.entry_point_abi<workgroup_size = [64, 1, 1]>, workgroup_attributions = 0 : i64} {
+      %cst0_i32 = spirv.Constant 0 : i32
+      %cst64_i32 = spirv.Constant 64 : i32
+      %cst250_i32 = spirv.Constant 250 : i32
+      %cst_f32 = spirv.Constant 5.000000e-01 : f32
+      %__builtin__WorkgroupId___addr = spirv.mlir.addressof @__builtin__WorkgroupId__ : !spirv.ptr<vector<3xi32>, Input>
+      %0 = spirv.Load "Input" %__builtin__WorkgroupId___addr : vector<3xi32>
+      %1 = spirv.CompositeExtract %0[0 : i32] : vector<3xi32>
+      %__builtin__LocalInvocationId___addr = spirv.mlir.addressof @__builtin__LocalInvocationId__ : !spirv.ptr<vector<3xi32>, Input>
+      %2 = spirv.Load "Input" %__builtin__LocalInvocationId___addr : vector<3xi32>
+      %3 = spirv.CompositeExtract %2[0 : i32] : vector<3xi32>
+      %4 = spirv.IMul %1, %cst64_i32 : i32
+      %5 = spirv.IAdd %4, %3 : i32
+      %6 = spirv.ULessThan %5, %cst250_i32 : i32
+      spirv.mlir.selection {
+        spirv.BranchConditional %6, ^bb1, ^bb2
+      ^bb1:  // pred: ^bb0
+        %7 = spirv.AccessChain %arg0[%cst0_i32, %5] : !spirv.ptr<!spirv.struct<(!spirv.array<250 x f32, stride=4> [0])>, StorageBuffer>, i32, i32
+        %8 = spirv.Load "StorageBuffer" %7 : f32
+        %9 = spirv.FMul %8, %cst_f32 : f32
+        %10 = spirv.AccessChain %arg0[%cst0_i32, %5] : !spirv.ptr<!spirv.struct<(!spirv.array<250 x f32, stride=4> [0])>, StorageBuffer>, i32, i32
+        spirv.Store "StorageBuffer" %10, %9 : f32
+        spirv.Branch ^bb2
+      ^bb2:  // 2 preds: ^bb0, ^bb1
+        spirv.mlir.merge
+      }
+      spirv.Return
+    }
+  }
+  gpu.module @kernels {
+    gpu.func @halve(%arg0: memref<250xf32, #spirv.storage_class<StorageBuffer>>) kernel attributes {spirv.entry_point_abi = #spirv.entry_point_abi<workgroup_size = [64, 1, 1]>} {
+      %c64 = arith.constant 64 : index
+      %c250 = arith.constant 250 : index
+      %cst = arith.constant 5.000000e-01 : f32
+      %0 = gpu.block_id  x
+      %1 = gpu.thread_id  x
+      %2 = arith.muli %0, %c64 : index
+      %3 = arith.addi %2, %1 : index
+      %4 = arith.cmpi ult, %3, %c250 : index
+      scf.if %4 {
+        %5 = memref.load %arg0[%3] : memref<250xf32, #spirv.storage_class<StorageBuffer>>
+        %6 = arith.mulf %5, %cst : f32
+        memref.store %6, %arg0[%3] : memref<250xf32, #spirv.storage_class<StorageBuffer>>
+      }
+      gpu.return
+    }
+  }
+}
+

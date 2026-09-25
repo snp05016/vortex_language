@@ -1,15 +1,15 @@
 // Follows: Wolf and Lam, "A Data Locality Optimizing Algorithm", PLDI 1991
-// (also cited in P7), whose legality test, T applied to every dependence
-// distance must stay lexicographically positive, is generalized here from a
-// unimodular matrix T to an arbitrary affine schedule theta.
-// https://doi.org/10.1145/113445.113449
+// (also cited in P7), whose test, T d lexicographically positive for every
+// dependence distance d, is generalized here from a unimodular matrix T to an
+// affine schedule theta; and Verdoolaege, "Presburger Formulas and Polyhedral
+// Compilation", Definition 5.1 (a valid schedule respects every dependence).
 //
-// The recurrence this domain computes reads (i - 1, j) and (i - 1, j - 1)
-// when those points exist in the domain (this is Pascal's triangle: each
-// entry is the sum of the two above it), and writes (i, j). dependences()
-// finds every such reader-writer pair by brute force, independent of any
-// schedule. legal() then asks, for one schedule at a time, whether every
-// dependence still points forward in time under it.
+// The recurrence is Pascal's triangle with the missing neighbours read as 0:
+// t(0, 0) = 1, and every other point adds t(i - 1, j) and t(i - 1, j - 1),
+// each only when that point lies in the triangle. dependences() lists every
+// (writer, reader) pair by brute force, without looking at any schedule.
+// legal() then asks, one schedule at a time, whether theta(reader) minus
+// theta(writer) is lexicographically positive for every pair.
 
 #include <cstdio>
 #include <utility>

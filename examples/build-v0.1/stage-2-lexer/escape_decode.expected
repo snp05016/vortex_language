@@ -1,0 +1,15 @@
+spelling: first line\nsecond line
+decoded:  first line
+second line
+bytes: spelling=23 decoded=22
+
+spelling: left\\right
+decoded:  left\right
+bytes: spelling=11 decoded=10
+
+spelling: a tab\there
+decoded:  a tab	here
+bytes: spelling=11 decoded=10
+
+spelling: bad\q
+error:    unsupported escape

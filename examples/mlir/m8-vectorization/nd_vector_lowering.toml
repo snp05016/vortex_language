@@ -1,2 +1,2 @@
-flags = ["--convert-vector-to-llvm", "--convert-func-to-llvm", "--reconcile-unrealized-casts"]
+flags = ["--convert-vector-to-llvm", "--convert-arith-to-llvm", "--convert-func-to-llvm", "--reconcile-unrealized-casts"]
 follows = ["https://mlir.llvm.org/docs/Dialects/Vector/"]

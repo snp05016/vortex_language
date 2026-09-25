@@ -1,4 +1,4 @@
 follows = [
-    "https://www.intel.com/content/www/us/en/developer/articles/technical/intel-sdm.html",
     "https://wiki.osdev.org/X86-64_Instruction_Encoding",
+    "https://www.felixcloutier.com/x86/addss",
 ]

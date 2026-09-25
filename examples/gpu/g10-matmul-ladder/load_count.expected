@@ -1,0 +1,6 @@
+rung                                   global     shared
+1  naive                               524288          0
+3  block tile 32 x 32 x 8               16384     524288
+5  same, thread tile 4 x 4              16384     131072
+rung 3 bits equal rung 1: yes
+rung 5 bits equal rung 1: yes

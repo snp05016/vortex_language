@@ -1,1 +1,4 @@
-follows = ["https://arxiv.org/abs/2205.14135"]
+follows = [
+  "https://arxiv.org/abs/2307.08691",
+  "https://arxiv.org/abs/2205.14135",
+]

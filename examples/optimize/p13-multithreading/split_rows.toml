@@ -1,3 +1,4 @@
 follows = [
-  "https://en.cppreference.com/w/cpp/thread/thread",
+  "https://en.cppreference.com/w/cpp/thread/thread/thread",
+  "https://en.cppreference.com/w/cpp/thread/thread/~thread",
 ]

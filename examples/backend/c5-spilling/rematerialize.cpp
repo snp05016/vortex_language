@@ -1,47 +1,42 @@
-// Rematerialization: when it is cheaper to recompute a spilled value than
-// to reload it. Follows Briggs, Cooper and Torczon (see the .toml).
+// Reload or recompute? A value that must leave its register can come back
+// by a load from its stack slot, or be computed again where it is needed,
+// but only if what it is computed from is still available there. Follows:
+// Briggs, Cooper and Torczon, "Rematerialization" (see the .toml).
 //
-// A reload always costs one load instruction, but it also demands that the
-// value was stored first, and that a stack slot holds it for as long as it
-// might still be needed. Some values, such as a small constant or an
-// array's base address (a fixed pointer plus a fixed offset), can instead
-// be recomputed from operands that are already available wherever they are
-// needed, at some fixed instruction cost. That trades a store, once, for
-// paying the recompute cost again at every use.
+// Instruction counts are AArch64's: a 16-bit immediate is one mov, a full
+// 64-bit constant can need movz plus three movk, a global's address is adrp
+// plus add, and a stack slot's address is one add to sp.
 #include <cstdio>
 
-struct Totals {
-  int reload_total;
-  int remat_total;
+struct Value {
+  const char *name;
+  int recompute;  // instructions to recompute it; 0 means it cannot be
 };
 
-// `uses` is how many times the value is needed again after its first def.
-// `remat_cost` is how many instructions recomputing it takes (1 for a
-// literal constant, 2 for "base register plus a fixed offset").
-Totals compare(int uses, int remat_cost) {
-  const int store_cost = 1;   // spilling needs exactly one store, once
-  const int load_cost = 1;    // a reload is exactly one load, every time
-  Totals t;
-  t.reload_total = store_cost + uses * load_cost;
-  t.remat_total = uses * remat_cost;   // never stored: nothing to spill
-  return t;
-}
-
 int main() {
-  const int uses[] = {1, 2, 4, 8};
-  const int remat_costs[] = {1, 2};   // a constant, then an address
+  const int uses = 4;  // the value is needed again at four places
+  const Value values[] = {
+      {"small constant", 1},
+      {"64-bit constant", 4},
+      {"global address", 2},
+      {"stack address", 1},
+      {"running sum", 0},  // computed from its own earlier value
+  };
 
-  for (int remat_cost : remat_costs) {
-    std::printf("recompute cost %d instruction%s:\n", remat_cost,
-                remat_cost == 1 ? "" : "s");
-    for (int u : uses) {
-      Totals t = compare(u, remat_cost);
-      const char *winner = t.remat_total < t.reload_total   ? "rematerialize"
-                            : t.remat_total > t.reload_total ? "reload"
-                                                              : "tie";
-      std::printf("  uses %d: reload %d, rematerialize %d -> %s\n", u,
-                  t.reload_total, t.remat_total, winner);
+  std::printf("%d later uses\n", uses);
+  std::printf("%-16s  reload: instrs mem | recompute: instrs mem\n", "value");
+  for (const Value &v : values) {
+    // Reload plan: one store to the slot, then one load per use.
+    const int reload_instrs = 1 + uses;
+    const int reload_mem = 1 + uses;
+    if (v.recompute == 0) {
+      std::printf("%-16s          %2d  %2d | not possible\n", v.name,
+                  reload_instrs, reload_mem);
+      continue;
     }
+    // Recompute plan: no slot, no store, no load.
+    std::printf("%-16s          %2d  %2d |            %2d   0\n", v.name,
+                reload_instrs, reload_mem, uses * v.recompute);
   }
   return 0;
 }

@@ -15,7 +15,6 @@ int cell(int row, int col) { return row * kCols + col + 1; }
 // Sums one contiguous range of rows into out[first..last).
 // Every call touches a different, disjoint slice of out, so no two threads
 // ever write the same element: no lock is needed to make this correct.
-// Follows: cppreference std::thread, section "Notes" (join before destruction).
 void sum_rows(int first, int last, std::array<int, kRows>& out) {
     for (int row = first; row < last; ++row) {
         int total = 0;
@@ -38,8 +37,11 @@ int main() {
     for (int t = 0; t < kThreads; ++t) {
         int first = t * kRowsPerThread;
         int last = first + kRowsPerThread;
+        // Thread arguments are copied unless wrapped: std::ref shares `out`.
         workers.emplace_back(sum_rows, first, last, std::ref(out));
     }
+    // Join before reading `out`, and before a joinable thread is destroyed,
+    // which would call std::terminate.
     for (std::thread& w : workers) {
         w.join();
     }

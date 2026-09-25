@@ -1,0 +1,4 @@
+exact inputs: 10 vs 10, == true, almost_equal true
+regrouped sum: 0.6000000000000001 vs 0.6, == false, almost_equal true
+near zero: 0 vs 1e-09, == false, almost_equal true
+wrong answer: 1 vs 1.0001, == false, almost_equal false

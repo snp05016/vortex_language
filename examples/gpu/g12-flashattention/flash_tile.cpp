@@ -1,109 +1,82 @@
-// Follows: Tri Dao et al., "FlashAttention: Fast and Memory-Efficient Exact
-// Attention with IO-Awareness", NeurIPS 2022 (arXiv:2205.14135), algorithm 1's
-// sweep over key/value blocks with a running max, sum and output.
+// Follows: Dao, "FlashAttention-2: Faster Attention with Better Parallelism
+// and Work Partitioning", 2023 (arXiv:2307.08691), section 3.1.1: one query
+// row swept over key/value blocks with a running max, a running sum and an
+// output that is divided by the sum only once, at the end.
 #include <array>
 #include <cmath>
 #include <cstdio>
 #include <limits>
 
 constexpr std::size_t D = 2;   // head dimension
-constexpr std::size_t NK = 4;  // number of key/value rows
-constexpr std::size_t B = 2;   // key/value block size
+constexpr std::size_t NK = 4;  // number of keys and values
+constexpr std::size_t B = 2;   // keys per block
 
 using Vec = std::array<double, D>;
 
 double dot(const Vec& a, const Vec& b) {
     double s = 0.0;
-    for (std::size_t i = 0; i < D; ++i) {
-        s += a[i] * b[i];
-    }
+    for (std::size_t i = 0; i < D; ++i) s += a[i] * b[i];
     return s;
 }
 
-// Naive attention for one query row: build the whole score row (NK
-// elements), softmax it, then take the weighted sum of every value row.
-// The score row is the largest amount of score data resident at once.
+// The three steps as written: all NK scores exist at once.
 Vec naive_row(const Vec& q, const std::array<Vec, NK>& k, const std::array<Vec, NK>& v) {
     std::array<double, NK> s{};
+    double m = -std::numeric_limits<double>::infinity();
     for (std::size_t j = 0; j < NK; ++j) {
         s[j] = dot(q, k[j]);
-    }
-    double m = s[0];
-    for (double x : s) {
-        if (x > m) m = x;
+        m = std::fmax(m, s[j]);
     }
     double l = 0.0;
-    std::array<double, NK> p{};
-    for (std::size_t j = 0; j < NK; ++j) {
-        p[j] = std::exp(s[j] - m);
-        l += p[j];
-    }
     Vec out{};
     for (std::size_t j = 0; j < NK; ++j) {
-        for (std::size_t d = 0; d < D; ++d) {
-            out[d] += p[j] * v[j][d];
-        }
+        double p = std::exp(s[j] - m);
+        l += p;
+        for (std::size_t c = 0; c < D; ++c) out[c] += p * v[j][c];
     }
-    for (std::size_t d = 0; d < D; ++d) {
-        out[d] /= l;
-    }
+    for (std::size_t c = 0; c < D; ++c) out[c] /= l;
     return out;
 }
 
-// Tiled attention for one query row: sweep key/value blocks of size B,
-// keeping only the running max m, running sum l and running weighted output
-// on chip. A block of B scores is the largest amount of score data resident
-// at any moment; the full NK-long row is never assembled.
+// One block of B scores at a time. The running output is kept unscaled
+// (not yet divided by l); a rising maximum rescales it and l together.
 Vec tiled_row(const Vec& q, const std::array<Vec, NK>& k, const std::array<Vec, NK>& v) {
     double m = -std::numeric_limits<double>::infinity();
     double l = 0.0;
-    Vec out{};
-    for (std::size_t block = 0; block < NK; block += B) {
+    Vec acc{};
+    for (std::size_t start = 0; start < NK; start += B) {
         std::array<double, B> s{};
         double block_max = -std::numeric_limits<double>::infinity();
         for (std::size_t j = 0; j < B; ++j) {
-            s[j] = dot(q, k[block + j]);
-            if (s[j] > block_max) block_max = s[j];
+            s[j] = dot(q, k[start + j]);
+            block_max = std::fmax(block_max, s[j]);
         }
-        double new_m = m > block_max ? m : block_max;
-        double scale = std::exp(m - new_m); // exp(-inf) = 0 on the first block
+        double new_m = std::fmax(m, block_max);
+        double scale = std::exp(m - new_m);  // exp(-inf) is 0 for the first block
         l *= scale;
-        for (std::size_t d = 0; d < D; ++d) {
-            out[d] *= scale;
-        }
+        for (std::size_t c = 0; c < D; ++c) acc[c] *= scale;
         for (std::size_t j = 0; j < B; ++j) {
             double p = std::exp(s[j] - new_m);
             l += p;
-            for (std::size_t d = 0; d < D; ++d) {
-                out[d] += p * v[block + j][d];
-            }
+            for (std::size_t c = 0; c < D; ++c) acc[c] += p * v[start + j][c];
         }
         m = new_m;
+        std::printf("block %zu: scores %4.1f %4.1f  m %4.1f  scale %.4f  l %.4f  acc (%.4f, %.4f)\n",
+                    start / B, s[0], s[1], m, scale, l, acc[0], acc[1]);
     }
-    for (std::size_t d = 0; d < D; ++d) {
-        out[d] /= l;
-    }
-    return out;
+    for (std::size_t c = 0; c < D; ++c) acc[c] /= l;
+    return acc;
 }
 
 int main() {
-    std::array<Vec, 2> q = {{ {1.0, 0.0}, {0.0, 1.0} }};
-    std::array<Vec, NK> k = {{ {1.0, 0.0}, {0.0, 1.0}, {1.0, 1.0}, {-1.0, 0.0} }};
-    std::array<Vec, NK> v = {{ {1.0, 2.0}, {3.0, 4.0}, {5.0, 6.0}, {7.0, 8.0} }};
+    const Vec q = {1.0, 0.0};
+    const std::array<Vec, NK> k = {{{0.0, 1.0}, {-1.0, 0.0}, {1.0, 0.0}, {1.0, 1.0}}};
+    const std::array<Vec, NK> v = {{{1.0, 2.0}, {3.0, 4.0}, {5.0, 6.0}, {7.0, 8.0}}};
 
-    bool match = true;
-    for (std::size_t i = 0; i < q.size(); ++i) {
-        Vec a = naive_row(q[i], k, v);
-        Vec b = tiled_row(q[i], k, v);
-        for (std::size_t d = 0; d < D; ++d) {
-            if (std::abs(a[d] - b[d]) > 1e-9) match = false;
-        }
-    }
-
-    std::printf("sequence length: %zu\n", NK);
-    std::printf("block size: %zu\n", B);
-    std::printf("naive score buffer: %zu bytes\n", NK * sizeof(double));
-    std::printf("tiled score buffer: %zu bytes\n", B * sizeof(double));
-    std::printf("outputs match within tolerance: %s\n", match ? "yes" : "no");
+    Vec tiled = tiled_row(q, k, v);
+    Vec naive = naive_row(q, k, v);
+    std::printf("tiled output (%.4f, %.4f)\n", tiled[0], tiled[1]);
+    std::printf("naive output (%.4f, %.4f)\n", naive[0], naive[1]);
+    std::printf("scores held at once: naive %zu, tiled %zu\n", NK, B);
     return 0;
 }

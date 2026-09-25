@@ -1,30 +1,43 @@
 ; ModuleID = 'loop_adaptor.ll'
 source_filename = "loop_adaptor.ll"
 
-define void @scale_by_square(ptr noalias %out, float %k, i32 %n, i1 %use_alt) {
+define void @fill(ptr %table, i32 %rows, i32 %cols, float %k, i1 %skip_first) {
 entry:
-  br i1 %use_alt, label %alt, label %header.preheader
+  br i1 %skip_first, label %alt, label %outer.preheader
 
 alt:                                              ; preds = %entry
-  br label %header.preheader
+  br label %outer.preheader
 
-header.preheader:                                 ; preds = %entry, %alt
+outer.preheader:                                  ; preds = %entry, %alt
+  %r.ph = phi i32 [ 1, %alt ], [ 0, %entry ]
   %ksq = fmul float %k, %k
-  br label %header
+  br label %outer
 
-header:                                           ; preds = %header.preheader, %body
-  %i = phi i32 [ %next, %body ], [ 0, %header.preheader ]
-  %cmp = icmp slt i32 %i, %n
-  br i1 %cmp, label %body, label %exit
+outer:                                            ; preds = %outer.preheader, %outer.latch
+  %r = phi i32 [ %r.next, %outer.latch ], [ %r.ph, %outer.preheader ]
+  %r.more = icmp slt i32 %r, %rows
+  br i1 %r.more, label %row, label %done
 
-body:                                             ; preds = %header
-  %gep.out = getelementptr inbounds float, ptr %out, i32 %i
-  %old = load float, ptr %gep.out, align 4
-  %scaled = fmul float %old, %ksq
-  store float %scaled, ptr %gep.out, align 4
-  %next = add nsw i32 %i, 1
-  br label %header
+row:                                              ; preds = %outer
+  %row.start = mul i32 %r, %cols
+  br label %inner
 
-exit:                                             ; preds = %header
+inner:                                            ; preds = %cell, %row
+  %c = phi i32 [ 0, %row ], [ %c.next, %cell ]
+  %c.more = icmp slt i32 %c, %cols
+  br i1 %c.more, label %cell, label %outer.latch
+
+cell:                                             ; preds = %inner
+  %index = add i32 %row.start, %c
+  %p = getelementptr float, ptr %table, i32 %index
+  store float %ksq, ptr %p, align 4
+  %c.next = add i32 %c, 1
+  br label %inner
+
+outer.latch:                                      ; preds = %inner
+  %r.next = add i32 %r, 1
+  br label %outer
+
+done:                                             ; preds = %outer
   ret void
 }

@@ -4,12 +4,12 @@
 // whether the register (or flag) the candidate defines is live immediately
 // afterward, meaning some later instruction reads it before anything
 // redefines it. A real back end computes liveness once per pass and looks
-// it up; this is the one-instruction question every peephole rule is
-// secretly asking before it touches anything.
+// it up; this is the question a rule that deletes or changes an
+// instruction has to ask first.
 //
-// Follows: Davidson and Fraser, "The Design and Application of a
-// Retargetable Peephole Optimizer", TOPLAS 1980 (side conditions attached
-// to a rewrite rule).
+// Follows: Bansal and Aiken, "Automatic Generation of Peephole
+// Superoptimizers", ASPLOS 2006, section 2 (two sequences are equivalent
+// only under a context: the set of registers live when they end).
 
 #include <cstdio>
 #include <string>

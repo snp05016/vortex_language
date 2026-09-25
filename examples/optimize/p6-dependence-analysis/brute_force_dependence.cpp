@@ -1,92 +1,82 @@
-// Follows: Goff, Kennedy & Tseng, "Practical Dependence Testing", PLDI 1991
-// (dependence classification and distance vectors), doi:10.1145/113445.113448
+// Follows: Goff, Kennedy and Tseng, "Practical Dependence Testing", PLDI 1991,
+// section 1 (dependence, distance and direction vectors, the carrying loop),
+// and Bacon, Graham and Sharp, ACM Computing Surveys 26(4), 1994, section 6.2
+// (a reordered distance vector must stay lexicographically positive).
+#include <algorithm>
+#include <array>
 #include <cstdio>
-#include <utility>
+#include <map>
+#include <string>
+#include <tuple>
 #include <vector>
 
-// Enumerates the iterations of two small, 2-deep affine loop nests by brute
-// force and reports every dependence it finds between their memory
-// accesses: a matrix-vector reduction (one loop-carried dependence, legal
-// under any loop order) and a skewed stencil (legal as written, illegal
-// once its loops are interchanged).
+// Runs every iteration of a small loop nest, records which array element
+// each access touches, and compares every earlier iteration with every later
+// one. No subscript algebra: this is the ground truth a real test must match.
 
-struct Access {
-  bool is_write;
-  int array_id;        // which array this access touches
-  int idx0, idx1;       // the element it touches
-};
+using Vec = std::array<int, 3>;  // one index (or one distance) per loop level
+struct Access { bool write; char array; Vec element; };
+using Body = std::vector<Access> (*)(Vec);
+using Names = std::array<const char*, 3>;
 
-using Body = std::vector<Access> (*)(int, int);
-
-// c[row] += a[row][k] * b[k];  one row of a matrix-vector product: the same
-// accumulation shape as one (row, column) pair of a matmul, with the column
-// loop dropped because it carries no dependence at all.
-std::vector<Access> matvec_body(int row, int k) {
-  return {
-      {false, /*a*/ 0, row, k},
-      {false, /*b*/ 1, k, 0},
-      {false, /*c*/ 2, row, 0},  // read half of "+="
-      {true, /*c*/ 2, row, 0},   // write half of "+="
-  };
+// c[row, column] += a[row, k] * b[k, column], loops (row, column, k)
+std::vector<Access> matmul(Vec i) {
+  auto [row, column, k] = i;
+  return {{false, 'a', {row, k, 0}}, {false, 'b', {k, column, 0}},
+          {false, 'c', {row, column, 0}}, {true, 'c', {row, column, 0}}};
+}
+// g[i, j] = g[i - 1, j + 1] + 1, loops (i, j); the third level is unused.
+// Reads outside the grid touch elements no iteration writes: no dependence.
+std::vector<Access> stencil(Vec i) {
+  return {{false, 'g', {i[0] - 1, i[1] + 1, 0}}, {true, 'g', {i[0], i[1], 0}}};
 }
 
-// a[i][j] = a[i - 1][j + 1] + 1;
-std::vector<Access> stencil_body(int i, int j) {
-  return {
-      {false, /*a*/ 0, i - 1, j + 1},
-      {true, /*a*/ 0, i, j},
-  };
+bool positive(const Vec& d, int depth) {  // first nonzero entry is > 0
+  for (int l = 0; l < depth; ++l) if (d[l] != 0) return d[l] > 0;
+  return true;  // all zero: same iteration, loop-independent
 }
 
-// Finds every dependence between an iteration (i1, j1) that runs first and
-// an iteration (i2, j2) that runs later in the nest's original (row-major)
-// order, and prints its kind and distance vector.
-void report(const char* name, Body body, int n0, int n1) {
-  std::printf("%s\n", name);
-  bool found = false;
-  for (int i1 = 0; i1 < n0; ++i1) {
-    for (int j1 = 0; j1 < n1; ++j1) {
-      auto earlier = body(i1, j1);
-      for (int i2 = i1; i2 < n0; ++i2) {
-        for (int j2 = (i2 == i1 ? j1 + 1 : 0); j2 < n1; ++j2) {
-          auto later = body(i2, j2);
-          for (auto& a : earlier) {
-            for (auto& b : later) {
-              if (a.array_id != b.array_id) continue;
-              if (a.idx0 != b.idx0 || a.idx1 != b.idx1) continue;
-              if (!a.is_write && !b.is_write) continue;  // read/read: none
-              const char* kind = a.is_write && b.is_write   ? "output"
-                                  : a.is_write               ? "flow"
-                                                              : "anti";
-              std::printf("  %-6s (%d,%d) -> (%d,%d), distance (%d,%d)\n",
-                          kind, i1, j1, i2, j2, i2 - i1, j2 - j1);
-              found = true;
-            }
-          }
+void analyze(const char* name, Body body, int depth, int n, Names loops) {
+  std::vector<Vec> order;  // the iterations, in lexicographic (source) order
+  for (int x = 0; x < n; ++x)
+    for (int y = 0; y < n; ++y)
+      for (int z = 0; z < (depth == 3 ? n : 1); ++z) order.push_back({x, y, z});
+  std::map<std::tuple<char, std::string, Vec>, int> found;  // how many pairs
+  for (size_t e = 0; e < order.size(); ++e)
+    for (size_t l = e + 1; l < order.size(); ++l)
+      for (auto& s : body(order[e]))
+        for (auto& t : body(order[l])) {
+          if (s.array != t.array || s.element != t.element) continue;
+          if (!s.write && !t.write) continue;  // two reads: no constraint
+          const char* kind = s.write ? (t.write ? "output" : "flow") : "anti";
+          Vec d{};
+          for (int v = 0; v < depth; ++v) d[v] = order[l][v] - order[e][v];
+          ++found[{s.array, kind, d}];
         }
-      }
-    }
+  std::printf("%s, %d iterations per loop\n", name, n);
+  std::vector<Vec> distances;
+  for (auto& [key, count] : found) {
+    auto& [array, kind, d] = key;
+    int carrier = 0;
+    while (d[carrier] == 0) ++carrier;
+    std::printf("  %c %-6s distance (%d", array, kind.c_str(), d[0]);
+    for (int v = 1; v < depth; ++v) std::printf(", %d", d[v]);
+    std::printf("), carried by %s, %d pairs\n", loops[carrier], count);
+    distances.push_back(d);
   }
-  if (!found) std::printf("  no dependence\n");
-}
-
-// A permutation that swaps the nest's two loop levels is legal exactly when
-// every dependence's distance vector, read in the new order, is
-// lexicographically positive: its first nonzero component is positive.
-bool legal_after_swap(std::pair<int, int> distance) {
-  auto [d0, d1] = distance;
-  int swapped0 = d1, swapped1 = d0;
-  if (swapped0 > 0) return true;
-  if (swapped0 < 0) return false;
-  return swapped1 >= 0;
+  std::array<int, 3> perm{0, 1, 2};  // try every order of the loop levels
+  do {
+    if (depth == 2 && perm[2] != 2) continue;
+    bool legal = std::all_of(distances.begin(), distances.end(), [&](const Vec& d) {
+      return positive({d[perm[0]], d[perm[1]], d[perm[2]]}, depth);
+    });
+    std::printf("  order");
+    for (int v = 0; v < depth; ++v) std::printf(" %s", loops[perm[v]]);
+    std::printf(": %s\n", legal ? "legal" : "illegal");
+  } while (std::next_permutation(perm.begin(), perm.end()));
 }
 
 int main() {
-  report("matvec (row, k), 2x2", matvec_body, 2, 2);
-  std::printf("  interchange (k, row) legal: %s\n",
-              legal_after_swap({0, 1}) ? "yes" : "no");
-
-  report("stencil (i, j), 3x3", stencil_body, 3, 3);
-  std::printf("  interchange (j, i) legal: %s\n",
-              legal_after_swap({1, -1}) ? "yes" : "no");
+  analyze("matmul", matmul, 3, 3, {"row", "column", "k"});
+  analyze("stencil", stencil, 2, 4, {"i", "j", ""});
 }

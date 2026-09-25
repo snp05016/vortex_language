@@ -1,9 +1,11 @@
-removed line: x = 5
-removed line: y = x + 1
-removed line: print(y)
-removed line: z = 9
-removed line: w = z * 2
-removed line: print(w)
-minimized from 8 to 2 lines:
-  x = -3
-  divide_by_two(x)
+start: 9 lines, mismatch
+pass 1: invalid invalid invalid invalid -[print e] invalid invalid needed -[print f]
+pass 2: invalid invalid invalid invalid invalid -[f = e / 2] needed
+pass 3: invalid invalid invalid -[e = d * 3] invalid needed
+pass 4: invalid invalid -[d = 4] invalid needed
+pass 5: invalid invalid invalid needed
+result, 4 lines:
+  a = 5
+  b = a - 8
+  c = b / 2
+  print c

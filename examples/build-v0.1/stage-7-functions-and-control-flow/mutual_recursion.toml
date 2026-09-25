@@ -1,0 +1,4 @@
+follows = [
+  "https://en.cppreference.com/w/cpp/language/function.html",
+  "https://en.cppreference.com/w/cpp/utility/format/spec.html",
+]

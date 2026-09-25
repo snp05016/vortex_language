@@ -1,7 +1,6 @@
-; A three-way clamp: one comparison feeding a select, then a second
-; comparison feeding a second select. Small enough to read as one
-; instruction selection problem, general enough to be a real building
-; block (bounds checks are also compare-then-select).
+; Clamp x into [lo, hi]: a comparison feeding a select, then a second
+; comparison feeding a second select. Small enough to follow through every
+; stage of llc by hand, and branch-free, so each stage shows one block.
 define i32 @clampi32(i32 %x, i32 %lo, i32 %hi) {
 entry:
   %below = icmp slt i32 %x, %lo

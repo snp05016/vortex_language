@@ -1,0 +1,4 @@
+product rounded:   0x1.002p+0
+fmul then fadd:    0x0p+0
+fused (one round): 0x1p-24
+same answer:       no

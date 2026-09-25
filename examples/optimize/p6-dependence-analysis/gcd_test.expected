@@ -1,5 +1,0 @@
-a[i] vs a[i - 1]       gcd test: cannot rule out
-a[2*i] vs a[2*i + 1]   gcd test: no dependence
-a[2*i] vs a[4*i + 1]   gcd test: no dependence
-a[3*i] vs a[3*i + 6]   gcd test: cannot rule out
-a[6*i] vs a[4*i + 1]   gcd test: no dependence

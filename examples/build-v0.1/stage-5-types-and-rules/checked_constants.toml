@@ -1,0 +1,3 @@
+follows = [
+  "https://en.cppreference.com/w/cpp/utility/in_range",
+]

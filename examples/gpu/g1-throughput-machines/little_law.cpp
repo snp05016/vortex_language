@@ -1,48 +1,44 @@
-// Little's law for arithmetic latency hiding: how many independent
-// operations must be in flight, across threads, independent instructions
-// per thread, or a mix, before a processor's arithmetic units retire
-// results at their full rate instead of sitting idle between dependent ones.
+// Follows: Vasily Volkov, "Better Performance at Lower Occupancy", GTC 2010,
+// slides 7, 8, 28 and 29 (latency and throughput of a GTX480's arithmetic
+// and memory pipes), and John D. C. Little, "Little's Law as Viewed on Its
+// 50th Anniversary", Operations Research 59(3), 2011, section 2.1.
 //
-// The three rows are one NVIDIA streaming-multiprocessor generation each:
-// how many cycles one dependent instruction takes to retire, and how many
-// independent instructions per cycle that generation's cores can issue once
-// enough are ready. Their product is the parallelism Little's law requires.
+// Little's law: the average work in a system equals its throughput times the
+// time each piece spends inside. So a pipe that is to deliver its full
+// throughput must hold latency x throughput pieces of independent work at
+// every moment. The same product sizes an arithmetic pipe, counted in
+// multiply-adds, and a memory system, counted in bytes.
+#include <cstdio>
 
-#include <print>
-#include <string_view>
-#include <vector>
-
-struct Generation {
-  std::string_view name;
-  int latency_cycles;       // cycles for one dependent instruction to retire
-  int throughput_per_cycle; // independent instructions/cycle at full rate
+struct Pipe {
+    const char* name;
+    long latency;    // cycles from issue to result
+    long per_cycle;  // throughput when the pipe is busy
+    const char* unit;
 };
 
 int main() {
-  // Volkov, "Better Performance at Lower Occupancy", GTC 2010, slide 11,
-  // "Arithmetic parallelism in numbers".
-  const std::vector<Generation> gens = {
-      {"G80-GT200", 24, 8},
-      {"GF100", 18, 32},
-      {"GF104", 18, 48},
-  };
+    // Volkov gives memory latency as "400+" cycles (slide 7) and as under
+    // 800 cycles, with a question mark (slide 28), so both rows are shown.
+    // 128 bytes per cycle is his 32 four-byte loads per cycle (slide 8).
+    const Pipe pipes[] = {
+        {"arithmetic, one SM", 18, 32, "multiply-adds"},
+        {"arithmetic, 15 SMs", 18, 480, "multiply-adds"},
+        {"memory, 400 cycles", 400, 128, "bytes"},
+        {"memory, 800 cycles", 800, 128, "bytes"},
+    };
+    std::printf("%-19s %8s %10s %10s\n", "pipe", "latency", "per cycle",
+                "in flight");
+    for (const Pipe& p : pipes)
+        std::printf("%-19s %8ld %10ld %10ld %s\n", p.name, p.latency,
+                    p.per_cycle, p.latency * p.per_cycle, p.unit);
 
-  std::println("{:<10} {:>8} {:>11} {:>12}", "SM", "latency", "throughput", "parallelism");
-  for (const auto &g : gens) {
-    const int parallelism = g.latency_cycles * g.throughput_per_cycle; // Little's law
-    std::println("{:<10} {:>8} {:>11} {:>12}", g.name, g.latency_cycles,
-                  g.throughput_per_cycle, parallelism);
-  }
-
-  // That parallelism can come from threads (one independent instruction
-  // each), from independent instructions per thread (ILP), or from a mix.
-  // Fix a thread count and ask how much ILP closes the remaining gap.
-  const int threads = 192;
-  std::println("");
-  std::println("{:<10} {:>8} {:>11}", "SM", "threads", "ILP needed");
-  for (const auto &g : gens) {
-    const int parallelism = g.latency_cycles * g.throughput_per_cycle;
-    const int ilp_needed = (parallelism + threads - 1) / threads; // round up
-    std::println("{:<10} {:>8} {:>11}", g.name, threads, ilp_needed);
-  }
+    // Only the total in flight matters: many threads with a few bytes each,
+    // or fewer threads that each keep more loads outstanding.
+    const long needed = 800 * 128;
+    const long per_thread[] = {4, 8, 16, 100};
+    std::printf("\nbytes in flight per thread   threads to hold %ld bytes\n",
+                needed);
+    for (long bytes : per_thread)
+        std::printf("%26ld %27ld\n", bytes, (needed + bytes - 1) / bytes);
 }

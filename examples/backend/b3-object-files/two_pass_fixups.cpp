@@ -4,18 +4,16 @@
 #include <vector>
 
 // A minimal two-pass assembler for a three-instruction toy machine. It
-// exists to isolate one idea, forward-reference fixups, from AArch64 or
-// x86-64 encoding: none of this is a real instruction set.
+// isolates one idea, forward references, from any real encoding: none of
+// this is a real instruction set.
 //
 // Pass 1 walks the program once and records only where each label landed;
-// it does not try to resolve any branch, because a forward one (a JMP to a
-// label written later in the file) has no address yet. Pass 2 then has the
-// complete label table, so it resolves every JMP, forward or backward, the
-// same way: this is the "second pass" a two-pass assembler is named for.
+// it resolves nothing, because a forward jump (to a label written later)
+// has no address yet. Pass 2 has the complete label table, so it resolves
+// every JMP, forward or backward, the same way.
 //
-// Follows: Lattner, "Intro to the LLVM MC Project", section describing the
-// classic two-pass model MCAssembler replaces with fragments and one
-// relaxation pass (https://blog.llvm.org/2010/04/intro-to-llvm-mc-project.html).
+// Follows: Salomon, "Assemblers and Loaders" (1993), section 1.2, "The
+// Two-Pass Assembler" (https://www.davidsalomon.name/assem.advertis/asl.pdf).
 
 enum class Op { Set, Jmp, Halt };
 
@@ -27,10 +25,9 @@ struct Instr {
 };
 
 int main() {
-    // Every instruction is one word here, so its address is just its index
-    // in this vector: a simplification real assemblers cannot make, because
-    // real instructions have different lengths (see b1's macro expansion
-    // and b3's discussion of x86-64 branch relaxation).
+    // Every instruction is one word here, so its address is its index in
+    // this vector. x86-64 assemblers cannot assume that: instruction lengths
+    // vary, and a jump's own length can depend on how far it jumps.
     std::vector<Instr> program = {
         {Op::Set, "start", 1, ""},
         {Op::Jmp, "", 0, "skip"},        // forward: "skip" is defined below

@@ -1,0 +1,19 @@
+count = 0
+  has_stock(0) checked
+  low_but_present = false
+  has_stock(0) checked
+  out_or_low = true
+count = 1
+  has_stock(1) checked
+  needs_reorder(1) checked
+  low_but_present = true
+  has_stock(1) checked
+  needs_reorder(1) checked
+  out_or_low = true
+count = 5
+  has_stock(5) checked
+  needs_reorder(5) checked
+  low_but_present = false
+  has_stock(5) checked
+  needs_reorder(5) checked
+  out_or_low = false

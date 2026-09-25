@@ -2,25 +2,34 @@
 #include <bit>
 #include <cstdint>
 #include <cstdio>
-#include <set>
+#include <map>
 
-// Four partial sums, as if four threads each reduced part of a large array
-// and are about to fold their results into one total with an atomic add.
-// The C++ standard library has no portable simulated atomic order to run;
-// instead this enumerates, on one thread, every order in which four fixed
-// values could be added, the way a real atomic's hardware arbiter might
-// choose one such order at run time.
+// Four threads each fold one partial sum into a total that starts at 0, with
+// an atomic add. Each add is indivisible, but the order in which the four
+// arrive is up to the hardware. This program applies all 24 arrival orders on
+// one thread and counts the distinct totals, first for float, then for int.
 int main() {
-    float values[4] = {16777216.0f, 1.0f, 1.0f, -16777216.0f};
+    const float partial[4] = {16777216.0f, 1.0f, 1.0f, -16777216.0f};  // 2^24
+    const std::int32_t whole[4] = {16777216, 1, 1, -16777216};
+
     int order[4] = {0, 1, 2, 3};
-    std::set<std::uint32_t> distinct;
+    std::map<std::uint32_t, int> float_totals;  // bit pattern -> how many orders
+    std::map<std::int32_t, int> int_totals;
     do {
-        float acc = 0.0f;
-        for (int i = 0; i < 4; ++i) acc = acc + values[order[i]];
-        distinct.insert(std::bit_cast<std::uint32_t>(acc));
+        float f = 0.0f;
+        std::int32_t n = 0;
+        for (int k = 0; k < 4; ++k) {
+            f = f + partial[order[k]];  // one correctly rounded add per arrival
+            n = n + whole[order[k]];    // exact: no rounding, no overflow here
+        }
+        ++float_totals[std::bit_cast<std::uint32_t>(f)];
+        ++int_totals[n];
     } while (std::next_permutation(order, order + 4));
-    std::printf("orders: 24, distinct results: %zu\n", distinct.size());
-    for (std::uint32_t bits : distinct) {
-        std::printf("0x%08x = %g\n", bits, std::bit_cast<float>(bits));
-    }
+
+    std::printf("float: %zu distinct totals\n", float_totals.size());
+    for (auto [bits, count] : float_totals)
+        std::printf("  0x%08x = %g in %d orders\n", bits, std::bit_cast<float>(bits), count);
+    std::printf("int32: %zu distinct total\n", int_totals.size());
+    for (auto [value, count] : int_totals)
+        std::printf("  %d in %d orders\n", value, count);
 }

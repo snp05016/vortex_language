@@ -1,6 +1,5 @@
-# Same two operations as contract_off.ll, but the fadd carries "contract".
-# The chapter shows llc -O2 folding these into one fmadd, only once this
-# flag is present.
+# Same two operations as contract_off.ll, but both carry "contract".
+# The chapter shows llc -O2 folding them into one fmadd, and llc -O0 not.
 follows = [
   "https://llvm.org/docs/LangRef.html#fast-math-flags",
 ]

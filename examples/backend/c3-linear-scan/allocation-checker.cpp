@@ -7,8 +7,8 @@
 // the checker catching the conflict that change creates.
 //
 // Follows: Poletto and Sarkar, "Linear Scan Register Allocation", ACM
-// TOPLAS 21(5), 1999, section 2: two live intervals interfere exactly
-// when they overlap, so a checker only needs to compare ranges.
+// TOPLAS 21(5), 1999, section 4: interference among live intervals is
+// captured by whether they overlap, so this checker compares ranges.
 
 #include <cstdio>
 #include <string>

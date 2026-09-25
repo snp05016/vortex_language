@@ -1,1 +1,3 @@
-mismatch at program 5: reference=0 optimized=-1
+program 23: ((8 - ((-3 / 2) - (-3 / 2))) * (-3 / 2))
+reference -8, optimized -16
+5 earlier programs divided by 2 and agreed

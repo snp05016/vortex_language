@@ -1,11 +1,12 @@
-// A reduction over two 1-D arrays, dot(a, b) = sum_i a[i] * b[i], the same
-// shape of loop the stage 10 kernel writes for a single row and column but
-// over one dimension only. scf, memref, arith and func all appear, so a
-// full conversion needs a pattern set for each: scf.for becomes a
-// branch and a loop-carrying block argument, memref.load becomes a
-// pointer computation, and the two f32 array parameters become the five
-// fields of a memref descriptor apiece: allocated pointer, aligned
-// pointer, offset, one size, one stride.
+// A reduction over two 1-D arrays, dot(a, b) = sum of a[i] * b[i], the loop
+// the stage 10 kernel runs for one output element, over one dimension only.
+// scf, cf, memref, arith and func all appear (cf only after the first pass
+// creates it), so the pipeline runs one conversion pass per dialect:
+// scf.for becomes branches and a block argument that carries the running
+// sum, memref.load becomes address arithmetic and a load, and each
+// memref<8xf32> parameter becomes the five fields of a memref descriptor
+// (allocated pointer, aligned pointer, offset, one size, one stride).
+// The last pass removes the casts that bridged the passes in between.
 
 func.func @dot(%a: memref<8xf32>, %b: memref<8xf32>) -> f32 {
   %c0 = arith.constant 0 : index

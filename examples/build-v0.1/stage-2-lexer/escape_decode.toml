@@ -1,0 +1,4 @@
+follows = [
+  "https://en.cppreference.com/cpp/language/escape",
+  "https://en.cppreference.com/cpp/string/basic_string",
+]

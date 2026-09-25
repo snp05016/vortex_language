@@ -1,61 +1,72 @@
-// Equivalence modulo inputs, in miniature: for one fixed input, a profile
-// says which guarded statements never run; pruning them must not change that
-// input's output. The "profile" here is a reachability check with a planted
-// bug (it ignores the guard's magnitude, only its sign), which is exactly the
-// kind of static-analysis mistake EMI is good at catching.
-// Follows: Le, Afshari, Su, PLDI 2014 (see .toml).
+// Equivalence modulo inputs in miniature. Run a program on one input and
+// record which statements executed. Every variant that deletes only
+// statements that did not execute must print the same value on that input.
+// Compile the original and each variant with a buggy optimizer and compare.
+// Follows: Le, Afshari and Su, PLDI 2014 (see .toml).
+#include <cstddef>
 #include <iostream>
+#include <string>
 #include <vector>
 
-struct Statement {
-    int threshold;  // this line runs only when input > threshold
-    int delta;      // its effect on the running total when it runs
-};
+// One statement of a toy language with one variable x, starting at 0:
+// "x = x <op> k", run only when the input exceeds `guard` (-1: always).
+struct Stmt { int guard; char op; int k; };
+using Program = std::vector<Stmt>;
 
-// The real, unambiguous rule: run every statement whose guard holds.
-int runOriginal(const std::vector<Statement>& program, int input) {
-    int total = 0;
-    for (const auto& s : program)
-        if (input > s.threshold) total += s.delta;
-    return total;
+int run(const Program& p, int input, std::vector<bool>* executed = nullptr) {
+    int x = 0;
+    for (std::size_t i = 0; i < p.size(); ++i) {
+        if (p[i].guard >= 0 && input <= p[i].guard) continue;
+        if (executed) (*executed)[i] = true;
+        if (p[i].op == '+') x += p[i].k;
+        if (p[i].op == '*') x *= p[i].k;
+        if (p[i].op == '/') x /= p[i].k;
+    }
+    return x;
 }
 
-// The profiler's rule: prune a statement when it *looks* unreachable for
-// this input. The bug: it compares signs instead of magnitudes, so it wrongly
-// keeps some statements whose threshold the input does not actually clear.
-bool profilerThinksReachable(const Statement& s, int input) {
-    bool inputPositive = input > 0;
-    bool thresholdPositive = s.threshold > 0;
-    return inputPositive != thresholdPositive || input > s.threshold;
-}
-
-int runPruned(const std::vector<Statement>& program, int input) {
-    int total = 0;
-    for (const auto& s : program)
-        if (profilerThinksReachable(s, input)) total += s.delta;
-    return total;
+// The optimizer under test. Its one rule deletes an unguarded "x = x / 2"
+// that is immediately followed by an unguarded "x = x * 2", as if the two
+// cancelled. They do not when x is odd: (7 / 2) * 2 is 6, not 7.
+Program optimize(const Program& p) {
+    Program out;
+    for (std::size_t i = 0; i < p.size(); ++i) {
+        bool pair = i + 1 < p.size() && p[i].guard < 0 && p[i + 1].guard < 0
+                    && p[i].op == '/' && p[i].k == 2 && p[i + 1].op == '*' && p[i + 1].k == 2;
+        if (pair) { ++i; continue; }
+        out.push_back(p[i]);
+    }
+    return out;
 }
 
 int main() {
-    // Ten statements with a mix of thresholds; ten fixed inputs, no
-    // randomness needed because the bug does not depend on a rare draw.
-    std::vector<Statement> program = {
-        {-5, 3}, {2, -4}, {10, 7}, {-1, 2}, {0, -6},
-        {7, 1}, {-8, 5}, {3, -2}, {1, 4}, {-3, -1},
+    const Program original = {
+        {-1, '+', 7}, {-1, '/', 2}, {5, '+', 1}, {-1, '*', 2}, {9, '+', 4},
     };
-    int inputs[] = {-9, -4, -1, 0, 1, 2, 5, 6, 8, 12};
+    const int input = 3;
 
-    for (int input : inputs) {
-        int original = runOriginal(program, input);
-        int pruned = runPruned(program, input);
-        if (original != pruned) {
-            std::cout << "divergence at input=" << input
-                      << ": original=" << original
-                      << " pruned=" << pruned << "\n";
-            return 0;
+    std::vector<bool> executed(original.size(), false);
+    const int expected = run(original, input, &executed);
+    std::vector<std::size_t> dead;  // statements the input never reached
+    for (std::size_t i = 0; i < original.size(); ++i)
+        if (!executed[i]) dead.push_back(i);
+    std::cout << "input " << input << ": x = " << expected << ", statements never run:";
+    for (std::size_t i : dead) std::cout << " s" << i;
+    std::cout << "\n";
+
+    // Each bit of `mask` says whether to delete one of the unexecuted statements.
+    for (unsigned mask = 0; mask < (1u << dead.size()); ++mask) {
+        Program variant;
+        std::string deleted;
+        for (std::size_t i = 0, d = 0; i < original.size(); ++i) {
+            bool isDead = d < dead.size() && dead[d] == i;
+            bool drop = isDead && (mask >> d & 1u);
+            if (isDead) ++d;
+            if (drop) deleted += " s" + std::to_string(i);
+            else variant.push_back(original[i]);
         }
+        int got = run(optimize(variant), input);
+        std::cout << "variant deleting" << (deleted.empty() ? " nothing" : deleted) << ": optimized x = "
+                  << got << (got == expected ? "" : "  <- miscompiled") << "\n";
     }
-    std::cout << "all " << (sizeof(inputs) / sizeof(inputs[0]))
-              << " inputs agreed\n";
-    return 0;
 }

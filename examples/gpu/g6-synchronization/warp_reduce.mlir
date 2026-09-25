@@ -1,10 +1,11 @@
 // A one-warp sum reduction using gpu.shuffle instead of shared memory: each
 // lane starts with one element and, after five xor-shuffle steps (offsets
 // 16, 8, 4, 2, 1), every lane holds the sum of all 32 lanes' values, so any
-// one of them may store the result. No gpu.barrier is needed because a
-// shuffle reads another lane's register directly; it still cannot cross a
-// divergent branch (see the chapter text). mlir-opt only parses, verifies
-// and prints this file; nothing runs.
+// one of them may store the result. No gpu.barrier is needed: values move
+// through registers, not memory, and the shuffle itself involves only the
+// lanes of one warp. Like a barrier it must not sit behind a branch that
+// splits those lanes. mlir-opt only parses, verifies and prints this file;
+// nothing runs.
 
 module attributes {gpu.container_module} {
   gpu.module @kernels {

@@ -1,6 +1,8 @@
-t1 = mul i, 4
-t2 = add t1, j
-t3 = shl t2, 2
-t4 = add a, t3
-t5 = load [t4]
-5 instructions
+mov  t1, #4
+mul  t2, i, t1
+add  t3, t2, j
+mov  t4, #2
+lsl  t5, t3, t4
+add  t6, a, t5
+ldr  t7, [t6]
+7 instructions

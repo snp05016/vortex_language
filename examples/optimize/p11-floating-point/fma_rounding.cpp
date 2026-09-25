@@ -4,7 +4,7 @@
 // final result, as if the product were computed with unbounded range and
 // precision first.
 //
-// Follows: IEEE 754-2019, clause 5.4.1 (fusedMultiplyAdd); cppreference,
+// Follows: IEEE 754-2019 (fusedMultiplyAdd); cppreference,
 // std::fma. <https://en.cppreference.com/w/cpp/numeric/math/fma>
 
 #include <bit>

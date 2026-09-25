@@ -1,0 +1,5 @@
+flags = ["--convert-gpu-to-nvvm=use-bare-ptr-memref-call-conv=1"]
+follows = [
+  "https://mlir.llvm.org/docs/TargetLLVMIR/#bare-pointer-calling-convention-for-ranked-memref",
+  "https://mlir.llvm.org/docs/Passes/#-convert-gpu-to-nvvm",
+]

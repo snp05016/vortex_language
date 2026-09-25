@@ -1,0 +1,6 @@
+flags = ["-passes=loop-vectorize,sroa,loop-vectorize", "-force-vector-width=4", "-force-vector-interleave=1", "-disable-output", "-pass-remarks-output=-"]
+follows = [
+  "https://llvm.org/docs/Remarks.html",
+  "https://llvm.org/docs/NewPassManager.html",
+  "https://github.com/llvm/llvm-project/blob/release/18.x/llvm/lib/Transforms/Vectorize/LoopVectorizationLegality.cpp",
+]

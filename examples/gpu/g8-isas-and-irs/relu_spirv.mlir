@@ -1,13 +1,14 @@
-// The same kernel as relu_nvvm.mlir, lowered toward the Khronos rung
-// instead: SPIR-V, the portable binary IR that Vulkan and OpenCL drivers
-// consume. gpu.thread_id and gpu.block_id become loads from builtin input
-// variables (every vendor's driver supplies these under the same names),
-// and the memrefs need their storage class spelled out up front because
-// SPIR-V has no single default. The interesting difference is the branch:
-// SPIR-V's structured control flow rule requires every selection to be
-// wrapped in an explicit spirv.mlir.selection region that ends in a
-// spirv.mlir.merge, naming the one block where both sides reconverge. The
-// pass reaches for that rule on its own; nothing in the source asked for it.
+// The same kernel lowered toward the Khronos rung instead: MLIR's spirv
+// dialect, which mlir-translate can serialize into a SPIR-V binary.
+// gpu.thread_id and gpu.block_id become loads from built-in input
+// variables, and each memref must name its storage class. The workgroup
+// size in spirv.entry_point_abi travels with the kernel, so gpu.block_dim
+// becomes the constant 64. The branch is the interesting part: this is a
+// Shader module (Vulkan's kind of SPIR-V), where every selection must
+// declare its merge block, so the pass wraps the scf.if in a
+// spirv.mlir.selection region; serialization writes that region out as an
+// OpSelectionMerge instruction. Nothing in the source asked for it.
+// Follows: MLIR, "'spirv' Dialect", section "Control Flow".
 // Run: mlir-opt --convert-gpu-to-spirv relu_spirv.mlir
 module attributes {gpu.container_module, spirv.target_env = #spirv.target_env<#spirv.vce<v1.0, [Shader], [SPV_KHR_storage_buffer_storage_class]>, #spirv.resource_limits<>>} {
   gpu.module @kernels {

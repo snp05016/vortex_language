@@ -1,0 +1,2 @@
+platforms = ["macos-arm64"]
+follows   = ["https://developer.apple.com/documentation/apple-silicon/porting-just-in-time-compilers-to-apple-silicon"]

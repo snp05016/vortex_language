@@ -1,1 +1,4 @@
-follows = ["https://blog.llvm.org/2011/09/greedy-register-allocation-in-llvm-30.html"]
+follows = [
+  "https://doi.org/10.1007/978-3-642-00722-4_13",
+  "https://doi.org/10.1145/1064979.1064998",
+]

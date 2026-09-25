@@ -1,1 +1,1 @@
-follows = ["https://llvm.org/docs/LangRef.html#getelementptr-instruction"]
+follows = ["https://llvm.org/docs/LangRef.html#getelementptr-instruction", "https://github.com/llvm/llvm-project/blob/llvmorg-18.1.8/llvm/include/llvm/CodeGen/MachineScheduler.h"]

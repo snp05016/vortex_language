@@ -1,66 +1,91 @@
-// A minimal stand-in for one thing a pass manager does: cache an analysis
-// result and only throw it away when a transform admits it might be wrong.
-// LLVM calls the set of results a transform leaves valid its
-// PreservedAnalyses; see the Sources section for the real mechanism.
-#include <iostream>
+// A pass manager in miniature. It caches analysis results, runs passes in
+// order, and after each pass discards only the results that pass did not
+// promise to keep. The program is a list of numbers, and its two analyses
+// answer "is it sorted?" and "what is its sum?". The log uses the words of
+// LLVM's -debug-pass-manager, and, as there, a cached answer prints nothing.
+//
+// Follows: LLVM's New Pass Manager guide (Using Analyses) and PassManager::run
+// in LLVM 18's PassManager.h, which invalidates after every pass.
+#include <algorithm>
+#include <functional>
+#include <numeric>
 #include <optional>
-#include <utility>
+#include <print>
+#include <string>
 #include <vector>
 
-struct Program {
-    std::vector<int> values;
+using Program = std::vector<int>;
+
+// What a pass says is still valid when it returns: LLVM's PreservedAnalyses.
+struct Preserved {
+    bool sorted;
+    bool sum;
 };
 
-struct Cache {
-    std::optional<bool> sorted;
-    std::optional<long> sum;
-};
+// The analysis manager: a result is computed on first request, then kept.
+struct Analyses {
+    std::optional<bool> sorted_result;
+    std::optional<long> sum_result;
+    int runs = 0;
+    int queries = 0;
 
-bool compute_sorted(const Program& program) {
-    std::cout << "  (recomputing sorted)\n";
-    for (std::size_t i = 1; i < program.values.size(); ++i) {
-        if (program.values[i] < program.values[i - 1]) return false;
+    template <typename T, typename Compute>
+    T get(std::optional<T>& slot, const char* name, Compute compute) {
+        ++queries;
+        if (!slot) {
+            std::println("Running analysis: {}", name);
+            ++runs;
+            slot = compute();
+        }
+        return *slot;
     }
-    return true;
-}
+    bool sorted(const Program& p) {
+        return get(sorted_result, "sorted", [&] { return std::ranges::is_sorted(p); });
+    }
+    long sum(const Program& p) {
+        return get(sum_result, "sum", [&] { return std::accumulate(p.begin(), p.end(), 0L); });
+    }
+    void invalidate(Preserved kept) {
+        if (!kept.sorted && sorted_result) {
+            std::println("Invalidating analysis: sorted");
+            sorted_result.reset();
+        }
+        if (!kept.sum && sum_result) {
+            std::println("Invalidating analysis: sum");
+            sum_result.reset();
+        }
+    }
+};
 
-long compute_sum(const Program& program) {
-    std::cout << "  (recomputing sum)\n";
-    long total = 0;
-    for (int value : program.values) total += value;
-    return total;
-}
-
-// Fills in only the cache entries a previous transform invalidated.
-void query(const Program& program, Cache& cache, const char* label) {
-    if (!cache.sorted.has_value()) cache.sorted = compute_sorted(program);
-    if (!cache.sum.has_value()) cache.sum = compute_sum(program);
-    std::cout << label << ": sorted=" << *cache.sorted << " sum=" << *cache.sum << '\n';
-}
-
-// Adds one to every value: the order of elements is untouched, so "sorted"
-// survives, but every element changed, so "sum" does not.
-void add_one(Program& program, Cache& cache) {
-    for (int& value : program.values) value += 1;
-    cache.sum.reset();
-}
-
-// Reverses the values: their sum survives, but their order does not.
-void reverse(Program& program, Cache& cache) {
-    auto& v = program.values;
-    for (std::size_t i = 0, j = v.size(); i < j / 2; ++i) std::swap(v[i], v[j - 1 - i]);
-    cache.sorted.reset();
-}
+struct Pass {
+    std::string name;
+    std::function<Preserved(Program&, Analyses&)> run;
+};
 
 int main() {
-    Program program{{1, 2, 3, 4}};
-    Cache cache;
+    // Reads both analyses and changes nothing, so it keeps everything.
+    Pass check{"check", [](Program& p, Analyses& a) {
+        bool is_sorted = a.sorted(p);  // two statements, because the order
+        long total = a.sum(p);         // of the queries shows in the log
+        std::println("  sorted={} sum={}", is_sorted, total);
+        return Preserved{.sorted = true, .sum = true};
+    }};
+    // New values in the same order: "sorted" survives, "sum" does not.
+    Pass add_one{"add_one", [](Program& p, Analyses&) {
+        for (int& x : p) ++x;
+        return Preserved{.sorted = true, .sum = false};
+    }};
+    // The same values in a new order: "sum" survives, "sorted" does not.
+    Pass reverse{"reverse", [](Program& p, Analyses&) {
+        std::ranges::reverse(p);
+        return Preserved{.sorted = false, .sum = true};
+    }};
 
-    query(program, cache, "before");
-    std::cout << "running add_one (preserves: sorted)\n";
-    add_one(program, cache);
-    query(program, cache, "after add_one");
-    std::cout << "running reverse (preserves: sum)\n";
-    reverse(program, cache);
-    query(program, cache, "after reverse");
+    Program program{1, 2, 3, 4};
+    Analyses analyses;
+    for (const Pass& pass : {check, add_one, check, reverse, check}) {
+        std::println("Running pass: {}", pass.name);
+        analyses.invalidate(pass.run(program, analyses));
+    }
+    std::println("{} analysis runs for {} queries", analyses.runs, analyses.queries);
 }

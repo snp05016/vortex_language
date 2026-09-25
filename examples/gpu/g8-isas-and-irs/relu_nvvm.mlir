@@ -1,13 +1,14 @@
 // The same one-thread-per-element kernel, lowered toward NVIDIA's rung of
-// the ladder: NVVM, the LLVM dialect NVIDIA's own back end reads. gpu.thread_id
-// and gpu.block_id become calls to read special registers (nvvm.read.ptx.sreg.*),
-// the two memrefs become plain pointers plus their shape as scalar arguments
-// (LLVM's own memref-descriptor convention, not part of any public ABI), and
-// scf.if becomes an ordinary conditional branch between two basic blocks,
-// with the value each side computed carried in a block argument. Nothing
-// here marks where the branch reconverges: that fact is implicit in the
-// shape of the control-flow graph, the way it would be in hand-written
-// LLVM IR. Run: mlir-opt --convert-scf-to-cf --convert-gpu-to-nvvm relu_nvvm.mlir
+// the ladder: MLIR's nvvm dialect, which becomes LLVM IR with NVVM
+// intrinsics, the input LLVM's NVPTX back end turns into PTX text.
+// gpu.thread_id and gpu.block_id become reads of PTX special registers
+// (nvvm.read.ptx.sreg.*). Each memref becomes five scalar arguments (two
+// pointers, an offset, a size and a stride), MLIR's own memref-descriptor
+// convention rather than anything PTX requires. scf.if becomes an ordinary
+// conditional branch, with the chosen value carried in a block argument;
+// nothing marks where the two sides meet again.
+// Follows: MLIR, "'nvvm' Dialect" and "'gpu' Dialect".
+// Run: mlir-opt --convert-scf-to-cf --convert-gpu-to-nvvm relu_nvvm.mlir
 module attributes {gpu.container_module} {
   gpu.module @kernels {
     gpu.func @relu(%x: memref<256xf32>, %y: memref<256xf32>) kernel {

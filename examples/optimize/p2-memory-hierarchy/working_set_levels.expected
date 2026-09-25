@@ -1,9 +1,15 @@
-       4 KiB -> fits in L1
-      16 KiB -> fits in L1
-      64 KiB -> fits in L1
-     256 KiB -> fits in L2
-    1024 KiB -> fits in L2
-    4096 KiB -> fits in L2
-   16384 KiB -> fits in L2
-   65536 KiB -> fits in DRAM
-  262144 KiB -> fits in DRAM
+ lines     order     L1     L2  memory
+     4    cyclic   100%     0%      0%
+     8    cyclic   100%     0%      0%
+     9    cyclic     0%   100%      0%
+    16    cyclic     0%   100%      0%
+    32    cyclic     0%   100%      0%
+    33    cyclic     0%     0%    100%
+    64    cyclic     0%     0%    100%
+     4    random   100%     0%      0%
+     8    random   100%     0%      0%
+     9    random    65%    34%      0%
+    16    random    14%    85%      0%
+    32    random     3%    96%      0%
+    33    random     2%    87%      9%
+    64    random     1%    14%     84%

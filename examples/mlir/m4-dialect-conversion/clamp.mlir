@@ -1,11 +1,14 @@
-// A function with no memref, no loop and no control flow: only scalar
-// arithmetic and a function boundary. Two dialects appear, arith and func,
-// and both have a complete lowering to llvm. Converting it needs no
-// bridging step at all, because nothing outside arith and func is present
-// to leave unconverted.
+// A function with no memref, no loop and no control flow: scalar arithmetic
+// and a function boundary. Two dialects appear, arith and func, and each has
+// a pass that rewrites its operations into the llvm dialect.
+//
+// No value changes type on the way: f32 is a legal llvm type as it stands,
+// so no pass has to bridge a converted value to an unconverted user, and the
+// output contains no cast. The last pass, which removes such casts, finds
+// nothing to do here.
 //
 // clamp01 forces x into [0, 1] with two comparisons and two selects,
-// entirely branch-free: both arms of each choice are always computed.
+// branch-free: both arms of each choice are always computed.
 
 func.func @clamp01(%x: f32) -> f32 {
   %lo = arith.constant 0.0 : f32

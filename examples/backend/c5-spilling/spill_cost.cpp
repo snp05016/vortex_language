@@ -1,61 +1,56 @@
-// Spill cost: why a use inside a loop should count for more than one
-// outside it. Follows Chaitin's spill-cost heuristic (see the .toml).
+// Spill cost for the general-purpose values of a small matrix kernel, the
+// way Chaitin estimates it: every definition and use of a value counts once,
+// weighted by how often it is expected to run. Chaitin assumes a loop body
+// runs ten times as often as the code around it, so a touch at loop depth d
+// weighs 10^d. Follows: Chaitin, "Register allocation & spilling via graph
+// coloring", section 5 (see the .toml).
 //
-// Each candidate is a live range described only by where it is touched: a
-// list of (is a definition?, loop nesting depth) pairs. The classic
-// heuristic weights each touch by 10 raised to its loop depth, so one use
-// three loops deep outweighs a thousand uses at depth 0. The allocator
-// should spill whichever candidate this cost is *lowest* for: it is the
-// one that costs the least to reload every time it is needed again.
+// Fixed-shape arrays give a second option: the trip counts are known, so the
+// weight can be the exact number of times the touch runs. Both are printed.
 #include <cstdio>
 #include <string>
 #include <vector>
 
-struct Touch {
-  bool is_def;
-  int loop_depth;
-};
-
 struct Candidate {
   std::string name;
-  std::vector<Touch> touches;
+  std::vector<int> depths;  // loop depth of each definition and use
 };
 
-// A touch at depth d is assumed to run 10^d times per call, the standard
-// stand-in for "loops usually run many times" when no profile is available.
-long long spill_cost(const Candidate &c) {
-  long long cost = 0;
-  for (const Touch &t : c.touches) {
-    long long weight = 1;
-    for (int i = 0; i < t.loop_depth; ++i) weight *= 10;
-    cost += weight;
-  }
-  return cost;
-}
-
 int main() {
-  std::vector<Candidate> candidates = {
-      // A loop-invariant temporary: defined once outside any loop, used
-      // once outside any loop. Touching it is always cheap.
-      {"loop_bound", {{true, 0}, {false, 0}}},
-      // A row base pointer: defined once outside the k-loop, then read on
-      // every trip around it (depth 1).
-      {"row_base", {{true, 0}, {false, 1}, {false, 1}, {false, 1}}},
-      // The matmul accumulator: defined before the k-loop, updated and
-      // read on every trip around it (depth 1), used once after.
-      {"accumulator", {{true, 0}, {false, 1}, {true, 1}, {false, 0}}},
+  // Loops: row (depth 1, 2 trips), column (depth 2, 2 trips), k (depth 3,
+  // 3 trips). A body at depth 3 therefore runs 2 * 2 * 3 = 12 times.
+  const long exact_runs[] = {1, 2, 4, 12};
+
+  // Touches as listed in the chapter's table for a plain lowering: a loop's
+  // compare and increment sit in its own body, at its own depth.
+  const std::vector<Candidate> candidates = {
+      {"a", {0, 3}},
+      {"b", {0, 3}},
+      {"c", {0, 2}},
+      {"row", {0, 1, 3, 2, 1, 1}},
+      {"column", {1, 2, 3, 2, 2, 2}},
+      {"k", {2, 3, 3, 3, 3, 3}},
   };
 
-  long long cheapest = -1;
-  std::string cheapest_name;
+  std::string cheapest;
+  long cheapest_cost = -1;
+  std::printf("value    10^depth  exact\n");
   for (const Candidate &c : candidates) {
-    long long cost = spill_cost(c);
-    std::printf("%-12s cost %lld\n", c.name.c_str(), cost);
-    if (cheapest == -1 || cost < cheapest) {
-      cheapest = cost;
-      cheapest_name = c.name;
+    long guess = 0, exact = 0;
+    for (int d : c.depths) {
+      long w = 1;
+      for (int i = 0; i < d; ++i) w *= 10;
+      guess += w;
+      exact += exact_runs[d];
+    }
+    std::printf("%-8s %8ld  %5ld\n", c.name.c_str(), guess, exact);
+    // All six are live together in the k loop, so every node has the same
+    // degree and Chaitin's cost / degree picks the same value as cost alone.
+    if (cheapest_cost < 0 || guess < cheapest_cost) {
+      cheapest_cost = guess;
+      cheapest = c.name;
     }
   }
-  std::printf("spill: %s\n", cheapest_name.c_str());
+  std::printf("spill first: %s\n", cheapest.c_str());
   return 0;
 }

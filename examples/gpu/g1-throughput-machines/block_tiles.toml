@@ -1,0 +1,4 @@
+follows = [
+  "https://people.eecs.berkeley.edu/~kubitron/cs252/handouts/papers/RooflineVyNoYellow.pdf",
+  "https://www.nvidia.com/content/GTC-2010/pdfs/2238_GTC2010.pdf",
+]

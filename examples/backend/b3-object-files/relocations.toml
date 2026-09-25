@@ -3,5 +3,6 @@
 # the platform it was written for.
 platforms = ["macos-arm64"]
 follows = [
-  "https://developer.apple.com/documentation/xcode/writing-arm64-code-for-apple-platforms",
+  "https://github.com/below/HelloSilicon",
+  "https://github.com/apple-oss-distributions/xnu/blob/main/EXTERNAL_HEADERS/mach-o/arm64/reloc.h",
 ]

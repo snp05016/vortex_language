@@ -1,0 +1,4 @@
+search "cat" "the cat sat" -> status 0
+search "dog" "the cat sat" -> status 1
+search "cat" -> status 2
+search -> status 2

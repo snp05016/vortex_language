@@ -1,0 +1,4 @@
+follows = [
+  "https://registry.khronos.org/SPIR-V/specs/unified1/SPIRV.html#PhysicalLayout",
+  "https://registry.khronos.org/SPIR-V/specs/unified1/SPIRV.html#Instructions",
+]

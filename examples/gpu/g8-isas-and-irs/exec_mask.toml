@@ -1,0 +1,3 @@
+follows = [
+  "https://llvm.org/docs/AMDGPUUsage.html",
+]

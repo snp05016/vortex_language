@@ -1,2 +1,2 @@
-addss (%rdi,%rcx,4), %xmm0     -> f3 0f 58 04 8f
-addss (%rsi,%rax,8), %xmm3     -> f3 0f 58 1c c6
+addss (%rdi,%rcx,4), %xmm0   -> f3 0f 58 04 8f
+addss (%rsi,%rax,8), %xmm3   -> f3 0f 58 1c c6

@@ -1,0 +1,4 @@
+follows = [
+  "https://en.cppreference.com/w/cpp/io/println.html",
+  "https://en.cppreference.com/w/cpp/language/main_function.html",
+]

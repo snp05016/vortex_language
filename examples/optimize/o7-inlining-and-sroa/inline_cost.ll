@@ -11,7 +11,8 @@
 ;                  function be deleted, which earns a large bonus.
 ;   @factorial     Calls itself, so this inliner never inlines it.
 ;   @small_caller  Marked minsize, which -Oz sets: its threshold is 5 and the
-;                  bonuses are gone, so the same call to @shade is refused.
+;                  single-block and vector bonuses are gone (the last-call
+;                  bonus stays), so the same call to @shade is refused.
 ;
 ; Follows: LLVM 18 InlineCost.cpp (CallAnalyzer, updateThreshold,
 ; getCallsiteCost), InlineCost.h (the thresholds) and InlineAdvisor.cpp (the

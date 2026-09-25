@@ -1,4 +1,0 @@
-mode           CPU   GPU  note
-shared        true  true  one copy, addressable by both: Apple silicon's unified memory backs it
-private      false  true  GPU-only copy; the CPU has no address for it
-memoryless   false  true  on-tile only, never backed by memory at all

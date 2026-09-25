@@ -1,0 +1,6 @@
+platforms = ["macos-arm64"]
+follows = [
+  "https://clang.llvm.org/docs/UsersManual.html",
+  "https://llvm.org/docs/LangRef.html#llvm-fmuladd-intrinsic",
+  "https://clang.llvm.org/docs/LanguageExtensions.html",
+]

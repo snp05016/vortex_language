@@ -11,10 +11,10 @@
 //
 // This never sets PROT_WRITE and PROT_EXEC on the mapping at the same time:
 // the page is writable while the bytes go in, then mprotect switches it to
-// executable before the first call. That is enough for a plain, unsigned
-// command-line tool like this one; a signed app under Apple's hardened
-// runtime needs MAP_JIT and pthread_jit_write_protect_np instead, described
-// on the chapter page.
+// executable before the first call. mmap and mprotect work in whole pages,
+// so the 8 bytes below occupy one page. On macOS this route works for a
+// command-line tool without the hardened runtime; a hardened-runtime app
+// uses MAP_JIT instead (see jit_map_jit.cpp).
 
 #include <cstddef>
 #include <cstdint>

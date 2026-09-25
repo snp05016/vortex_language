@@ -1,0 +1,47 @@
+; ModuleID = 'fmf_folds.ll'
+source_filename = "fmf_folds.ll"
+
+define float @add_zero(float %x) {
+  %r = fadd float %x, 0.000000e+00
+  ret float %r
+}
+
+define float @add_zero_nsz(float %x) {
+  ret float %x
+}
+
+define float @mul_zero(float %x) {
+  %r = fmul float %x, 0.000000e+00
+  ret float %r
+}
+
+define float @mul_zero_nnan_nsz(float %x) {
+  ret float 0.000000e+00
+}
+
+define float @div_ten(float %x) {
+  %r = fdiv float %x, 1.000000e+01
+  ret float %r
+}
+
+define float @div_ten_arcp(float %x) {
+  %r = fmul arcp float %x, 0x3FB99999A0000000
+  ret float %r
+}
+
+define float @add_consts(float %x) {
+  %t = fadd float %x, 1.000000e+00
+  %r = fadd float %t, 2.000000e+00
+  ret float %r
+}
+
+define float @add_consts_reassoc_nsz(float %x) {
+  %r = fadd reassoc nsz float %x, 3.000000e+00
+  ret float %r
+}
+
+define float @madd_contract(float %a, float %b, float %c) {
+  %p = fmul contract float %a, %b
+  %s = fadd contract float %p, %c
+  ret float %s
+}

@@ -1,10 +1,7 @@
-recompute cost 1 instruction:
-  uses 1: reload 2, rematerialize 1 -> rematerialize
-  uses 2: reload 3, rematerialize 2 -> rematerialize
-  uses 4: reload 5, rematerialize 4 -> rematerialize
-  uses 8: reload 9, rematerialize 8 -> rematerialize
-recompute cost 2 instructions:
-  uses 1: reload 2, rematerialize 2 -> tie
-  uses 2: reload 3, rematerialize 4 -> reload
-  uses 4: reload 5, rematerialize 8 -> reload
-  uses 8: reload 9, rematerialize 16 -> reload
+4 later uses
+value             reload: instrs mem | recompute: instrs mem
+small constant             5   5 |             4   0
+64-bit constant            5   5 |            16   0
+global address             5   5 |             8   0
+stack address              5   5 |             4   0
+running sum                5   5 | not possible

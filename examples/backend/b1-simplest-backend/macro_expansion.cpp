@@ -4,9 +4,12 @@
 // reloaded from its slot right before it is used, so no register ever
 // holds a value that outlives the few instructions of its own template.
 //
+// Operands are expanded left before right, and the left one is loaded into
+// w0, because sub computes w0 - w1.
+//
 // Follows: Abdulaziz Ghuloum, "An Incremental Approach to Compiler
-// Construction" (the stack-slot-per-value technique), and the Arm A64 ISA
-// (DDI 0602) for the instructions themselves.
+// Construction" (intermediate values saved in stack locations), and the Arm
+// A64 ISA (DDI 0602) for the instructions themselves.
 #include <cstdio>
 #include <memory>
 #include <string>
@@ -86,6 +89,9 @@ int main() {
     for (const auto& line : expander.code) {
         std::printf("%s\n", line.c_str());
     }
-    std::printf("result in slot %d, %d bytes of stack used\n", result_slot,
-                expander.next_slot * 4);
+    // sp must stay a multiple of 16, so the frame rounds the slots up.
+    int slot_bytes = expander.next_slot * 4;
+    int frame = (slot_bytes + 15) / 16 * 16;
+    std::printf("result in slot %d; %d bytes of slots, frame of %d bytes\n",
+                result_slot, slot_bytes, frame);
 }

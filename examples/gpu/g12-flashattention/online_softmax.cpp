@@ -1,74 +1,84 @@
-// Follows: Tri Dao et al., "FlashAttention: Fast and Memory-Efficient Exact
-// Attention with IO-Awareness", NeurIPS 2022 (arXiv:2205.14135), the running
-// rescale their tiled loop applies to a softmax normalizer.
+// Follows: Milakov and Gimelshein, "Online normalizer calculation for
+// softmax", 2018 (arXiv:1805.02867), algorithms 2 and 3 and the merge
+// operator of section 3.
 #include <array>
 #include <cmath>
 #include <cstdio>
 #include <limits>
 
-// Two-pass softmax: one pass finds the maximum, a second exponentiates and
-// sums. Every input value is read twice.
-template <std::size_t N>
-std::array<double, N> two_pass_softmax(const std::array<double, N>& x) {
-    double m = x[0];
-    for (double v : x) {
-        if (v > m) m = v;
-    }
-    std::array<double, N> p{};
+constexpr std::size_t N = 6;
+
+// Every read or write of the vector goes through these, so the program can
+// count memory accesses the way the paper does: per element of the vector.
+struct Counted {
+    std::array<double, N> data{};
+    std::size_t loads = 0;
+    std::size_t stores = 0;
+    double load(std::size_t i) { ++loads; return data[i]; }
+    void store(std::size_t i, double v) { ++stores; data[i] = v; }
+};
+
+// Safe softmax: pass 1 finds the maximum, pass 2 sums exp(x - max),
+// pass 3 writes the outputs. Three loads and one store per element.
+void safe_softmax(Counted& x, Counted& y) {
+    double m = -std::numeric_limits<double>::infinity();
+    for (std::size_t i = 0; i < N; ++i) m = std::fmax(m, x.load(i));
     double l = 0.0;
-    for (std::size_t i = 0; i < N; ++i) {
-        p[i] = std::exp(x[i] - m);
-        l += p[i];
-    }
-    for (std::size_t i = 0; i < N; ++i) {
-        p[i] /= l;
-    }
-    return p;
+    for (std::size_t i = 0; i < N; ++i) l += std::exp(x.load(i) - m);
+    for (std::size_t i = 0; i < N; ++i) y.store(i, std::exp(x.load(i) - m) / l);
 }
 
-// Online softmax: one pass. Whenever a larger value raises the running
-// maximum m, everything accumulated so far (the running sum l and every
-// entry written into p) is rescaled by exp(old_m - new_m) before the new
-// value is folded in. Each input value is read once.
-template <std::size_t N>
-std::array<double, N> online_softmax(const std::array<double, N>& x) {
-    std::array<double, N> p{};
-    double m = -std::numeric_limits<double>::infinity();
-    double l = 0.0;
-    for (std::size_t i = 0; i < N; ++i) {
-        if (x[i] > m) {
-            double scale = std::exp(m - x[i]); // exp(-inf) = 0 on the first value
-            l *= scale;
-            for (std::size_t j = 0; j < i; ++j) {
-                p[j] *= scale;
-            }
-            m = x[i];
-        }
-        p[i] = std::exp(x[i] - m);
-        l += p[i];
-    }
-    for (std::size_t i = 0; i < N; ++i) {
-        p[i] /= l;
-    }
-    return p;
+// The running pair (maximum, sum of exp(x - maximum)).
+struct Stats { double m; double l; };
+
+// Fold one more value into the pair. When the maximum rises, the old sum was
+// measured against the wrong maximum, so it is rescaled by exp(old - new).
+Stats fold(Stats s, double x) {
+    double m = std::fmax(s.m, x);
+    return {m, s.l * std::exp(s.m - m) + std::exp(x - m)};
+}
+
+// Combine the pairs of two halves: the same rescale, applied to both sides.
+Stats merge(Stats a, Stats b) {
+    double m = std::fmax(a.m, b.m);
+    return {m, a.l * std::exp(a.m - m) + b.l * std::exp(b.m - m)};
+}
+
+// Online softmax: pass 1 builds the pair, pass 2 writes the outputs.
+// Two loads and one store per element.
+Stats online_softmax(Counted& x, Counted& y) {
+    Stats s{-std::numeric_limits<double>::infinity(), 0.0};
+    for (std::size_t i = 0; i < N; ++i) s = fold(s, x.load(i));
+    for (std::size_t i = 0; i < N; ++i) y.store(i, std::exp(x.load(i) - s.m) / s.l);
+    return s;
 }
 
 int main() {
-    std::array<double, 6> values = {2.0, 0.5, 3.0, -1.0, 1.5, 3.0};
+    const std::array<double, N> values = {2.0, 0.5, 3.0, -1.0, 1.5, 3.5};
 
-    std::array<double, 6> p_two_pass = two_pass_softmax(values);
-    std::array<double, 6> p_online = online_softmax(values);
+    Counted x1{values}, y1{};
+    safe_softmax(x1, y1);
+    Counted x2{values}, y2{};
+    Stats whole = online_softmax(x2, y2);
 
-    bool match = true;
-    for (std::size_t i = 0; i < values.size(); ++i) {
-        if (std::abs(p_two_pass[i] - p_online[i]) > 1e-9) {
-            match = false;
-        }
+    // Two workers each fold half of the vector; merging their pairs must
+    // give the pair that one sequential sweep gave.
+    Stats left{-std::numeric_limits<double>::infinity(), 0.0};
+    Stats right = left;
+    for (std::size_t i = 0; i < N / 2; ++i) left = fold(left, values[i]);
+    for (std::size_t i = N / 2; i < N; ++i) right = fold(right, values[i]);
+    Stats merged = merge(left, right);
+
+    bool outputs_match = true;
+    for (std::size_t i = 0; i < N; ++i) {
+        if (std::fabs(y1.data[i] - y2.data[i]) > 1e-12) outputs_match = false;
     }
+    bool pairs_match = merged.m == whole.m && std::fabs(merged.l - whole.l) < 1e-12;
 
-    std::printf("elements: %zu\n", values.size());
-    std::printf("two-pass reads of the input: %zu\n", 2 * values.size());
-    std::printf("online reads of the input: %zu\n", values.size());
-    std::printf("outputs match within tolerance: %s\n", match ? "yes" : "no");
+    std::printf("safe softmax:   %zu loads, %zu stores\n", x1.loads, y1.stores);
+    std::printf("online softmax: %zu loads, %zu stores\n", x2.loads, y2.stores);
+    std::printf("outputs match within 1e-12: %s\n", outputs_match ? "yes" : "no");
+    std::printf("running max %.1f, running sum %.4f\n", whole.m, whole.l);
+    std::printf("merged halves give the same pair: %s\n", pairs_match ? "yes" : "no");
     return 0;
 }

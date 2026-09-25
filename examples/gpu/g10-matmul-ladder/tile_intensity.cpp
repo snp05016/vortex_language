@@ -1,39 +1,35 @@
-// Arithmetic intensity of a square output tile, at two memory levels.
+// Arithmetic intensity of an output tile: FLOPs done per byte read.
 //
-// A tile of BM x BN outputs shares its inputs: one step of the reduction
-// loop needs BM elements of one operand and BN of the other, and does
-// 2 * BM * BN floating-point operations with them (one multiply and one add
-// per output, counted separately because Vortex's strict rule forbids
-// fusing them into one rounding, decision 56). Intensity is FLOPs moved per
-// byte fetched. The same formula applies whether the tile is read from
-// global memory into shared memory, or from shared memory into registers;
-// only the memory levels change. Nothing here runs on a GPU: it is the
-// arithmetic behind the ladder's rungs, not a measurement of any of them.
+// A tile of m x n outputs shares its inputs. One step of the k loop reads
+// m values of `a` and n values of `b` (4 bytes each, f32) and does one
+// multiply and one add per output: 2 * m * n FLOPs. They are counted
+// separately because decision 56 forbids fusing them into one rounding.
+// The formula does not say which memory the bytes come from: for a block
+// tile they come from global memory into shared memory, for a thread tile
+// from shared memory into registers. Nothing here runs on a GPU.
 
 #include <cstddef>
+#include <format>
 #include <print>
-#include <string_view>
+#include <utility>
 
-constexpr std::size_t f32_bytes = 4;
+constexpr double f32_bytes = 4.0;
 
-// flops_per_byte for a BM x BN tile, reading each operand once per step.
-double intensity(std::size_t bm, std::size_t bn) {
-  double flops = 2.0 * static_cast<double>(bm) * static_cast<double>(bn);
-  double bytes = static_cast<double>(f32_bytes) *
-                 static_cast<double>(bm + bn);
+double intensity(std::size_t m, std::size_t n) {
+  double flops = 2.0 * static_cast<double>(m * n);
+  double bytes = f32_bytes * static_cast<double>(m + n);
   return flops / bytes;
 }
 
-void ladder(std::string_view level) {
-  std::println("{}", level);
-  std::println("{:<12} {:>14}", "edge (t)", "FLOPs/byte");
-  for (std::size_t t : {1uz, 2uz, 4uz, 8uz, 16uz, 32uz, 64uz, 128uz}) {
-    std::println("{:<12} {:>14.2f}", t, intensity(t, t));
-  }
-}
-
 int main() {
-  ladder("Block tile: t x t outputs, read from global memory");
-  std::println("");
-  ladder("Thread tile: t x t outputs, read from shared memory");
+  constexpr std::pair<std::size_t, std::size_t> tiles[] = {
+      {1, 1},    {2, 2},   {4, 4},    {8, 8},     {16, 16},
+      {32, 32},  {64, 64}, {128, 128}, {8, 1},    {8, 4},
+      {128, 64},
+  };
+  std::println("{:<12} {:>12}", "tile", "FLOPs/byte");
+  for (auto [m, n] : tiles) {
+    std::println("{:<12} {:>12.2f}", std::format("{} x {}", m, n),
+                 intensity(m, n));
+  }
 }

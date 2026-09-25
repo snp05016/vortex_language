@@ -1,107 +1,123 @@
-// Choosing a two-parameter tile size three ways: an analytic model, grid
-// search and random search, all scored by the same cost function so the
-// three strategies can be compared honestly.
+// Five ways to choose two tile sizes for one blocked matrix multiplication,
+// all scored by the same cost: misses in a simulated cache. The cost is a
+// count, not a time, so the output is the same on every machine.
 //
-// The toy: block a matrix-vector product y = A*x over row-block size bi and
-// reduction-block size bk. Reloading x from memory costs (n*n)/bi units
-// (larger row blocks reuse a resident chunk of x across more rows before it
-// is evicted); switching tiles costs a fixed overhead per tile. Both bi and
-// bk must fit a resident-data budget. n, the budget and the overhead weight
-// are toy constants, not measurements: see the chapter for the real cache
-// facts they stand in for.
+// Toy cache: 4 KiB, 2-way, 32-byte lines, least recently used (P8's toy).
+// Kernel: c += a * b for 80 x 80 f32 matrices stored back to back, with j
+// and k strip-mined by bj and bk and both strip loops outside i, so one
+// bk x bj block of b is reused by every row i.
 //
-// Follows: no external source; the cost function is original to this toy.
+// Follows: Yotov et al., "Is Search Really Necessary to Generate
+// High-Performance BLAS?", Proc. IEEE 2005, sections III-B and IV-B (the
+// orthogonal line search, and the fit inequality the model uses).
 
+#include <algorithm>
 #include <array>
 #include <cstdint>
-#include <limits>
+#include <format>
+#include <map>
 #include <print>
-#include <random>
+#include <string_view>
+#include <utility>
+#include <vector>
 
-constexpr std::int64_t n = 1024;
-constexpr std::int64_t budget = 512;          // elements resident at once
-constexpr std::int64_t overhead_weight = 4;   // cost units per tile switch
-constexpr std::array<std::int64_t, 9> candidates = {4, 8, 16, 32, 64, 128, 256, 512, 1024};
-constexpr std::int64_t infeasible = std::numeric_limits<std::int64_t>::max();
+constexpr int n = 80, line = 32, ways = 2, cache_bytes = 4096;
+constexpr std::array<int, 6> sizes = {2, 4, 8, 16, 32, 64};
 
-struct Choice { std::int64_t bi, bk, cost; };
-
-std::int64_t cost(std::int64_t bi, std::int64_t bk) {
-  if (bi + bk > budget) return infeasible;
-  std::int64_t traffic = (n * n) / bi;
-  std::int64_t switches = overhead_weight * (n / bi) * (n / bk);
-  return traffic + switches;
-}
-
-// Grid search: every (bi, bk) pair on the candidate grid.
-Choice grid_search(std::int64_t& evaluated, std::int64_t& feasible) {
-  Choice best{0, 0, infeasible};
-  for (std::int64_t bi : candidates) {
-    for (std::int64_t bk : candidates) {
-      ++evaluated;
-      std::int64_t c = cost(bi, bk);
-      if (c == infeasible) continue;
-      ++feasible;
-      if (c < best.cost) best = {bi, bk, c};
+std::int64_t simulate(int bk, int bj) {
+  constexpr int sets = cache_bytes / (ways * line);
+  std::vector<std::int64_t> tag(sets * ways, -1), used(sets * ways, 0);
+  std::int64_t clock = 0, misses = 0;
+  auto touch = [&](std::int64_t address) {
+    std::int64_t block = address / line;
+    int set = int(block % sets), victim = set * ways;
+    for (int w = set * ways; w < (set + 1) * ways; ++w) {
+      if (tag[w] == block) { used[w] = ++clock; return; }
+      if (used[w] < used[victim]) victim = w;
     }
-  }
-  return best;
+    ++misses;
+    tag[victim] = block;
+    used[victim] = ++clock;
+  };
+  const std::int64_t a = 0, b = 4 * n * n, c = 8 * n * n;
+  for (int jj = 0; jj < n; jj += bj)
+    for (int kk = 0; kk < n; kk += bk)
+      for (int i = 0; i < n; ++i)
+        for (int k = kk; k < std::min(kk + bk, n); ++k) {
+          touch(a + 4 * (i * n + k));  // a[i][k] stays in a register over j
+          for (int j = jj; j < std::min(jj + bj, n); ++j) {
+            touch(b + 4 * (k * n + j));
+            touch(c + 4 * (i * n + j));
+          }
+        }
+  return misses;
 }
 
-// Random search: a fixed number of pairs, chosen by a seeded generator so
-// the run is repeatable.
-Choice random_search(std::int64_t attempts, std::int64_t& feasible) {
-  std::mt19937 rng(20260924);
-  std::uniform_int_distribution<std::size_t> pick(0, candidates.size() - 1);
-  Choice best{0, 0, infeasible};
-  for (std::int64_t i = 0; i < attempts; ++i) {
-    std::int64_t bi = candidates[pick(rng)];
-    std::int64_t bk = candidates[pick(rng)];
-    std::int64_t c = cost(bi, bk);
-    if (c == infeasible) continue;
-    ++feasible;
-    if (c < best.cost) best = {bi, bk, c};
-  }
-  return best;
+// Every strategy asks through this table, so a point tried twice is
+// simulated once and counted once, as ATLAS keeps its timings in files.
+std::map<std::pair<int, int>, std::int64_t> tried;
+std::int64_t cost(int bk, int bj) {
+  auto [it, fresh] = tried.try_emplace({bk, bj}, 0);
+  if (fresh) it->second = simulate(bk, bj);
+  return it->second;
 }
 
-// The model: reason about the cost function instead of trying every pair.
-// Growing bk only lowers cost here and only the budget caps it, so for each
-// bi the best bk is the largest candidate that still fits; that leaves one
-// free parameter, bi, which the model scans directly.
-Choice model_choice(std::int64_t& evaluated) {
-  Choice best{0, 0, infeasible};
-  for (std::int64_t bi : candidates) {
-    std::int64_t room = budget - bi;
-    std::int64_t bk = 0;
-    for (std::int64_t candidate : candidates) {
-      if (candidate <= room) bk = candidate;
-    }
-    if (bk == 0) continue;
-    ++evaluated;
-    std::int64_t c = cost(bi, bk);
-    if (c < best.cost) best = {bi, bk, c};
-  }
-  return best;
+struct Pick { int bk, bj; std::int64_t misses; };
+void keep_best(Pick& best, int bk, int bj) {
+  std::int64_t m = cost(bk, bj);
+  if (best.misses < 0 || m < best.misses) best = {bk, bj, m};
+}
+void report(std::string_view name, const Pick& p) {
+  std::println("{:<24}{:>3} tried  bk={:<2} bj={:<2} misses={}", name,
+               tried.size(), p.bk, p.bj, p.misses);
+  tried.clear();
 }
 
 int main() {
-  std::int64_t grid_evaluated = 0, grid_feasible = 0;
-  Choice grid = grid_search(grid_evaluated, grid_feasible);
-  std::println("grid:   {} evaluated, {} feasible, best bi={} bk={} cost={}",
-               grid_evaluated, grid_feasible, grid.bi, grid.bk, grid.cost);
+  std::println("misses; rows bk, columns bj = 2 4 8 16 32 64");
+  for (int bk : sizes) {
+    std::print("bk={:<2}", bk);
+    for (int bj : sizes) std::print("{:>7}", simulate(bk, bj));
+    std::println("");
+  }
 
-  std::int64_t random_feasible = 0;
-  Choice random = random_search(12, random_feasible);
-  std::println("random: 12 evaluated, {} feasible, best bi={} bk={} cost={}",
-               random_feasible, random.bi, random.bk, random.cost);
+  Pick grid{0, 0, -1};  // try every pair
+  for (int bk : sizes) for (int bj : sizes) keep_best(grid, bk, bj);
+  report("grid search", grid);
 
-  std::int64_t model_evaluated = 0;
-  Choice model = model_choice(model_evaluated);
-  std::println("model:  {} evaluated, best bi={} bk={} cost={}",
-               model_evaluated, model.bi, model.bk, model.cost);
+  Pick lines{0, 0, -1};  // bk first with bj at 64, then bj with that bk
+  for (int bk : sizes) keep_best(lines, bk, 64);
+  for (int bj : sizes) keep_best(lines, lines.bk, bj);
+  report("orthogonal line search", lines);
 
-  std::println("model matches grid optimum: {}", model.cost == grid.cost);
-  std::println("random matches grid optimum: {}", random.cost == grid.cost);
-  return 0;
+  for (std::uint64_t seed : {1, 2, 3}) {  // 8 draws each, fixed seeds
+    Pick sample{0, 0, -1};
+    std::uint64_t state = seed;
+    for (int draw = 0; draw < 8; ++draw) {
+      state = state * 6364136223846793005u + 1442695040888963407u;
+      int pick = int((state >> 33) % (sizes.size() * sizes.size()));
+      keep_best(sample, sizes[pick / sizes.size()], sizes[pick % sizes.size()]);
+    }
+    report(std::format("random, seed {}", seed), sample);
+  }
+
+  // Model: the largest square tile whose b block, c row segment and one
+  // line of a fit in the cache, counted in lines. It runs no simulation.
+  constexpr int cache_lines = cache_bytes / line, per_line = line / 4;
+  int t = 0;
+  for (int s : sizes)
+    if (s * ((s + per_line - 1) / per_line) + (s + per_line - 1) / per_line + 1 <= cache_lines) t = s;
+  std::println("{:<24}{:>3} tried  bk={:<2} bj={:<2} (predicted, not scored)", "model", 0, t, t);
+
+  Pick local{t, t, cost(t, t)};  // then move to the best neighbour, if better
+  auto at = [](int s) { return int(std::ranges::find(sizes, s) - sizes.begin()); };
+  for (Pick here = local;; here = local) {
+    for (auto [dr, dq] : {std::pair{-1, 0}, {1, 0}, {0, -1}, {0, 1}}) {
+      int r = at(here.bk) + dr, q = at(here.bj) + dq;
+      if (r >= 0 && q >= 0 && r < int(sizes.size()) && q < int(sizes.size()))
+        keep_best(local, sizes[r], sizes[q]);
+    }
+    if (local.misses == here.misses) break;
+  }
+  report("model + local search", local);
 }

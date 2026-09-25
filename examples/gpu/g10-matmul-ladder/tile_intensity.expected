@@ -1,21 +1,12 @@
-Block tile: t x t outputs, read from global memory
-edge (t)         FLOPs/byte
-1                      0.25
-2                      0.50
-4                      1.00
-8                      2.00
-16                     4.00
-32                     8.00
-64                    16.00
-128                   32.00
-
-Thread tile: t x t outputs, read from shared memory
-edge (t)         FLOPs/byte
-1                      0.25
-2                      0.50
-4                      1.00
-8                      2.00
-16                     4.00
-32                     8.00
-64                    16.00
-128                   32.00
+tile           FLOPs/byte
+1 x 1                0.25
+2 x 2                0.50
+4 x 4                1.00
+8 x 8                2.00
+16 x 16              4.00
+32 x 32              8.00
+64 x 64             16.00
+128 x 128           32.00
+8 x 1                0.44
+8 x 4                1.33
+128 x 64            21.33

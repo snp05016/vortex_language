@@ -1,9 +1,10 @@
 // program: valid
-// Follows: Ulrich Drepper, "What Every Programmer Should Know About Memory,"
+// Follows: Ulrich Drepper, "What Every Programmer Should Know About Memory",
 // section 6.2.1 (matrix multiplication and cache access patterns).
 #include <cstdio>
 
-// Apple M4 Pro, `sysctl hw.cachelinesize`, measured 2026-09-23.
+// Apple M4 Pro, `sysctl hw.cachelinesize`, checked 2026-09-24. Query it on
+// your own machine; this constant is only for a repeatable example.
 constexpr int kLineBytes = 128;
 constexpr int kFloatBytes = 4;
 constexpr int kElemsPerLine = kLineBytes / kFloatBytes;
@@ -46,7 +47,8 @@ int line_transitions(bool row_major_order) {
 int main() {
     const int total_visits = kRows * kCols;
     std::printf("elements visited: %d, elements per line: %d\n", total_visits, kElemsPerLine);
-    std::printf("line transitions, row order (stride 1):    %d\n", line_transitions(true));
-    std::printf("line transitions, column order (stride %d): %d\n", kCols, line_transitions(false));
+    std::printf("lines the array occupies: %d\n", total_visits / kElemsPerLine);
+    std::printf("line transitions, row order (stride 1 element):     %d\n", line_transitions(true));
+    std::printf("line transitions, column order (stride %d elements): %d\n", kCols, line_transitions(false));
     return 0;
 }

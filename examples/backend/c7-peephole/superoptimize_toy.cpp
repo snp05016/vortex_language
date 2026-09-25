@@ -7,9 +7,9 @@
 // than by algebra.
 //
 // Follows: Massalin, "Superoptimizer: A Look at the Smallest Program",
-// ASPLOS 1987 (exhaustive search over short programs); Bansal and Aiken,
-// "Automatic Generation of Peephole Superoptimizers", ASPLOS 2006 (checking
-// a candidate against every input of a fixed width before accepting it).
+// ASPLOS 1987 (enumerate programs of length 1, then 2, and so on, and test
+// each one on inputs). Massalin's machine had 32-bit registers, so a test
+// could only sample inputs; on this 8-bit machine the test covers them all.
 
 #include <array>
 #include <cstdint>

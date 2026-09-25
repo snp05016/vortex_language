@@ -1,57 +1,48 @@
-// Macro-expansion instruction selection: one instruction template per IR
-// operation, with no regard for what neighboring operations could share.
-// The tree below stands for load(a + ((i * 4 + j) << 2)), an address
-// computation shaped like an array element access.
+// Macro expansion: one fixed template per tree node, chosen by the node's own
+// kind alone. The tree is load(a + ((i * 4 + j) << 2)): the byte address of
+// element [i][j] of an int32 array whose rows hold 4 elements, then a load.
+// Output is AArch64-style assembly with unlimited temporaries t1, t2, ...
 #include <cstdio>
-#include <memory>
+#include <deque>
 #include <string>
+#include <vector>
 
-enum class Kind { Leaf, Add, Mul, Shl, Load };
-
+enum class Op { Var, Const, Add, Mul, Shl, Load };
 struct Node {
-    Kind kind;
-    std::string name;                    // for Leaf only
-    std::unique_ptr<Node> a, b;           // operands, in that order
+    Op op;
+    std::string name;  // a variable's name, or a constant's digits
+    std::vector<Node*> kids;
 };
 
-std::unique_ptr<Node> leaf(std::string name) {
-    return std::make_unique<Node>(Node{Kind::Leaf, std::move(name), nullptr, nullptr});
-}
-std::unique_ptr<Node> op(Kind k, std::unique_ptr<Node> a, std::unique_ptr<Node> b = nullptr) {
-    return std::make_unique<Node>(Node{k, "", std::move(a), std::move(b)});
-}
+std::deque<Node> arena;  // a deque never moves its elements, so Node* stays valid
+Node* var(std::string n) { return &arena.emplace_back(Node{Op::Var, n, {}}); }
+Node* num(long v) { return &arena.emplace_back(Node{Op::Const, std::to_string(v), {}}); }
+Node* op(Op o, std::vector<Node*> k) { return &arena.emplace_back(Node{o, "", k}); }
 
-// a + ((i * 4 + j) << 2)
-std::unique_ptr<Node> build_tree() {
-    auto mul = op(Kind::Mul, leaf("i"), leaf("4"));
-    auto add_inner = op(Kind::Add, std::move(mul), leaf("j"));
-    auto shl = op(Kind::Shl, std::move(add_inner), leaf("2"));
-    auto add_outer = op(Kind::Add, leaf("a"), std::move(shl));
-    return op(Kind::Load, std::move(add_outer));
-}
+int count = 0;
 
-int instruction_count = 0;
-
-// Emits one instruction per node and returns the name holding its result.
-// A leaf costs nothing: its value is already in a register or is an
-// immediate operand.
-std::string macro_expand(Node* n) {
-    if (n->kind == Kind::Leaf) return n->name;
-    std::string lhs = macro_expand(n->a.get());
-    std::string rhs = n->b ? macro_expand(n->b.get()) : "";
-    std::string result = "t" + std::to_string(++instruction_count);
-    switch (n->kind) {
-        case Kind::Add:  std::printf("%s = add %s, %s\n", result.c_str(), lhs.c_str(), rhs.c_str()); break;
-        case Kind::Mul:  std::printf("%s = mul %s, %s\n", result.c_str(), lhs.c_str(), rhs.c_str()); break;
-        case Kind::Shl:  std::printf("%s = shl %s, %s\n", result.c_str(), lhs.c_str(), rhs.c_str()); break;
-        case Kind::Load: std::printf("%s = load [%s]\n", result.c_str(), lhs.c_str()); break;
-        default: break;
+// Returns where the node's value lives. A variable is already in a register.
+// Every other node gets its own instruction, even a constant: the template
+// for Mul cannot know that its right operand happens to be the constant 4.
+std::string expand(Node* n) {
+    if (n->op == Op::Var) return n->name;
+    std::vector<std::string> in;
+    for (Node* k : n->kids) in.push_back(expand(k));
+    std::string d = "t" + std::to_string(++count);
+    switch (n->op) {
+        case Op::Const: std::printf("mov  %s, #%s\n", d.c_str(), n->name.c_str()); break;
+        case Op::Add:   std::printf("add  %s, %s, %s\n", d.c_str(), in[0].c_str(), in[1].c_str()); break;
+        case Op::Mul:   std::printf("mul  %s, %s, %s\n", d.c_str(), in[0].c_str(), in[1].c_str()); break;
+        case Op::Shl:   std::printf("lsl  %s, %s, %s\n", d.c_str(), in[0].c_str(), in[1].c_str()); break;
+        case Op::Load:  std::printf("ldr  %s, [%s]\n", d.c_str(), in[0].c_str()); break;
+        case Op::Var:   break;
     }
-    return result;
+    return d;
 }
 
 int main() {
-    auto tree = build_tree();
-    macro_expand(tree.get());
-    std::printf("%d instructions\n", instruction_count);
+    Node* index = op(Op::Add, {op(Op::Mul, {var("i"), num(4)}), var("j")});
+    Node* tree = op(Op::Load, {op(Op::Add, {var("a"), op(Op::Shl, {index, num(2)})})});
+    expand(tree);
+    std::printf("%d instructions\n", count);
 }

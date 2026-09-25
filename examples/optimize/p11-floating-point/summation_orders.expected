@@ -1,4 +1,10 @@
-exact      = 16877215
-sequential = 16777216  (error 99999)
-pairwise   = 16877210  (error 5)
-kahan      = 16877216  (error -1)
+2^24 then ones: exact 16877215
+  sequential     16777216  error  -49999.5 ulp
+  four lanes     16852216  error  -12499.5 ulp
+  pairwise       16877210  error      -2.5 ulp
+  kahan          16877216  error       0.5 ulp
+harmonic: exact 12.0901462
+  sequential   12.0908508  error     738.9 ulp
+  four lanes   12.0901299  error     -17.1 ulp
+  pairwise      12.090148  error       1.9 ulp
+  kahan        12.0901461  error      -0.1 ulp

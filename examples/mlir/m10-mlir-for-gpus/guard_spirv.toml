@@ -1,0 +1,6 @@
+flags = ["--convert-gpu-to-spirv", "--canonicalize", "--spirv-update-vce"]
+follows = [
+  "https://mlir.llvm.org/docs/Dialects/SPIR-V/",
+  "https://mlir.llvm.org/docs/Passes/#-convert-gpu-to-spirv",
+  "https://registry.khronos.org/SPIR-V/specs/unified1/SPIRV.html#StructuredControlFlow",
+]

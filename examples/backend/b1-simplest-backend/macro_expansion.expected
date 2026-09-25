@@ -12,4 +12,4 @@ ldr w0, [sp, #8]
 ldr w1, [sp, #12]
 mul w0, w0, w1
 str w0, [sp, #16]
-result in slot 4, 20 bytes of stack used
+result in slot 4; 20 bytes of slots, frame of 32 bytes

@@ -1,0 +1,6 @@
+source: -(3 + 4) * 2 - 1
+  t0 = add 3, 4
+  t1 = neg t0
+  t2 = mul t1, 2
+  t3 = sub t2, 1
+result: t3

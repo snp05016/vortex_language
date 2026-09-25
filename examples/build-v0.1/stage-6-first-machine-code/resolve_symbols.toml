@@ -1,0 +1,5 @@
+follows = [
+  "https://en.cppreference.com/cpp/utility/functional/function",
+  "https://en.cppreference.com/cpp/container/unordered_map",
+  "https://en.cppreference.com/cpp/utility/variant",
+]

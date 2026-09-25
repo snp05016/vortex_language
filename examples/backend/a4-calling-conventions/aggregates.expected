@@ -1,0 +1,15 @@
+{float x, y, z}      12 bytes
+  AAPCS64: HFA: one v register per member
+  SysV:    SSE SSE (one register per eightbyte)
+{float v[6]}         24 bytes
+  AAPCS64: copied by the caller; x register holds its address
+  SysV:    MEMORY: copied onto the stack
+{int n; float w}      8 bytes
+  AAPCS64: 1 x register
+  SysV:    INTEGER (one register per eightbyte)
+{double d; long n}   16 bytes
+  AAPCS64: 2 x registers
+  SysV:    SSE INTEGER (one register per eightbyte)
+{long a, b, c}       24 bytes
+  AAPCS64: copied by the caller; x register holds its address
+  SysV:    MEMORY: copied onto the stack

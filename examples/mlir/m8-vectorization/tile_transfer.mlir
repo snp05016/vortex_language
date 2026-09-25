@@ -1,7 +1,8 @@
-// Move a 2x2 tile between a memref and a vector register value.
-// transfer_read/transfer_write are the vector dialect's only ops that touch
-// memory; every other vector op, including vector.contract, works purely on
-// values already sitting in registers.
+// Move a 2x2 tile from one memref into a vector value, double it, and write
+// it to another memref. The two transfer ops are the only places this
+// function touches memory; arith.addf works on the vector value itself.
+// in_bounds = [true, true] promises that no lane of the tile falls outside
+// the 4x4 memref, so no lane will ever need the padding value.
 func.func @load_add_store(%src: memref<4x4xf32>, %dst: memref<4x4xf32>) {
   %c1 = arith.constant 1 : index
   %pad = arith.constant 0.0 : f32

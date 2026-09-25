@@ -1,0 +1,5 @@
+one real run          | loads 16 | misses  4 | checksum  256
+restore no  flush no  | loads 16 | misses  0 | checksum 1072
+restore yes flush no  | loads 16 | misses  0 | checksum  256
+restore no  flush yes | loads 16 | misses  4 | checksum 1072
+restore yes flush yes | loads 16 | misses  4 | checksum  256

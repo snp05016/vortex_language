@@ -1,0 +1,4 @@
+9 dependences, each with distance (1, -1)
+(i, j) as written      legal: yes  permutable: no   2x2 tiles legal: no
+(j, i) interchanged    legal: no   permutable: no   2x2 tiles legal: no
+(i, i + j) skewed      legal: yes  permutable: yes  2x2 tiles legal: yes

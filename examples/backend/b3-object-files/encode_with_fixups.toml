@@ -1,0 +1,5 @@
+follows = [
+  "https://developer.arm.com/documentation/ddi0602/2026-06/Base-Instructions/CBZ--Compare-and-branch-on-zero-",
+  "https://developer.arm.com/documentation/ddi0602/2026-06/Base-Instructions/B--Branch-",
+  "https://www.davidsalomon.name/assem.advertis/asl.pdf",
+]

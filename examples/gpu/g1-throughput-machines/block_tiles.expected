@@ -1,0 +1,10 @@
+n = 1024, ridge point 7.50 flops per byte
+
+   t          bytes  flops/byte   flops/cycle  bound by
+   1     8594128896       0.250          32.0  bandwidth
+   2     4299161600       0.500          63.9  bandwidth
+   4     2151677952       0.998         127.8  bandwidth
+   8     1077936128       1.992         255.0  bandwidth
+  16      541065216       3.969         508.0  bandwidth
+  32      272629760       7.877         960.0  peak
+  64      138412032      15.515         960.0  peak

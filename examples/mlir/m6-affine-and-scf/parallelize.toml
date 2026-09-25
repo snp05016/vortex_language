@@ -1,0 +1,5 @@
+flags = ["--affine-parallelize=parallel-reductions=true"]
+follows = [
+  "https://mlir.llvm.org/docs/Passes/#-affine-parallelize",
+  "https://mlir.llvm.org/docs/Dialects/Affine/#affineparallel-affineaffineparallelop",
+]

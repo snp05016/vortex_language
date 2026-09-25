@@ -1,7 +1,8 @@
-// The MLIR path's last step this machine can check: gpu.block_id and
-// gpu.thread_id become reads of NVVM's special registers. No NVPTX target
-// is registered here, so llc cannot turn the result into PTX, but mlir-opt
-// alone already carries a kernel this far toward NVIDIA hardware.
+// A kernel that writes its own block and thread number, lowered with the
+// default calling convention: the memref<2xi32> argument arrives as five
+// scalars (two pointers, an offset, one size, one stride) that the kernel
+// packs back into a descriptor. gpu.block_id and gpu.thread_id change
+// meaning in the body: they become reads of NVVM special registers.
 gpu.module @ids {
   gpu.func @where_am_i(%out: memref<2xi32>) kernel {
     %c0 = arith.constant 0 : index

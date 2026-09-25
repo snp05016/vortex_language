@@ -1,4 +1,6 @@
-orders: 24, distinct results: 3
-0x00000000 = 0
-0x3f800000 = 1
-0x40000000 = 2
+float: 3 distinct totals
+  0x00000000 = 0 in 4 orders
+  0x3f800000 = 1 in 4 orders
+  0x40000000 = 2 in 16 orders
+int32: 1 distinct total
+  2 in 24 orders

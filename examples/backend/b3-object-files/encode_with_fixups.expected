@@ -1,0 +1,7 @@
+0x00 cbz x0   done  resolved here, +3 words
+0x08 cbnz x0  loop  resolved here, -1 words
+0x0c b        tick  relocation for the linker
+0x00: b4000060
+0x04: d1000400
+0x08: b5ffffe0
+0x0c: 14000000

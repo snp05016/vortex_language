@@ -1,0 +1,5 @@
+follows = [
+  "https://en.cppreference.com/cpp/language/pack",
+  "https://en.cppreference.com/cpp/language/fold",
+  "https://en.cppreference.com/cpp/io/print",
+]
