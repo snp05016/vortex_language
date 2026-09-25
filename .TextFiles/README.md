@@ -1,0 +1,5 @@
+# Vortex ( name is kinda weird but it is what it is )
+- vortex is a programming language that is designed to be simple, fast, and efficient. it draws inspiration from languages like Rust and C++, while also incorporating its own unique features for numerical computing and GPU programming.
+- you might see a lot of similarities between vortex and other languages, but it has its own syntax and semantics that make it stand out. the language is statically typed, meaning that every value has a known type before the program runs. this allows for better performance and fewer runtime errors.
+- also a lot of the docs and code is written using the help of llms (not blind vibe coding), ive used a lot of features and help from llms to understand what to write and how to write it, but the most ive used for coding is the githuh code completion feature and nothing more. 
+the docs have been corrected, and essentially "grammared" properly by llms. cmon, i wasnt gonna spend the whole time writing docs.
