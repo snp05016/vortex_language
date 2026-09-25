@@ -1,0 +1,70 @@
+/* Reader progress tracker (docs/progress.md, filled in by progress.js).
+   Colors come from the theme's own --md-* variables, so this follows
+   light and dark mode automatically. */
+
+.vx-progress-sections {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr));
+  margin: 1.5rem 0;
+}
+
+.vx-progress-section {
+  border: 1px solid var(--md-default-fg-color--lightest);
+  padding: 1rem 1.2rem;
+}
+
+.md-typeset .vx-progress-section h2 {
+  margin-top: 0;
+}
+
+.md-typeset .vx-progress-count {
+  color: var(--md-default-fg-color--light);
+  font-size: 0.9rem;
+  margin: 0;
+}
+
+.md-typeset .vx-progress-list {
+  list-style: none;
+  margin: 0.6rem 0 0;
+  padding: 0;
+}
+
+.md-typeset .vx-progress-list li {
+  align-items: baseline;
+  border-top: 1px solid var(--md-default-fg-color--lightest);
+  display: flex;
+  gap: 0.75rem;
+  justify-content: space-between;
+  padding: 0.4rem 0;
+}
+
+.md-typeset .vx-progress-list li:first-child {
+  border-top: none;
+}
+
+.md-typeset .vx-progress-list a {
+  overflow-wrap: anywhere;
+}
+
+.vx-progress-when {
+  color: var(--md-default-fg-color--light);
+  flex-shrink: 0;
+  font-size: 0.85rem;
+  white-space: nowrap;
+}
+
+.md-typeset button.vx-progress-clear {
+  background: var(--md-default-bg-color);
+  border: 1px solid var(--md-default-fg-color--lightest);
+  color: var(--md-default-fg-color);
+  cursor: pointer;
+  font-size: 0.85rem;
+  margin-top: 1.5rem;
+  padding: 0.5rem 1rem;
+}
+
+.md-typeset button.vx-progress-clear:hover {
+  border-color: var(--md-accent-fg-color);
+  color: var(--md-accent-fg-color);
+}

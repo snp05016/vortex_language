@@ -2,17 +2,17 @@
 
 ???+ remember "Before you start, remember"
 
-    ??? question "Which international standard do Vortex's `f32` and `f64` follow?"
-
-        IEEE 754, the standard for floating-point arithmetic.
-
-        Introduced in [9. Runtime safety](stage-9-runtime-safety.md). Specification: [4. Types and values](../../specification/types-and-values.md#44-floating-point-values).
-
     ??? question "What do we call one small, automatic check with a definite pass or fail answer?"
 
         A test. It either passes or fails, with nothing in between.
 
         Introduced in [0. The workbench](stage-0-workbench.md).
+
+    ??? question "Which international standard do Vortex's `f32` and `f64` follow?"
+
+        IEEE 754, the standard for floating-point arithmetic.
+
+        Introduced in [Learn: 8. Runtime and numerical rules](../../language-tour/06-runtime-and-numerical-rules.md). Specification: [4. Types and values](../../specification/types-and-values.md#44-floating-point-values).
 
     ??? question "In `for index in 0..4 { ... }`, what is `index`, and where can it be used?"
 

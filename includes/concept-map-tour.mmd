@@ -65,6 +65,9 @@ flowchart LR
     c_run_time["run time"]
     c_runtime_check["runtime check"]
     c_runtime_error["runtime error"]
+    c_ieee_754["IEEE 754"]
+    c_nan["NaN"]
+    c_infinity["infinity"]
   end
   subgraph p_language_tour__05_types_planned_for_later["9. Planned types"]
     c_slice["slice"]
@@ -132,7 +135,11 @@ flowchart LR
   c_declaration --> c_field
   c_compile_time --> c_run_time
   c_run_time --> c_runtime_check
+  c_bounds_check --> c_runtime_check
+  c_cast --> c_runtime_check
   c_runtime_check --> c_runtime_error
+  c_ieee_754 --> c_nan
+  c_ieee_754 --> c_infinity
   c_array --> c_slice
   c_reference --> c_slice
   c_array --> c_vector

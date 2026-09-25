@@ -1,0 +1,53 @@
+#map = affine_map<(d0, d1) -> (d0, d1)>
+#map1 = affine_map<(d0) -> (d0 * 4)>
+module attributes {transform.with_named_sequence} {
+  func.func @square_then_negate(%arg0: tensor<16x16xf32>, %arg1: tensor<16x16xf32>) -> tensor<16x16xf32> {
+    %0 = tensor.empty() : tensor<16x16xf32>
+    %1 = linalg.generic {indexing_maps = [#map, #map], iterator_types = ["parallel", "parallel"]} ins(%arg0 : tensor<16x16xf32>) outs(%0 : tensor<16x16xf32>) {
+    ^bb0(%in: f32, %out: f32):
+      %3 = arith.mulf %in, %in : f32
+      linalg.yield %3 : f32
+    } -> tensor<16x16xf32>
+    %c4 = arith.constant 4 : index
+    %c4_0 = arith.constant 4 : index
+    %2 = scf.forall (%arg2, %arg3) in (4, 4) shared_outs(%arg4 = %arg1) -> (tensor<16x16xf32>) {
+      %3 = affine.apply #map1(%arg2)
+      %4 = affine.apply #map1(%arg3)
+      %5 = affine.apply #map1(%arg2)
+      %6 = affine.apply #map1(%arg3)
+      %7 = affine.apply #map1(%arg2)
+      %8 = affine.apply #map1(%arg3)
+      %9 = affine.apply #map1(%arg2)
+      %10 = affine.apply #map1(%arg3)
+      %11 = affine.apply #map1(%arg2)
+      %12 = affine.apply #map1(%arg3)
+      %extracted_slice = tensor.extract_slice %arg0[%9, %10] [4, 4] [1, 1] : tensor<16x16xf32> to tensor<4x4xf32>
+      %extracted_slice_1 = tensor.extract_slice %0[%11, %12] [4, 4] [1, 1] : tensor<16x16xf32> to tensor<4x4xf32>
+      %13 = linalg.generic {indexing_maps = [#map, #map], iterator_types = ["parallel", "parallel"]} ins(%extracted_slice : tensor<4x4xf32>) outs(%extracted_slice_1 : tensor<4x4xf32>) {
+      ^bb0(%in: f32, %out: f32):
+        %17 = arith.mulf %in, %in : f32
+        linalg.yield %17 : f32
+      } -> tensor<4x4xf32>
+      %extracted_slice_2 = tensor.extract_slice %arg4[%7, %8] [4, 4] [1, 1] : tensor<16x16xf32> to tensor<4x4xf32>
+      %14 = linalg.generic {indexing_maps = [#map, #map], iterator_types = ["parallel", "parallel"]} ins(%13 : tensor<4x4xf32>) outs(%extracted_slice_2 : tensor<4x4xf32>) {
+      ^bb0(%in: f32, %out: f32):
+        %17 = arith.negf %in : f32
+        linalg.yield %17 : f32
+      } -> tensor<4x4xf32>
+      %15 = affine.apply #map1(%arg2)
+      %16 = affine.apply #map1(%arg3)
+      scf.forall.in_parallel {
+        tensor.parallel_insert_slice %14 into %arg4[%15, %16] [4, 4] [1, 1] : tensor<4x4xf32> into tensor<16x16xf32>
+      }
+    }
+    return %2 : tensor<16x16xf32>
+  }
+  transform.named_sequence @__transform_main(%arg0: !transform.any_op {transform.readonly}) {
+    %0 = transform.structured.match ops{["linalg.generic"]} in %arg0 : (!transform.any_op) -> !transform.any_op
+    %1:2 = transform.split_handle %0 : (!transform.any_op) -> (!transform.any_op, !transform.any_op)
+    %tiled_op, %forall_op = transform.structured.tile_using_forall %1#1 tile_sizes [4, 4] : (!transform.any_op) -> (!transform.any_op, !transform.any_op)
+    %fused_op, %new_containing_op = transform.structured.fuse_into_containing_op %1#0 into %forall_op : (!transform.any_op, !transform.any_op) -> (!transform.any_op, !transform.any_op)
+    transform.yield 
+  }
+}
+

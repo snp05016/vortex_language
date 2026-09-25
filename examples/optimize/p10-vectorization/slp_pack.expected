@@ -1,0 +1,16 @@
+; ModuleID = 'slp_pack.ll'
+source_filename = "slp_pack.ll"
+target datalayout = "e-m:o-i64:64-i128:128-n32:64-S128"
+target triple = "arm64-apple-macosx"
+
+define void @add_point4(ptr noalias %r, ptr noalias readonly %a, ptr noalias readonly %b) {
+entry:
+  %a0p = getelementptr inbounds float, ptr %a, i64 0
+  %b0p = getelementptr inbounds float, ptr %b, i64 0
+  %r0p = getelementptr inbounds float, ptr %r, i64 0
+  %0 = load <4 x float>, ptr %a0p, align 4
+  %1 = load <4 x float>, ptr %b0p, align 4
+  %2 = fadd <4 x float> %0, %1
+  store <4 x float> %2, ptr %r0p, align 4
+  ret void
+}

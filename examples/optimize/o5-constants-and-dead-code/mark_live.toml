@@ -1,0 +1,4 @@
+follows = [
+  "https://doi.org/10.1145/115372.115320",
+  "https://llvm.org/docs/Passes.html",
+]

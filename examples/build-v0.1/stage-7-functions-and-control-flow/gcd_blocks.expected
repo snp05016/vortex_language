@@ -1,0 +1,10 @@
+gcd(48, 18):
+  header: a=48, b=18
+  body: a=48, b=18
+  header: a=18, b=12
+  body: a=18, b=12
+  header: a=12, b=6
+  body: a=12, b=6
+  header: a=6, b=0
+  done: a=6
+result = 6

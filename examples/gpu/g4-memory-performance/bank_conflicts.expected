@@ -1,0 +1,15 @@
+stride  passes  gcd(stride, 32)
+     1       1                1
+     2       2                2
+     3       1                1
+     4       4                4
+     8       8                8
+    16      16               16
+    32      32               32
+    33       1                1
+
+access                             passes
+column 5 of a 32 x 32 tile             32
+column 5 of a 32 x 33 tile              1
+every lane reads word 7                 1
+lanes 2k and 2k + 1 share a word        1

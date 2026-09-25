@@ -8,3 +8,44 @@
     - [Project: Implementation roadmap](../../roadmap.md): *parser*, *abstract syntax tree*, *syntax error*
     - [Compiler internals: Parser design](../parser-design.md): *parser*, *parsing*, *grammar*, *node* and 5 more
     - [Compiler internals: AST learning guide](../ast-guide.md): *parser*, *grammar*, *node*, *abstract syntax tree*
+
+??? info "Concept map for this page"
+
+    ```mermaid
+    flowchart LR
+      c_parser["parser"]
+      c_parsing["parsing"]
+      c_grammar["grammar"]
+      c_grammar_rule["grammar rule"]
+      c_node["node"]
+      c_root_child_leaf["root, child, leaf"]
+      c_parse_tree["parse tree"]
+      c_abstract_syntax_tree["abstract syntax tree"]
+      c_associativity["associativity"]
+      c_lookahead["lookahead"]
+      c_syntax_error["syntax error"]
+      c_error_recovery["error recovery"]
+      c_synchronization_point["synchronization point"]
+      c_cascade["cascade"]
+      c_recursive_descent["recursive descent"]
+      c_pratt_parsing["Pratt parsing"]
+      c_grammar --> c_parser
+      c_parser --> c_parsing
+      c_abstract_syntax_tree --> c_parsing
+      c_grammar --> c_grammar_rule
+      c_node --> c_root_child_leaf
+      c_parser --> c_parse_tree
+      c_node --> c_parse_tree
+      c_grammar_rule --> c_parse_tree
+      c_parser --> c_abstract_syntax_tree
+      c_node --> c_abstract_syntax_tree
+      c_parser --> c_lookahead
+      c_grammar --> c_syntax_error
+      c_syntax_error --> c_error_recovery
+      c_parser --> c_error_recovery
+      c_error_recovery --> c_synchronization_point
+      c_syntax_error --> c_cascade
+      c_parser --> c_recursive_descent
+      c_grammar_rule --> c_recursive_descent
+      c_parser --> c_pratt_parsing
+    ```

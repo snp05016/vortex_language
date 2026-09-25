@@ -1,0 +1,4 @@
+flags = ["--pass-pipeline=builtin.module(canonicalize(cse))"]
+follows = [
+  "https://mlir.llvm.org/docs/PassManagement/",
+]

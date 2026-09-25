@@ -1,0 +1,16 @@
+n = 1000
+CUDA/HIP <<<groups, 256>>>                   groups 4, threads 1024, last group 256, idle 24, guard yes
+Vulkan vkCmdDispatch(groups, 1, 1)           groups 4, threads 1024, last group 256, idle 24, guard yes
+WebGPU dispatchWorkgroups(groups)            groups 4, threads 1024, last group 256, idle 24, guard yes
+Metal dispatchThreadgroups(groups, 256)      groups 4, threads 1024, last group 256, idle 24, guard yes
+SYCL nd_range(rounded-up global, 256)        groups 4, threads 1024, last group 256, idle 24, guard yes
+OpenCL global n, local 256 (non-uniform)     groups 4, threads 1000, last group 232, idle  0, guard no
+Metal dispatchThreads(n, 256)                groups 4, threads 1000, last group 232, idle  0, guard no
+n = 1024
+CUDA/HIP <<<groups, 256>>>                   groups 4, threads 1024, last group 256, idle  0, guard no
+Vulkan vkCmdDispatch(groups, 1, 1)           groups 4, threads 1024, last group 256, idle  0, guard no
+WebGPU dispatchWorkgroups(groups)            groups 4, threads 1024, last group 256, idle  0, guard no
+Metal dispatchThreadgroups(groups, 256)      groups 4, threads 1024, last group 256, idle  0, guard no
+SYCL nd_range(rounded-up global, 256)        groups 4, threads 1024, last group 256, idle  0, guard no
+OpenCL global n, local 256 (non-uniform)     groups 4, threads 1024, last group 256, idle  0, guard no
+Metal dispatchThreads(n, 256)                groups 4, threads 1024, last group 256, idle  0, guard no

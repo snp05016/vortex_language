@@ -1,0 +1,10 @@
+row ( 1,  0,  0,  0): i >= 0
+row (-1,  0,  1, -1): N - 1 - i >= 0
+row ( 0,  1,  0,  0): j >= 0
+row ( 1, -1,  0,  0): i - j >= 0
+N = 1: loop visits  1, rows admit  1, disagreements 0
+N = 2: loop visits  3, rows admit  3, disagreements 0
+N = 3: loop visits  6, rows admit  6, disagreements 0
+N = 4: loop visits 10, rows admit 10, disagreements 0
+N = 5: loop visits 15, rows admit 15, disagreements 0
+N = 6: loop visits 21, rows admit 21, disagreements 0

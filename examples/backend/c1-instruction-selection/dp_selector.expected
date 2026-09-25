@@ -1,0 +1,29 @@
+4
+  mov          1 = 1
+mul(i, 4)
+  mul          1 + 0 + 1 = 2
+add(mul(i, 4), j)
+  madd         1 + 0 + 1 + 0 = 2
+  add-shifted  1 + 0 + 0 = 1
+  add          1 + 2 + 0 = 3
+2
+  mov          1 = 1
+shl(add(mul(i, 4), j), 2)
+  lsl-imm      1 + 1 = 2
+add(a, shl(add(mul(i, 4), j), 2))
+  add          1 + 0 + 2 = 3
+load(add(a, shl(add(mul(i, 4), j), 2)))
+  ldr-shifted  1 + 0 + 1 = 2
+  ldr          1 + 3 = 4
+AArch64 cover of load(add(a, shl(add(mul(i, 4), j), 2))), cost 2:
+  add  t1, j, i, lsl #2
+  ldr  t2, [a, t1, lsl #2]
+x86-64 cover of load(add(a, shl(add(mul(i, 4), j), 2))), cost 2:
+  lea  t1, [j + 4*i]
+  mov  t2, dword ptr [a + 4*t1]
+AArch64 cover of add(mul(i, n), j), cost 1:
+  madd t1, i, n, j
+x86-64 cover of add(mul(i, n), j), cost 3:
+  mov  t1, i
+  imul t1, n
+  lea  t2, [t1 + j]

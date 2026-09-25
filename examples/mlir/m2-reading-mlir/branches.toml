@@ -1,0 +1,7 @@
+flags = ["--mlir-print-op-generic"]
+follows = [
+  "https://mlir.llvm.org/docs/LangRef/",
+  "https://mlir.llvm.org/docs/Dialects/ControlFlowDialect/",
+  "https://mlir.llvm.org/docs/Dialects/Func/",
+  "https://mlir.llvm.org/docs/SymbolsAndSymbolTables/",
+]

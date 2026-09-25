@@ -1,0 +1,9 @@
+flags = [
+  "--split-input-file",
+  "--verify-diagnostics",
+  "--pass-pipeline=builtin.module(func.func(affine-loop-tile{tile-size=2}))",
+]
+follows = [
+  "https://mlir.llvm.org/docs/Passes/#-affine-loop-tile",
+  "https://github.com/llvm/llvm-project/blob/llvmorg-18.1.8/mlir/lib/Dialect/Affine/Transforms/LoopTiling.cpp",
+]

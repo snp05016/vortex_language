@@ -1,4 +1,4 @@
-# Cost model and autotuner
+# A9. Cost model and autotuner
 
 <p class="page-intro">This case study will test whether a performance model can choose good tile and unroll parameters for the matrix multiplication Vortex generates, by comparing the model's predictions and choices with a measured search over the same parameters. Nothing has been built yet, so every result table below is empty.</p>
 
@@ -68,7 +68,7 @@ learned model could fix.
 | Part | What it does | Done when | Taught in |
 | --- | --- | --- | --- |
 | Machine facts | Reads cache sizes, cache-line size and core counts from the host instead of hard-coding them | The compiler prints the facts it used in its performance remarks | [P2](../../optimize/p2-memory-hierarchy.md) |
-| Roofline | Measures peak arithmetic throughput and memory bandwidth, and from them the **ridge point**, the arithmetic intensity at which a kernel stops being limited by memory[^roofline] | Both are measured under the protocol, with confidence intervals | [P3](../../optimize/p3-roofline.md) |
+| Roofline | Measures peak arithmetic throughput and memory bandwidth, and from them the [ridge point](../measuring.md#the-roofline-as-context)[^roofline] | Both are measured under the protocol, with confidence intervals | [P3](../../optimize/p3-roofline.md) |
 | Analytical model | Predicts run time for each parameter choice from the roofline and a cache model, and picks the choice it predicts to be fastest | It prints a prediction for every candidate, labelled as an estimate | [P8](../../optimize/p8-cache-blocking.md), [P12](../../optimize/p12-fast-gemm.md), [P15](../../optimize/p15-choosing-parameters.md) |
 | Safe search space | Keeps only variants whose results are bitwise identical to the strict reference | A test runs every candidate and compares its output | [P11](../../optimize/p11-floating-point.md), [P14](../../optimize/p14-algorithms-and-schedules.md) |
 | Autotuner | Runs a grid or random search under a fixed budget, timed by the harness | Every measurement lands in a CSV file | [P15](../../optimize/p15-choosing-parameters.md), [P16](../../optimize/p16-capstone.md) |
@@ -220,6 +220,13 @@ explanation does not go in.
 - **Model's choice, search's best:** GFLOP/s with its 95% confidence
   interval, for one shape named in the setup table.
 
+## Analysis
+
+Empty until the first measured run. For each shape, this section will say why
+the model's prediction was accurate or not: which term (the roofline, the
+cache model, the ridge point) it got wrong, which counters explain a gap, and
+how the model's choice and the search's best compare on a roofline chart.
+
 ## What did not work
 
 Filled in as the work goes: one row per attempt that failed or was dropped,
@@ -250,6 +257,14 @@ including model changes that made things worse.
   predictions. The philosophy forbids presenting an estimate as a measured
   result
   ([responsibilities](../../philosophy.md#programmer-and-compiler-responsibilities)).
+
+## Reproduce
+
+Empty until the first measured run. This section will give one command that,
+from a clean checkout, builds the model and the search harness, runs the
+safety test over the candidate space, runs the model and the search on every
+tuning and held-out shape, writes the raw data into the repository and
+regenerates every table on this page.
 
 ## What a reviewer should look at
 

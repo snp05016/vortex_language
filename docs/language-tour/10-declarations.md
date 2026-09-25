@@ -1,5 +1,7 @@
 # Declarations
 
+--8<-- "includes/remember/language-tour__10-declarations.md"
+
 ## Learning goals
 
 After this chapter, you should be able to distinguish top-level declarations
@@ -61,6 +63,13 @@ fn show_message(message: String) {
 Functions are declared at the top level. A program can call a function from
 anywhere in the file, even above the function's declaration, and a function can
 call itself ([decision record](../decisions/names.md#d3)).
+
+??? check "A file declares `fn main() { print(triple(4)); }` first, then `fn triple(value: i32) -> i32 { return value * 3; }` below it. Does this compile?"
+
+    Yes. Every top-level function and struct name is visible throughout the
+    file, including above its own declaration, so `main` can call `triple`
+    before the compiler has read `triple`'s body
+    ([decision](../decisions/names.md#d3)).
 
 Every executable program must contain exactly one `main` function. In v0.1,
 `main` takes no parameters and returns `void`:
@@ -160,6 +169,13 @@ not part of the language.
 - Field initializers, methods, visibility modifiers, inheritance, and generic
   fields are not part of v0.1 struct declarations.
 
+??? check "`struct A { b: B }` and `struct B { a: A }` are declared together, each holding the other by value. Does this compile?"
+
+    No. Two structs that hold each other by value close the same kind of
+    cycle as a struct containing itself: both would need infinite storage, so
+    the compiler rejects the pair with a type error
+    ([decision](../decisions/operators.md#d45)).
+
 ```vortex
 // items: name error
 struct Invalid {
@@ -232,6 +248,13 @@ A declaration with no `mut` cannot be the target of an assignment:
 let limit = 10;
 limit = 20; // semantic error: limit was not declared mut
 ```
+
+??? check "`let mut counter = 0;` declares `counter` as `i32`. Does `mut` let a later statement write `counter = 2.5;`?"
+
+    No. `mut` only allows a new value of the variable's existing type; it does
+    not let the variable change type. `counter` stays `i32` for its whole
+    lifetime, so assigning `2.5` to it is a type error, the same rule that
+    rules out changing a variable's type after its declaration.
 
 A local variable declaration is also a statement because it appears inside a
 block and affects program execution by creating a value.
@@ -367,6 +390,13 @@ fn main() {
 }
 ```
 
+??? check "`struct Point { x: f32 }` is declared at the top level. Can a function have a parameter named `Point`?"
+
+    No. Every top-level function and struct name is visible throughout the
+    file, so no parameter, local or loop variable may reuse it: doing so is a
+    name error, the same rule that blocks shadowing inside a nested block
+    ([decision](../decisions/names.md#d2)).
+
 Names are case-sensitive. A name cannot start with a number, and names can
 contain ASCII letters, numbers, and `_`:
 
@@ -482,3 +512,35 @@ Answers:
   its function body.
 - `result` is a local variable-declaration statement visible from the end of
   its declaration to the end of the function block.
+
+## Key ideas
+
+!!! recap "Questions you can now answer"
+
+    - **Which two declaration forms are independent top-level declarations,
+      and which three are children or statements?** Function and struct
+      declarations stand on their own at the top level. Parameter
+      declarations are children of a function, field declarations are
+      children of a struct, and variable declarations are statements inside a
+      block.
+    - **Does declaring a function run it?** No. A function body runs only
+      when code calls it, or when the runtime starts `main`.
+    - **Can a function call another function written later in the same
+      file?** Yes. Every top-level function and struct name is visible
+      throughout the file, including above its own declaration.
+    - **Can a struct contain itself, directly or through another struct that
+      holds it back?** No. Either shape needs infinite storage, so the
+      compiler rejects it with a type error.
+    - **Does a local variable declaration ever skip its initializer?** No. A
+      local must have an initializer, since v0.1 has no way to infer a type
+      from a bare declaration.
+    - **Where is a struct field's name visible?** Only through a value of its
+      struct type. A field is never placed in a local or program scope, so it
+      may share its name with a function, a struct or a variable.
+    - **Does Vortex allow a declaration to reuse a name already visible where
+      it appears?** No. That would be shadowing, and Vortex has none: each
+      name has one meaning at every point in the scopes where it is visible.
+
+## Where this comes back
+
+--8<-- "includes/next/language-tour__10-declarations.md"

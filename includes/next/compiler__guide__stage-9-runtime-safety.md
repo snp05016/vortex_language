@@ -2,5 +2,36 @@
 
 !!! next "You will use this again in"
 
-    - [11. Release](stage-11-release.md): *NaN*
+    - [C. The classical pipeline: C7. Peephole optimization](../../backend/c7-peephole.md): *undefined behavior*
+    - [E. How LLVM does it: E4. Testing back ends](../../backend/e4-testing-backends.md): *undefined behavior*
+    - [The middle end: O1. The optimizer's contract](../../optimize/o1-optimizer-contract.md): *undefined behavior*
+    - [The middle end: O11. Undefined behavior, poison and correct optimization](../../optimize/o11-undefined-behavior.md): *undefined behavior*
+    - [B. Performance: G4. Memory performance: coalescing and bank conflicts](../../gpu/g4-memory-performance.md): *undefined behavior*
     - [Project: Implementation roadmap](../../roadmap.md): *integer overflow*, *boundary case*
+
+??? info "Concept map for this page"
+
+    ```mermaid
+    flowchart LR
+      c_integer_overflow["integer overflow"]
+      c_wrapping["wrapping"]
+      c_saturating["saturating"]
+      c_undefined_behavior["undefined behavior"]
+      c_proven_safe["proven safe"]
+      c_boundary_case["boundary case"]
+      c_primitive_type["primitive type"]
+      c_runtime_check["runtime check"]
+      c_runtime_error["runtime error"]
+      c_test_case["test case"]
+      c_dynamic_rule["dynamic rule"]
+      c_well_formed["well-formed"]
+      c_primitive_type --> c_integer_overflow
+      c_runtime_error --> c_integer_overflow
+      c_integer_overflow --> c_wrapping
+      c_integer_overflow --> c_saturating
+      c_dynamic_rule --> c_undefined_behavior
+      c_well_formed --> c_undefined_behavior
+      c_runtime_check --> c_proven_safe
+      c_test_case --> c_boundary_case
+      c_runtime_check --> c_runtime_error
+    ```

@@ -60,18 +60,6 @@
 
     Introduced in [7. Functions and control flow](stage-7-functions-and-control-flow.md).
 
-??? question "Which international standard do Vortex's `f32` and `f64` follow?"
-
-    IEEE 754, the standard for floating-point arithmetic.
-
-    Introduced in [9. Runtime safety](stage-9-runtime-safety.md). Specification: [4. Types and values](../../specification/types-and-values.md#44-floating-point-values).
-
-??? question "Which extra line on a diagnostic can point at a second, related place, such as an earlier declaration?"
-
-    A note. It helps explain why the primary span is wrong.
-
-    Introduced in [1. Source text and error messages](stage-1-source-and-diagnostics.md).
-
 ??? question "What is one arrow in a control-flow graph called?"
 
     An edge. It shows one place execution can go next.
@@ -162,12 +150,6 @@
 
     Introduced in [Learn: 5. Expressions](../../language-tour/08-expressions.md). Specification: [12. Glossary](../../specification/glossary.md).
 
-??? question "Which special floating-point value does `0.0 / 0.0` produce?"
-
-    NaN, short for not a number.
-
-    Introduced in [9. Runtime safety](stage-9-runtime-safety.md).
-
 ??? question "What is one call's entry on the call stack, holding its parameters, local variables and return place, called?"
 
     A stack frame.
@@ -221,12 +203,6 @@
     The control-flow graph (CFG).
 
     Introduced in [7. Functions and control flow](stage-7-functions-and-control-flow.md).
-
-??? question "Which special floating-point value does dividing a nonzero number by zero produce?"
-
-    Infinity, a special IEEE 754 value.
-
-    Introduced in [9. Runtime safety](stage-9-runtime-safety.md).
 
 ??? question "What do we call a `return` that ends a function before its last statement?"
 

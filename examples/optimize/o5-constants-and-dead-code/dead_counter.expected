@@ -1,0 +1,64 @@
+; ModuleID = 'dead_counter.ll'
+source_filename = "dead_counter.ll"
+
+; Function Attrs: noreturn
+declare void @report_overflow(i32) #0
+
+; Function Attrs: nocallback nofree nosync nounwind speculatable willreturn memory(none)
+declare { i32, i1 } @llvm.sadd.with.overflow.i32(i32, i32) #1
+
+define float @total_c_rules(ptr %values) {
+entry:
+  br label %head
+
+head:                                             ; preds = %body, %entry
+  %i = phi i64 [ 0, %entry ], [ %i.next, %body ]
+  %sum = phi float [ 0.000000e+00, %entry ], [ %sum.next, %body ]
+  %more = icmp ult i64 %i, 8
+  br i1 %more, label %body, label %exit
+
+body:                                             ; preds = %head
+  %p = getelementptr inbounds float, ptr %values, i64 %i
+  %v = load float, ptr %p, align 4
+  %sum.next = fadd float %sum, %v
+  %i.next = add nuw nsw i64 %i, 1
+  br label %head
+
+exit:                                             ; preds = %head
+  ret float %sum
+}
+
+define float @total_vortex_rules(ptr %values) {
+entry:
+  br label %head
+
+head:                                             ; preds = %step, %entry
+  %i = phi i64 [ 0, %entry ], [ %i.next, %step ]
+  %sum = phi float [ 0.000000e+00, %entry ], [ %sum.next, %step ]
+  %count = phi i32 [ 0, %entry ], [ %count.next, %step ]
+  %more = icmp ult i64 %i, 8
+  br i1 %more, label %body, label %exit
+
+body:                                             ; preds = %head
+  %p = getelementptr inbounds float, ptr %values, i64 %i
+  %v = load float, ptr %p, align 4
+  %sum.next = fadd float %sum, %v
+  %checked = call { i32, i1 } @llvm.sadd.with.overflow.i32(i32 %count, i32 1)
+  %count.next = extractvalue { i32, i1 } %checked, 0
+  %overflow = extractvalue { i32, i1 } %checked, 1
+  br i1 %overflow, label %fail, label %step
+
+step:                                             ; preds = %body
+  %i.next = add nuw nsw i64 %i, 1
+  br label %head
+
+fail:                                             ; preds = %body
+  call void @report_overflow(i32 %count)
+  unreachable
+
+exit:                                             ; preds = %head
+  ret float %sum
+}
+
+attributes #0 = { noreturn }
+attributes #1 = { nocallback nofree nosync nounwind speculatable willreturn memory(none) }

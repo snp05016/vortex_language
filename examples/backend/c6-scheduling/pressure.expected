@@ -1,0 +1,6 @@
+24 instructions
+schedule                        cycles  max live
+source order                        56         1
+list schedule, latency first        24         8
+list schedule, at most 4 live       24         4
+list schedule, at most 2 live       30         2

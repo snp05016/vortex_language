@@ -1,0 +1,4 @@
+follows = [
+  "https://developer.apple.com/documentation/metal/performing-calculations-on-a-gpu",
+  "https://developer.apple.com/documentation/metal/calculating-threadgroup-and-grid-sizes",
+]

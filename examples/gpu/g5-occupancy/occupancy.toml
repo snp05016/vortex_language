@@ -1,0 +1,6 @@
+follows = [
+  "https://docs.nvidia.com/cuda/cuda-c-best-practices-guide/index.html#calculating-occupancy",
+  "https://docs.nvidia.com/cuda/cuda-programming-guide/02-basics/writing-cuda-kernels.html#kernel-launch-and-occupancy",
+  "https://docs.nvidia.com/nsight-compute/ProfilingGuide/index.html",
+  "https://docs.nvidia.com/cuda/hopper-tuning-guide/index.html#occupancy",
+]

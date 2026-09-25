@@ -1,0 +1,5 @@
+input 3: x = 6, statements never run: s2 s4
+variant deleting nothing: optimized x = 6
+variant deleting s2: optimized x = 7  <- miscompiled
+variant deleting s4: optimized x = 6
+variant deleting s2 s4: optimized x = 7  <- miscompiled

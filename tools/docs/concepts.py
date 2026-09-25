@@ -6,10 +6,12 @@ pymdownx.snippets:
 
   abbreviations.md          hover tooltips (snippets auto_append + abbr)
   remember/<page-key>.md    "Before you start, remember" box, one per nav page
-  next/<page-key>.md        "You will use this again in" list, one per nav page
+  next/<page-key>.md        "You will use this again in" list plus a local
+                             concept-map box, one per nav page
   review/<group>.md         mixed recall-question banks
   concept-map.mmd           Mermaid flowchart of every `requires` edge
-  concept-map-<book>.mmd    one flowchart per book (tour, spec, guide)
+  concept-map-<book>.mmd    one flowchart per book (tour, spec, guide, backend,
+                             optimize, gpu, mlir; other if any concept is left)
 
 A page with nothing to show still gets an empty remember/next file, so every
 page can include both unconditionally. page-key is the page path under docs/
@@ -52,8 +54,10 @@ NOT_USERS = {
     "compiler/guide/words.md",
     "compiler/guide/reading-list.md",
 }
-BOOKS = {"language-tour/": "tour", "specification/": "spec", "compiler/guide/": "guide"}
-BOOK_TITLES = {"tour": "Language tour", "spec": "Specification", "guide": "Compiler guide", "other": "Other pages"}
+BOOKS = {"language-tour/": "tour", "specification/": "spec", "compiler/guide/": "guide",
+         "backend/": "backend", "optimize/": "optimize", "gpu/": "gpu", "mlir/": "mlir"}
+BOOK_TITLES = {"tour": "Language tour", "spec": "Specification", "guide": "Compiler guide", "backend": "Back end",
+               "optimize": "Optimize", "gpu": "GPU", "mlir": "MLIR", "other": "Other pages"}
 
 FIELDS = {
     "id", "term", "abbr", "aliases", "tooltip", "short", "definition", "spec",
@@ -62,6 +66,7 @@ FIELDS = {
 REQUIRED = ("id", "term", "short", "definition", "introduced_in", "recall_question", "recall_answer")
 SHORT_MAX, ANSWER_MAX = 110, 320
 REMEMBER_MIN, REMEMBER_MAX, NEXT_MAX, NEXT_TERMS, USED_IN_MAX = 3, 5, 6, 4, 8
+LOCAL_MAP_MAX = 12  # cap on nodes in a page's "Concept map for this page" box
 
 
 # ---- inputs -------------------------------------------------------------------
@@ -350,17 +355,25 @@ class Memory:
         for c in self.introduced_on(page):
             for later in c["used_in"]:
                 users.setdefault(later, []).append(c["term"])
-        if not users:
+        graph = self.local_map(page)
+        if not users and not graph:
             return ""
-        best = sorted(users, key=lambda p: (-len(users[p]), self.order[p]))[:NEXT_MAX]
-        lines = [f"<!-- {NOTICE} -->", "", '!!! next "You will use this again in"', ""]
-        for later in sorted(best, key=self.order.get):
-            terms = [f"*{term}*" for term in users[later]]
-            shown = ", ".join(terms[:NEXT_TERMS])
-            if len(terms) > NEXT_TERMS:
-                shown += f" and {len(terms) - NEXT_TERMS} more"
-            lines.append(f"    - [{self.label(later, page)}]({relative_link(later, page)}): {shown}")
-        return "\n".join(lines) + "\n"
+        lines = [f"<!-- {NOTICE} -->", ""]
+        if users:
+            best = sorted(users, key=lambda p: (-len(users[p]), self.order[p]))[:NEXT_MAX]
+            lines += ['!!! next "You will use this again in"', ""]
+            for later in sorted(best, key=self.order.get):
+                terms = [f"*{term}*" for term in users[later]]
+                shown = ", ".join(terms[:NEXT_TERMS])
+                if len(terms) > NEXT_TERMS:
+                    shown += f" and {len(terms) - NEXT_TERMS} more"
+                lines.append(f"    - [{self.label(later, page)}]({relative_link(later, page)}): {shown}")
+            lines.append("")
+        if graph:
+            lines += ['??? info "Concept map for this page"', "", "    ```mermaid"]
+            lines += [f"    {line}" for line in graph.splitlines()]
+            lines += ["    ```", ""]
+        return "\n".join(lines).rstrip() + "\n"
 
     def review(self, index):
         group = self.groups[index]
@@ -383,9 +396,6 @@ class Memory:
         return next((book for prefix, book in BOOKS.items() if page.startswith(prefix)), "other")
 
     def maps(self):
-        def node(c):
-            return f'{mermaid_id(c["id"])}["{c["term"]}"]'
-
         def edges(cs):
             return [f"  {mermaid_id(rid)} --> {mermaid_id(c['id'])}" for c in cs for rid in c["requires"]]
 
@@ -397,20 +407,56 @@ class Memory:
 
         whole = list(head)
         for book, cs in books.items():
-            whole += [f'  subgraph book_{book}["{BOOK_TITLES[book]}"]', *(f"    {node(c)}" for c in cs), "  end"]
+            whole += [f'  subgraph book_{book}["{BOOK_TITLES[book]}"]', *(f"    {mermaid_node(c)}" for c in cs), "  end"]
         maps = {"concept-map.mmd": "\n".join(whole + edges(ordered)) + "\n"}
 
         for book, cs in books.items():
             lines = list(head)
             for page in dict.fromkeys(c["introduced_in"] for c in cs):
-                members = [f"    {node(c)}" for c in cs if c["introduced_in"] == page]
+                members = [f"    {mermaid_node(c)}" for c in cs if c["introduced_in"] == page]
                 lines += [f'  subgraph {mermaid_id(page_key(page), "p_")}["{self.pages[page]["title"]}"]', *members, "  end"]
             outside = {rid for c in cs for rid in c["requires"] if self.book(self.by_id[rid]) != book}
             if outside:
                 earlier = sorted(outside, key=lambda rid: (self.order[self.by_id[rid]["introduced_in"]], rid))
-                lines += ['  subgraph earlier["From other books"]', *(f"    {node(self.by_id[rid])}" for rid in earlier), "  end"]
+                lines += ['  subgraph earlier["From other books"]', *(f"    {mermaid_node(self.by_id[rid])}" for rid in earlier), "  end"]
             maps[f"concept-map-{book}.mmd"] = "\n".join(lines + edges(cs)) + "\n"
         return maps
+
+    def local_map(self, page):
+        """Mermaid flowchart of one page's requires-graph neighbourhood: the
+        concepts it introduces, what those need first, and what later needs
+        them. Same node rendering as maps(), for the "Concept map for this
+        page" box at the end of next/<page-key>.md.
+
+        Capped at LOCAL_MAP_MAX nodes: every concept the page introduces is
+        kept (dropping one would misrepresent what the page teaches), and
+        prerequisites and dependents share whatever budget is left, closest
+        (by nav order) first. Edges are only drawn between shown nodes, so a
+        trimmed neighbour never leaves a dangling reference.
+        """
+        here = self.introduced_on(page)
+        if not here:
+            return ""
+        here_ids = {c["id"] for c in here}
+
+        def by_distance(ids):
+            return sorted(ids, key=lambda cid: (self.order[self.by_id[cid]["introduced_in"]], cid))
+
+        before = by_distance({rid for c in here for rid in c["requires"]} - here_ids)
+        after = by_distance(
+            o["id"] for o in self.concepts if o["id"] not in here_ids and not here_ids.isdisjoint(o["requires"])
+        )
+        budget = max(LOCAL_MAP_MAX - len(here_ids), 0)
+        before = before[:budget]
+        after = after[: max(budget - len(before), 0)]
+        shown = here + [self.by_id[cid] for cid in before + after]
+        shown_ids = here_ids.union(before, after)
+        lines = ["flowchart LR"]
+        lines += [f"  {mermaid_node(c)}" for c in shown]
+        lines += [
+            f"  {mermaid_id(rid)} --> {mermaid_id(c['id'])}" for c in shown for rid in c["requires"] if rid in shown_ids
+        ]
+        return "\n".join(lines) + "\n"
 
     def abbreviations(self):
         keys = {}
@@ -457,6 +503,10 @@ class Memory:
 
 def mermaid_id(text, prefix="c_"):
     return prefix + re.sub(r"\W", "_", text)
+
+
+def mermaid_node(c):
+    return f'{mermaid_id(c["id"])}["{c["term"]}"]'
 
 
 def prose(text):
@@ -571,6 +621,64 @@ def self_test():
     # Scanning ignores code and link targets, and accepts plurals and hyphen/space variants.
     text = prose("A basic-block ends.\n```\nbasic block\n```\n[x](basic-block.md) and `basic block`. Basic blocks!")
     assert sum(len(p.findall(text)) for p in scan_patterns(concept(term="basic block"))) == 2
+
+    # Local concept map: this page's concepts, their direct prerequisites and
+    # direct dependents, with edges only between nodes actually shown.
+    def linked(cid, term, page, requires=()):
+        return concept(id=cid, term=term, introduced_in=page, requires=list(requires), used_in=[])
+
+    nav = [{"path": p, "title": p, "section": ""} for p in ("n0.md", "n1.md", "n2.md", "n3.md")]
+    small = Memory(
+        {
+            "concepts": [
+                linked("a", "A", "n0.md"),
+                linked("b", "B", "n1.md", ["a"]),
+                linked("c", "C", "n1.md", ["a"]),
+                linked("d", "D", "n2.md", ["b"]),
+                linked("e", "E", "n3.md"),
+            ],
+            "review_groups": [],
+        },
+        nav,
+    )
+    assert small.local_map("nowhere.md") == ""  # introduces nothing
+    assert small.local_map("n3.md") == 'flowchart LR\n  c_e["E"]\n'  # no requires, nothing depends on it
+    assert (
+        small.local_map("n1.md")
+        == "\n".join(
+            [
+                "flowchart LR",
+                '  c_b["B"]',
+                '  c_c["C"]',
+                '  c_a["A"]',
+                '  c_d["D"]',
+                "  c_a --> c_b",
+                "  c_a --> c_c",
+                "  c_b --> c_d",
+            ]
+        )
+        + "\n"
+    )
+    # A page with neither a "next" list nor a graph stays empty; one with
+    # only a graph still gets the collapsed box, indented under it.
+    assert small.next_pages("nowhere.md") == ""
+    assert small.next_pages("n3.md") == (
+        f"<!-- {NOTICE} -->\n\n"
+        '??? info "Concept map for this page"\n\n'
+        "    ```mermaid\n"
+        "    flowchart LR\n"
+        '      c_e["E"]\n'
+        "    ```\n"
+    )
+
+    # The cap: every concept a page introduces is kept even past it, but
+    # prerequisites and dependents split whatever budget is left.
+    pages = [{"path": p, "title": p, "section": ""} for p in ("p0.md", "p1.md", "big.md")]
+    hub = [linked("r", "Root", "p0.md")] + [linked(f"dep{i}", f"D{i}", "p1.md", ["r"]) for i in range(20)]
+    assert Memory({"concepts": hub, "review_groups": []}, pages).local_map("p0.md").count("[") == LOCAL_MAP_MAX
+    overflow = [linked(f"h{i}", f"H{i}", "big.md") for i in range(LOCAL_MAP_MAX + 3)]
+    over_map = Memory({"concepts": overflow, "review_groups": []}, pages).local_map("big.md")
+    assert over_map.count("[") == LOCAL_MAP_MAX + 3
 
 
 if __name__ == "__main__":

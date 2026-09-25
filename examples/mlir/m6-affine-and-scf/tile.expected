@@ -1,0 +1,20 @@
+#map = affine_map<(d0) -> (d0)>
+#map1 = affine_map<(d0) -> (d0 + 2)>
+module {
+  func.func @add2d(%arg0: memref<4x4xf32>, %arg1: memref<4x4xf32>, %arg2: memref<4x4xf32>) {
+    affine.for %arg3 = 0 to 4 step 2 {
+      affine.for %arg4 = 0 to 4 step 2 {
+        affine.for %arg5 = #map(%arg3) to #map1(%arg3) {
+          affine.for %arg6 = #map(%arg4) to #map1(%arg4) {
+            %0 = affine.load %arg0[%arg5, %arg6] : memref<4x4xf32>
+            %1 = affine.load %arg1[%arg5, %arg6] : memref<4x4xf32>
+            %2 = arith.addf %0, %1 : f32
+            affine.store %2, %arg2[%arg5, %arg6] : memref<4x4xf32>
+          }
+        }
+      }
+    }
+    return
+  }
+}
+

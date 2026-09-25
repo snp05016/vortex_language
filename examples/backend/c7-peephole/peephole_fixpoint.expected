@@ -1,0 +1,31 @@
+Before, 8 instructions:
+    str x1, [sp, #16]
+    ldr x1, [sp, #16]
+    mov x9, #8
+    mul x2, x1, x9
+    add x3, x0, x2
+    str x4, [x3, #0]
+    mov x5, x5
+    str x6, [x3, #8]
+Live at the end: x3
+  at 0: R2 forward store to load
+  at 1: R1 delete self-move
+  at 1: R3 multiply becomes shift
+  at 1: R4 fold shift into add
+  at 3: R1 delete self-move
+  at 2: R5 pair two stores
+  result, 3 instructions:
+    str x1, [sp, #16]
+    add x3, x0, x1, lsl #3
+    stp x4, x6, [x3, #0]
+Live at the end: x2 x3
+  at 0: R2 forward store to load
+  at 1: R1 delete self-move
+  at 1: R3 multiply becomes shift
+  at 4: R1 delete self-move
+  at 3: R5 pair two stores
+  result, 4 instructions:
+    str x1, [sp, #16]
+    lsl x2, x1, #3
+    add x3, x0, x2
+    stp x4, x6, [x3, #0]

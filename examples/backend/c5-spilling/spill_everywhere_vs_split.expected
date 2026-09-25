@@ -1,0 +1,6 @@
+trips 12
+  base (read in loop)     everywhere   13 loads    1 stores | split 1 load 1 store
+  sum (read and written)  everywhere   13 loads   13 stores | split 1 load 1 store
+trips 1000
+  base (read in loop)     everywhere 1001 loads    1 stores | split 1 load 1 store
+  sum (read and written)  everywhere 1001 loads 1001 stores | split 1 load 1 store

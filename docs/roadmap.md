@@ -5,8 +5,13 @@ an objective, required work, and an observable completion condition. Do not mark
 a milestone complete merely because its main code path exists.
 
 Each milestone has a matching chapter in the
-[compiler guide](compiler/guide/index.md), which explains in plain language
+[compiler guide](compiler/guide/index.md), now written end to end with goals,
+check questions and a recap for every stage, which explains in plain language
 what the milestone needs, what it can leave out, and where to read more.
+
+For the current status of each milestone against the repository, see
+[For reviewers](project/index.md#what-exists-today). This page defines the
+work; that page tracks whether it has been done.
 
 ## Contents
 
@@ -302,3 +307,8 @@ These features are deliberately outside the first release:
 - optimization diagnostics and cost models;
 - auto-tuning;
 - modules, packages, generics, traits, and advanced ownership.
+
+The [Optimize](optimize/index.md), [Back end](backend/index.md),
+[GPU](gpu/index.md) and [MLIR](mlir/index.md) books now teach the ideas
+behind most of this work, ahead of any implementation. Reading them is not a
+substitute for the milestones above.

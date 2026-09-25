@@ -17,6 +17,16 @@ is the second step up the left slope. It is also the stage where the front end
 first starts to look like a compiler rather than a text processor, so it is
 worth taking slowly.
 
+--8<-- "includes/remember/compiler__guide__stage-3-parser-and-tree.md"
+
+!!! goals "In this stage"
+
+    - Tell a parse tree apart from an abstract syntax tree, and say what the abstract syntax tree keeps.
+    - Use precedence and associativity to decide how an expression's operators group, with and without parentheses.
+    - Explain why the parser accepts some meaningless programs, and name the stage that will reject them.
+    - Recover from a syntax error at a synchronization point so that one mistake does not hide the next.
+    - List what a syntax tree must preserve so that no later stage ever needs to reread the source text.
+
 ## What this stage is for
 
 The parser answers one question: does this sequence of tokens have a valid
@@ -189,6 +199,15 @@ grammar is explicit that dimensions are full expressions and that the parser
 "must not reduce dimensions to integer tokens". Deciding what a dimension is
 worth happens later.
 
+??? check "The parser accepts `[f32; rows, 8]`. Does it also accept `[f32; rows + 8]`? What about `[f32; ,]`?"
+
+    `[f32; rows + 8]` parses: the grammar allows any expression as a
+    dimension, and `rows + 8` has the same expression shape as `rows` alone.
+    `[f32; ,]` does not parse: the grammar still requires one dimension
+    before each comma, and an empty spot has no expression there at all. The
+    first is accepted because its shape is valid and rejected later for what
+    it means; the second never had a valid shape.
+
 ## Parse trees and syntax trees
 
 There are two ways to draw the structure of `let result = 2 + 3 * 4;`.
@@ -265,6 +284,20 @@ left operand of `*`.
 </svg>
 <figcaption>Figure 1. The tree for <code>let result = 2 + 3 * 4;</code>. Each node lights up when it is complete: the literals first, then <code>*</code> once both its operands exist, then <code>+</code>, and the declaration last. Nine tokens became six nodes.</figcaption>
 </figure>
+
+You can watch the difference on a smaller grammar with only two levels,
+additive and multiplicative. This parser reads the tokens of `2 + 3 * 4`
+twice, once keeping a node for every rule it used and every token it read,
+and once keeping only the numbers and the operators that join them:
+
+--8<-- "includes/examples/build-v0.1/stage-3-parser-and-tree/count_nodes.cpp.md"
+
+The parse tree carries an `additive` node, a `multiplicative` node for each
+side of the `+`, and a `primary` node above every number, even though none of
+them records anything a later stage needs. It also keeps `+` and `*` as
+leaves beside their operands. The syntax tree drops the rule nodes, turns
+each operator into the node that joins its operands, and keeps only five
+nodes: the three literals, the `*` and the `+`.
 
 Compare Figure 1 with Step 3 of the [walk-through in the
 overview](index.md#follow-one-line-through-the-compiler). It is the same
@@ -373,6 +406,15 @@ multiplication and gives 20. Notice that the syntax tree for that version has
 no node for the parentheses. They did their job by changing the shape, and
 once the shape exists they have nothing left to say.
 
+??? check "In the tree for `a + b * c - d`, which operator ends up at the root, and why?"
+
+    The `-`. `+` and `-` share precedence level 10 and group to the
+    left, so the tree first joins `a` with the product `b * c`, giving an
+    addition. The `-` then combines that whole result with `d`. Whichever
+    additive operator is applied last in a left-to-right reading ends up
+    highest in the tree, no matter how much higher-precedence work happens
+    underneath it.
+
 ### Associativity decides between copies of the same operator
 
 Precedence cannot help with `a - b - c`, because both operators are on the
@@ -445,6 +487,26 @@ A few Vortex levels need extra care:
 - **`&` means two things.** In front of an operand it takes a reference; between
   two operands it is bitwise AND. Its position in the expression tells them
   apart, and the tree must record which one it was.
+
+A small parser can show precedence and associativity working together. This
+one holds one binding power per operator instead of one grammar rule per
+level, and climbs from the lowest power a caller allows:
+
+--8<-- "includes/examples/build-v0.1/stage-3-parser-and-tree/precedence_climb.cpp.md"
+
+It parses `2 + 3 * 4` and `10 - 4 - 3` and prints each tree as it evaluates
+it, matching the groupings this section worked out by hand: 14, because `*`
+groups first, and 3, because the leftmost `-` groups first.
+
+??? check "`a < b < c` is a syntax error, but `a - b - c` parses. What is different about the grammar rule for `<` compared with the rule for `-`?"
+
+    The additive rule repeats: after an operand it accepts `+` or `-` and
+    another operand any number of times, and the parser joins each new one
+    onto the tree built so far, which leans left. The comparison rule allows
+    at most one operator between two shift expressions, and a shift
+    expression cannot contain `<` outside parentheses. After `a < b`, the
+    second `<` has nowhere valid to go, so the parser reports a syntax error
+    instead of building a tree.
 
 ## Ways to write a parser
 
@@ -571,6 +633,16 @@ the next top-level `fn` or `struct`.
 <figcaption>Figure 4. Recovery at <code>;</code>. Each error is reported at the token where the shape broke, then the parser discards tokens up to the next <code>;</code> and starts a fresh statement. The good lines still become tree nodes. The message wording is only illustrative; Vortex has not fixed it.</figcaption>
 </figure>
 
+The same idea in a few lines: report the error, throw away tokens up to the
+next `;`, and carry on.
+
+--8<-- "includes/examples/build-v0.1/stage-3-parser-and-tree/panic_recovery.cpp.md"
+
+The statement missing its number is reported and dropped, but the well-formed
+statement before it and the one after it both come through. Every error path
+either consumes a token or reaches the end of the file, so the parser can
+never loop on the same bad token.
+
 Recovery is a guess, and guesses go wrong. If line 2 had been
 `let width = 128` with the `;` missing, skipping to the next `;` would
 swallow all of line 3 as well. The parser would then report nothing wrong
@@ -625,6 +697,16 @@ stay as expressions. Names stay as spellings. A named type like `Point` or
 [stage 4](stage-4-names-and-scopes.md) reports that. A planned type name such
 as `u64` never gets this far: it is reserved for a future version, and the
 lexer rejects it ([decision 29](../../decisions/lexical.md#d29)).
+
+??? check "Why must the tree keep `-42` as a negation applied to the literal `42`, instead of simplifying it to one literal with the value -42?"
+
+    The grammar defines a leading `-` as a prefix operator, not part of a
+    number, so the tree needs a node for that operator; merging the two
+    would be constant folding, which the parser never does. Stage 5 also
+    needs to see the `-` written directly before the literal: in that case
+    it checks the negated value, which is why `-2147483648` is a valid `i32`
+    while `2147483648` on its own is not
+    ([decision 32](../../decisions/numbers.md#d32)).
 
 ## Printing the tree
 
@@ -780,6 +862,22 @@ get them back.
 
 **Testing only that it "parsed".** A parser can return a tree of the wrong
 shape and still pass a test that checks for success. Compare printed trees.
+
+## Key ideas
+
+!!! recap "Questions you can now answer"
+
+    - **What is the difference between a parse tree and an abstract syntax tree?** A parse tree has one node for every grammar rule used, punctuation included. An abstract syntax tree keeps only what later stages need and drops the rest.
+    - **Why does `2 + 3 * 4` mean `2 + (3 * 4)`?** `*` has a higher precedence than `+`, so it groups its operands first and ends up lower in the tree.
+    - **Why does `a - b - c` mean `(a - b) - c`?** `-` is left-associative: when two operators tie on precedence, the earlier one groups first and ends up lower in the tree.
+    - **Why does the parser accept `let value: MissingType = unknown_name + true;`?** Every token is where the grammar allows it, so the shape is valid. The unknown type, the unknown name and the mismatched operand are questions of meaning for later stages.
+    - **What does the parser do after a syntax error?** It reports the error, then discards tokens up to a synchronization point such as `;` or `}` and starts parsing again, so one mistake does not hide the rest.
+    - **Name three things a v0.1 syntax tree must preserve.** Any three of: source order, the exact operator or literal form written, the distinction between different kinds of node, and each node's source position.
+    - **Why can't the parser reduce an array dimension to a value?** Because that needs to know whether the dimension is a constant expression, which is a stage 5 question; the parser only checks shape, never meaning.
+
+## Where this comes back
+
+--8<-- "includes/next/compiler__guide__stage-3-parser-and-tree.md"
 
 ## How others teach this stage
 

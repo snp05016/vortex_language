@@ -1,0 +1,5 @@
+follows = [
+  "https://pubs.opengroup.org/onlinepubs/9799919799/utilities/grep.html",
+  "https://en.cppreference.com/w/cpp/language/main_function.html",
+  "https://en.cppreference.com/w/cpp/string/basic_string_view/find.html",
+]

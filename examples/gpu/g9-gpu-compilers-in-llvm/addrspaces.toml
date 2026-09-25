@@ -1,0 +1,7 @@
+# The data layout's per-address-space pointer size is what instcombine reads.
+flags = ["-passes=instcombine"]
+follows = [
+  "https://llvm.org/docs/LangRef.html#pointer-type",
+  "https://llvm.org/docs/LangRef.html#data-layout",
+  "https://llvm.org/docs/AMDGPUUsage.html#address-spaces",
+]

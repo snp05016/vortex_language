@@ -1,0 +1,20 @@
+x + 1 > x  ==>  true
+  wrapping   wrong at x = 127: false becomes true
+  undefined  correct
+  checked    wrong at x = 127: error becomes true
+x + 1 > x  ==>  true, knowing x < 127
+  wrapping   correct
+  undefined  correct
+  checked    correct
+(x + y) - y  ==>  x
+  wrapping   correct
+  undefined  correct
+  checked    wrong at x = -128, y = -128: error becomes -128
+x * 2  ==>  x + x
+  wrapping   correct
+  undefined  correct
+  checked    correct
+(x + y) + z  ==>  x + (y + z)
+  wrapping   correct
+  undefined  wrong at x = -128, y = 1, z = 127: 0 becomes undefined
+  checked    wrong at x = -128, y = -127, z = 127: error becomes -128

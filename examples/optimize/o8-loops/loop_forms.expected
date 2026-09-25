@@ -1,0 +1,34 @@
+; ModuleID = 'loop_forms.ll'
+source_filename = "loop_forms.ll"
+
+define i32 @triangle(i32 %n, i1 %skip_zero) {
+entry:
+  br i1 %skip_zero, label %from_one, label %header.preheader
+
+from_one:                                         ; preds = %entry
+  br label %header.preheader
+
+header.preheader:                                 ; preds = %entry, %from_one
+  %i.ph = phi i32 [ 1, %from_one ], [ 0, %entry ]
+  %more1 = icmp slt i32 %i.ph, %n
+  br i1 %more1, label %latch.lr.ph, label %exit
+
+latch.lr.ph:                                      ; preds = %header.preheader
+  br label %latch
+
+latch:                                            ; preds = %latch.lr.ph, %latch
+  %sum3 = phi i32 [ 0, %latch.lr.ph ], [ %sum.next, %latch ]
+  %i2 = phi i32 [ %i.ph, %latch.lr.ph ], [ %next, %latch ]
+  %sum.next = add i32 %sum3, %i2
+  %next = add nsw i32 %i2, 1
+  %more = icmp slt i32 %next, %n
+  br i1 %more, label %latch, label %header.exit_crit_edge
+
+header.exit_crit_edge:                            ; preds = %latch
+  %split = phi i32 [ %sum.next, %latch ]
+  br label %exit
+
+exit:                                             ; preds = %header.exit_crit_edge, %header.preheader
+  %sum.lcssa = phi i32 [ %split, %header.exit_crit_edge ], [ 0, %header.preheader ]
+  ret i32 %sum.lcssa
+}

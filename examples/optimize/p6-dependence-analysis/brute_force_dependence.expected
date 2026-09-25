@@ -1,0 +1,17 @@
+matmul, 3 iterations per loop
+  c anti   distance (0, 0, 1), carried by k, 18 pairs
+  c anti   distance (0, 0, 2), carried by k, 9 pairs
+  c flow   distance (0, 0, 1), carried by k, 18 pairs
+  c flow   distance (0, 0, 2), carried by k, 9 pairs
+  c output distance (0, 0, 1), carried by k, 18 pairs
+  c output distance (0, 0, 2), carried by k, 9 pairs
+  order row column k: legal
+  order row k column: legal
+  order column row k: legal
+  order column k row: legal
+  order k row column: legal
+  order k column row: legal
+stencil, 4 iterations per loop
+  g flow   distance (1, -1), carried by i, 9 pairs
+  order i j: legal
+  order j i: illegal

@@ -1,0 +1,15 @@
+"builtin.module"() ({
+  "func.func"() <{function_type = (f32) -> (), sym_name = "note_clamped", sym_visibility = "private"}> ({
+  }) : () -> ()
+  "func.func"() <{function_type = (f32, f32) -> f32, sym_name = "clamp_below"}> ({
+  ^bb0(%arg0: f32, %arg1: f32):
+    %0 = "arith.cmpf"(%arg0, %arg1) <{fastmath = #arith.fastmath<none>, predicate = 4 : i64}> : (f32, f32) -> i1
+    "cf.cond_br"(%0, %arg0)[^bb1, ^bb2] <{operandSegmentSizes = array<i32: 1, 0, 1>}> : (i1, f32) -> ()
+  ^bb1:  // pred: ^bb0
+    "func.call"(%arg0) <{callee = @note_clamped}> : (f32) -> ()
+    "cf.br"(%arg1)[^bb2] : (f32) -> ()
+  ^bb2(%1: f32):  // 2 preds: ^bb0, ^bb1
+    "func.return"(%1) : (f32) -> ()
+  }) : () -> ()
+}) : () -> ()
+

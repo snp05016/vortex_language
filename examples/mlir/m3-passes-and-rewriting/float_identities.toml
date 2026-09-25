@@ -1,0 +1,5 @@
+flags = ["--canonicalize"]
+follows = [
+  "https://mlir.llvm.org/docs/Dialects/ArithOps/",
+  "https://github.com/llvm/llvm-project/blob/release/18.x/mlir/lib/Dialect/Arith/IR/ArithOps.cpp",
+]

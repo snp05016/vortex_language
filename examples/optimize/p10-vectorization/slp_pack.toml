@@ -1,0 +1,5 @@
+flags = ["-passes=slp-vectorizer"]
+follows = [
+  "https://doi.org/10.1145/349299.349320",
+  "https://llvm.org/docs/Vectorizers.html#the-slp-vectorizer",
+]

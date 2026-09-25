@@ -1,0 +1,12 @@
+flags = [
+  "--scf-parallel-loop-tiling=parallel-loop-tile-sizes=4,8",
+  "--gpu-map-parallel-loops",
+  "--convert-parallel-loops-to-gpu",
+  "--gpu-kernel-outlining",
+  "--canonicalize",
+]
+follows = [
+  "https://mlir.llvm.org/docs/Passes/#-gpu-map-parallel-loops",
+  "https://mlir.llvm.org/docs/Passes/#-convert-parallel-loops-to-gpu",
+  "https://mlir.llvm.org/docs/Dialects/SCFDialect/",
+]

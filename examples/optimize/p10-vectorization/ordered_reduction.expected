@@ -1,0 +1,101 @@
+; ModuleID = 'ordered_reduction.ll'
+source_filename = "ordered_reduction.ll"
+target datalayout = "e-m:o-i64:64-i128:128-n32:64-S128"
+target triple = "arm64-apple-macosx"
+
+define float @sum_strict(ptr noalias readonly %x) {
+entry:
+  br i1 false, label %scalar.ph, label %vector.ph
+
+vector.ph:                                        ; preds = %entry
+  br label %vector.body
+
+vector.body:                                      ; preds = %vector.body, %vector.ph
+  %index = phi i64 [ 0, %vector.ph ], [ %index.next, %vector.body ]
+  %vec.phi = phi float [ 0.000000e+00, %vector.ph ], [ %3, %vector.body ]
+  %0 = add i64 %index, 0
+  %1 = getelementptr inbounds float, ptr %x, i64 %0
+  %2 = getelementptr inbounds float, ptr %1, i32 0
+  %wide.load = load <4 x float>, ptr %2, align 4
+  %3 = call float @llvm.vector.reduce.fadd.v4f32(float %vec.phi, <4 x float> %wide.load)
+  %index.next = add nuw i64 %index, 4
+  %4 = icmp eq i64 %index.next, 64
+  br i1 %4, label %middle.block, label %vector.body, !llvm.loop !0
+
+middle.block:                                     ; preds = %vector.body
+  br i1 true, label %exit, label %scalar.ph
+
+scalar.ph:                                        ; preds = %entry, %middle.block
+  %bc.resume.val = phi i64 [ 64, %middle.block ], [ 0, %entry ]
+  %bc.merge.rdx = phi float [ 0.000000e+00, %entry ], [ %3, %middle.block ]
+  br label %loop
+
+loop:                                             ; preds = %loop, %scalar.ph
+  %i = phi i64 [ %bc.resume.val, %scalar.ph ], [ %i.next, %loop ]
+  %sum = phi float [ %bc.merge.rdx, %scalar.ph ], [ %sum.next, %loop ]
+  %p = getelementptr inbounds float, ptr %x, i64 %i
+  %v = load float, ptr %p, align 4
+  %sum.next = fadd float %sum, %v
+  %i.next = add nuw nsw i64 %i, 1
+  %done = icmp eq i64 %i.next, 64
+  br i1 %done, label %exit, label %loop, !llvm.loop !3
+
+exit:                                             ; preds = %middle.block, %loop
+  %sum.next.lcssa = phi float [ %sum.next, %loop ], [ %3, %middle.block ]
+  ret float %sum.next.lcssa
+}
+
+define float @sum_reassoc(ptr noalias readonly %x) {
+entry:
+  br i1 false, label %scalar.ph, label %vector.ph
+
+vector.ph:                                        ; preds = %entry
+  br label %vector.body
+
+vector.body:                                      ; preds = %vector.body, %vector.ph
+  %index = phi i64 [ 0, %vector.ph ], [ %index.next, %vector.body ]
+  %vec.phi = phi <4 x float> [ <float 0.000000e+00, float -0.000000e+00, float -0.000000e+00, float -0.000000e+00>, %vector.ph ], [ %3, %vector.body ]
+  %0 = add i64 %index, 0
+  %1 = getelementptr inbounds float, ptr %x, i64 %0
+  %2 = getelementptr inbounds float, ptr %1, i32 0
+  %wide.load = load <4 x float>, ptr %2, align 4
+  %3 = fadd reassoc <4 x float> %vec.phi, %wide.load
+  %index.next = add nuw i64 %index, 4
+  %4 = icmp eq i64 %index.next, 64
+  br i1 %4, label %middle.block, label %vector.body, !llvm.loop !4
+
+middle.block:                                     ; preds = %vector.body
+  %5 = call reassoc float @llvm.vector.reduce.fadd.v4f32(float -0.000000e+00, <4 x float> %3)
+  br i1 true, label %exit, label %scalar.ph
+
+scalar.ph:                                        ; preds = %entry, %middle.block
+  %bc.resume.val = phi i64 [ 64, %middle.block ], [ 0, %entry ]
+  %bc.merge.rdx = phi float [ 0.000000e+00, %entry ], [ %5, %middle.block ]
+  br label %loop
+
+loop:                                             ; preds = %loop, %scalar.ph
+  %i = phi i64 [ %bc.resume.val, %scalar.ph ], [ %i.next, %loop ]
+  %sum = phi float [ %bc.merge.rdx, %scalar.ph ], [ %sum.next, %loop ]
+  %p = getelementptr inbounds float, ptr %x, i64 %i
+  %v = load float, ptr %p, align 4
+  %sum.next = fadd reassoc float %sum, %v
+  %i.next = add nuw nsw i64 %i, 1
+  %done = icmp eq i64 %i.next, 64
+  br i1 %done, label %exit, label %loop, !llvm.loop !5
+
+exit:                                             ; preds = %middle.block, %loop
+  %sum.next.lcssa = phi float [ %sum.next, %loop ], [ %5, %middle.block ]
+  ret float %sum.next.lcssa
+}
+
+; Function Attrs: nocallback nofree nosync nounwind speculatable willreturn memory(none)
+declare float @llvm.vector.reduce.fadd.v4f32(float, <4 x float>) #0
+
+attributes #0 = { nocallback nofree nosync nounwind speculatable willreturn memory(none) }
+
+!0 = distinct !{!0, !1, !2}
+!1 = !{!"llvm.loop.isvectorized", i32 1}
+!2 = !{!"llvm.loop.unroll.runtime.disable"}
+!3 = distinct !{!3, !2, !1}
+!4 = distinct !{!4, !1, !2}
+!5 = distinct !{!5, !2, !1}

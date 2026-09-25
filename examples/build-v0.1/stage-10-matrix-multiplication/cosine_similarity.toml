@@ -1,0 +1,4 @@
+follows = [
+  "https://en.cppreference.com/w/cpp/algorithm/inner_product.html",
+  "https://en.cppreference.com/w/cpp/container/array.html",
+]

@@ -1,0 +1,4 @@
+follows = [
+  "https://github.com/llvm/llvm-project/blob/llvmorg-18.1.8/llvm/include/llvm/Target/Target.td",
+  "https://github.com/llvm/llvm-project/blob/llvmorg-18.1.8/llvm/lib/MC/MCRegisterInfo.cpp",
+]

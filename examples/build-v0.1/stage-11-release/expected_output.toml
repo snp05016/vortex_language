@@ -1,0 +1,4 @@
+follows = [
+  "https://en.cppreference.com/cpp/utility/functional/function",
+  "https://en.cppreference.com/cpp/io/basic_ostringstream",
+]

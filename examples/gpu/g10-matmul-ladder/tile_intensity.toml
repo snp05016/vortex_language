@@ -1,0 +1,4 @@
+follows = [
+  "https://people.eecs.berkeley.edu/~kubitron/cs252/handouts/papers/RooflineVyNoYellow.pdf",
+  "https://docs.nvidia.com/cutlass/latest/media/docs/cpp/efficient_gemm.html",
+]

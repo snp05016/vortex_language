@@ -1,0 +1,4 @@
+follows = [
+  "https://github.com/llvm/llvm-project/blob/release/18.x/llvm/lib/CodeGen/MachinePipeliner.cpp",
+  "https://doi.org/10.1145/192724.192731",
+]

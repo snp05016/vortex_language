@@ -1,0 +1,7 @@
+# Runs StructurizeCFG on its own, the pass AMDGPU's code generator runs
+# before instruction selection.
+flags = ["-passes=structurizecfg"]
+follows = [
+  "https://raw.githubusercontent.com/llvm/llvm-project/main/llvm/lib/Transforms/Scalar/StructurizeCFG.cpp",
+  "https://raw.githubusercontent.com/llvm/llvm-project/main/llvm/lib/Target/AMDGPU/AMDGPUTargetMachine.cpp",
+]

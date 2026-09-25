@@ -1,0 +1,35 @@
+; ModuleID = 'convergent.ll'
+source_filename = "convergent.ll"
+
+; Function Attrs: nounwind willreturn memory(none)
+declare i32 @lane_sum(i32) #0
+
+; Function Attrs: convergent nounwind willreturn memory(none)
+declare i32 @wave_sum(i32) #1
+
+define i32 @plain(i32 %d) {
+entry:
+  %g = call i32 @lane_sum(i32 %d)
+  ret i32 %g
+}
+
+define i32 @wave(i32 %d) {
+entry:
+  %pos = icmp sgt i32 %d, 0
+  br i1 %pos, label %gains, label %losses
+
+gains:                                            ; preds = %entry
+  %g = call i32 @wave_sum(i32 %d)
+  br label %end
+
+losses:                                           ; preds = %entry
+  %l = call i32 @wave_sum(i32 %d)
+  br label %end
+
+end:                                              ; preds = %losses, %gains
+  %r = phi i32 [ %g, %gains ], [ %l, %losses ]
+  ret i32 %r
+}
+
+attributes #0 = { nounwind willreturn memory(none) }
+attributes #1 = { convergent nounwind willreturn memory(none) }

@@ -1,0 +1,47 @@
+; ModuleID = 'keep_across_calls.ll'
+source_filename = "keep_across_calls.ll"
+
+declare void @tick(i32)
+
+define float @keep_across_calls(ptr %a, i32 %n) {
+entry:
+  %v0 = load float, ptr %a, align 4
+  %p1 = getelementptr float, ptr %a, i64 1
+  %v1 = load float, ptr %p1, align 4
+  %p2 = getelementptr float, ptr %a, i64 2
+  %v2 = load float, ptr %p2, align 4
+  %p3 = getelementptr float, ptr %a, i64 3
+  %v3 = load float, ptr %p3, align 4
+  %p4 = getelementptr float, ptr %a, i64 4
+  %v4 = load float, ptr %p4, align 4
+  %p5 = getelementptr float, ptr %a, i64 5
+  %v5 = load float, ptr %p5, align 4
+  %p6 = getelementptr float, ptr %a, i64 6
+  %v6 = load float, ptr %p6, align 4
+  %p7 = getelementptr float, ptr %a, i64 7
+  %v7 = load float, ptr %p7, align 4
+  %p8 = getelementptr float, ptr %a, i64 8
+  %v8 = load float, ptr %p8, align 4
+  %p9 = getelementptr float, ptr %a, i64 9
+  %v9 = load float, ptr %p9, align 4
+  br label %loop
+
+loop:                                             ; preds = %loop, %entry
+  %i = phi i32 [ 0, %entry ], [ %i.next, %loop ]
+  call void @tick(i32 %i)
+  %i.next = add i32 %i, 1
+  %again = icmp slt i32 %i.next, %n
+  br i1 %again, label %loop, label %exit
+
+exit:                                             ; preds = %loop
+  %s1 = fadd float %v0, %v1
+  %s2 = fadd float %s1, %v2
+  %s3 = fadd float %s2, %v3
+  %s4 = fadd float %s3, %v4
+  %s5 = fadd float %s4, %v5
+  %s6 = fadd float %s5, %v6
+  %s7 = fadd float %s6, %v7
+  %s8 = fadd float %s7, %v8
+  %s9 = fadd float %s8, %v9
+  ret float %s9
+}

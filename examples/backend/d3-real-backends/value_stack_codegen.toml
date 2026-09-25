@@ -1,0 +1,3 @@
+# Single-pass code generation with a value stack, following the "Code
+# generation" section of the TinyCC developer's guide (vstack, SValue, gv).
+follows = ["https://bellard.org/tcc/tcc-doc.html"]

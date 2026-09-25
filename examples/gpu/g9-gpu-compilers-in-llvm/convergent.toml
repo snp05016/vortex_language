@@ -1,0 +1,3 @@
+# SimplifyCFG with hoisting of instructions common to both successors.
+flags = ["-passes=simplifycfg<hoist-common-insts>"]
+follows = ["https://llvm.org/docs/ConvergentOperations.html"]

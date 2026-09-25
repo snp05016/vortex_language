@@ -1,0 +1,5 @@
+follows = [
+  "https://doi.org/10.1145/364995.365000",
+  "https://doi.org/10.1145/357094.357098",
+  "https://developer.arm.com/documentation/102374/0103/Loads-and-stores---load-pair-and-store-pair",
+]

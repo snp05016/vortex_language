@@ -1,0 +1,17 @@
+; ModuleID = 'addrspaces.ll'
+source_filename = "addrspaces.ll"
+target datalayout = "p3:32:32"
+
+define i64 @gap(ptr addrspace(1) %g, ptr addrspace(3) %s) {
+  %gi = ptrtoint ptr addrspace(1) %g to i64
+  %1 = ptrtoint ptr addrspace(3) %s to i32
+  %si = zext i32 %1 to i64
+  %d = sub i64 %gi, %si
+  ret i64 %d
+}
+
+define ptr addrspace(3) @element(ptr addrspace(3) %s, i64 %i) {
+  %1 = trunc i64 %i to i32
+  %p = getelementptr inbounds float, ptr addrspace(3) %s, i32 %1
+  ret ptr addrspace(3) %p
+}

@@ -1,0 +1,7 @@
+flags = [
+    "--pass-pipeline=builtin.module(func.func(tosa-to-linalg-named,tosa-to-linalg),transform-interpreter,canonicalize)",
+]
+follows = [
+    "https://mlir.llvm.org/docs/Dialects/Transform/",
+    "https://mlir.llvm.org/docs/Passes/",
+]

@@ -1,0 +1,12 @@
+fcmp      N Z C V  a<b  mi   lt   ge   ls
+1 vs 2    1 0 0 0  yes  yes  yes  no   yes
+2 vs 2    0 1 1 0  no   no   no   yes  yes
+3 vs 2    0 0 1 0  no   no   no   yes  no
+NaN vs 2  0 0 1 1  no   no   yes  no   no
+fcvtzs w0, s0:
+     2.75 -> 2
+    -2.75 -> -2
+    3e+09 -> 2147483647
+   -3e+09 -> -2147483648
+      inf -> 2147483647
+      nan -> 0

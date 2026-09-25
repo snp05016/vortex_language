@@ -1,0 +1,2 @@
+after passing by value:     1 2 3 4
+after passing by reference: 2 4 6 8

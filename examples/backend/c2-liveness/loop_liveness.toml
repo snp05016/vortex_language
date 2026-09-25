@@ -1,0 +1,4 @@
+follows = [
+  "https://www.cs.cmu.edu/~fp/courses/15411-f13/lectures/04-liveness.pdf",
+  "https://doi.org/10.1145/330249.330250",
+]

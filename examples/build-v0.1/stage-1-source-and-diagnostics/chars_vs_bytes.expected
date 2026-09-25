@@ -1,0 +1,4 @@
+"let"            bytes: 3   characters: 3
+"café"           bytes: 5   characters: 4
+'λ'              bytes: 4   characters: 3
+let s = 'λ';     bytes: 13  characters: 12

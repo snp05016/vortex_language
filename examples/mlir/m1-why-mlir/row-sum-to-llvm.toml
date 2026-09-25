@@ -1,0 +1,15 @@
+flags = [
+  "--lower-affine",
+  "--convert-scf-to-cf",
+  "--convert-arith-to-llvm",
+  "--finalize-memref-to-llvm",
+  "--convert-func-to-llvm",
+  "--reconcile-unrealized-casts",
+]
+follows = [
+  "https://mlir.llvm.org/docs/Passes/#-lower-affine",
+  "https://mlir.llvm.org/docs/Passes/#-convert-scf-to-cf",
+  "https://mlir.llvm.org/docs/Passes/#-finalize-memref-to-llvm",
+  "https://mlir.llvm.org/docs/Passes/#-convert-func-to-llvm",
+  "https://mlir.llvm.org/docs/TargetLLVMIR/",
+]

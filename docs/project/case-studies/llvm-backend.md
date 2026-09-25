@@ -81,12 +81,13 @@ Chapters: [stage 6](../../compiler/guide/stage-6-first-machine-code.md) covers
 the back-end choice, SSA and linking;
 [B1](../../backend/b1-simplest-backend.md) builds the simplest native back end
 to compare against; [E4](../../backend/e4-testing-backends.md) covers testing
-back ends with FileCheck and lit; E1 in the
-[back-end book](../../backend/index.md) walks LLVM's own code generator
-pipeline; [O1](../../optimize/o1-optimizer-contract.md) sets out what an
-optimizer may and may not change, and O10 and O11 in the
-[optimization book](../../optimize/index.md) cover pass pipelines, undefined
-behaviour and poison.
+back ends with FileCheck and lit;
+[E1](../../backend/e1-llvm-codegen-pipeline.md) walks LLVM's own code
+generator pipeline; [O1](../../optimize/o1-optimizer-contract.md) sets out
+what an optimizer may and may not change, and
+[O10](../../optimize/o10-pass-pipelines.md) and
+[O11](../../optimize/o11-undefined-behavior.md) cover pass pipelines,
+undefined behaviour and poison.
 
 This study leaves out:
 

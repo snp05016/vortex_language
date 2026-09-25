@@ -1,0 +1,10 @@
+reverse postorder is A B C D E F
+reverse postorder  2 passes, idom: B=A C=B D=C E=D F=B
+postorder          5 passes, idom: B=A C=B D=C E=D F=B
+dominator tree:
+  A
+    B
+      C
+        D
+          E
+      F

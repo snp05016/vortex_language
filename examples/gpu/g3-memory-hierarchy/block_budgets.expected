@@ -1,0 +1,6 @@
+tile pair = one T x T tile of a and one of b, f32
+   T    bytes | H100 allocation           blocks/SM | Apple
+  16     2048 | static is enough                 76 | fits
+  32     8192 | static is enough                 25 | fits
+  64    32768 | static is enough                  6 | fits
+ 128   131072 | dynamic, opt-in                   1 | too large

@@ -1,0 +1,5 @@
+one instruction: D = [[3, 7], [3, 4]]
+4x4x4 from 2x2x2 tiles: 8 instructions of 8 multiply-adds, matches loop: true
+64x64x64 on 16x16x16: 64 instructions x 4096 = 262144 multiply-adds
+64x64x64 on 16x8x16: 128 instructions x 2048 = 262144 multiply-adds
+64x64x64 on 8x8x8: 512 instructions x 512 = 262144 multiply-adds

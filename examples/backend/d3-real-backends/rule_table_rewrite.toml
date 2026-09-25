@@ -1,0 +1,6 @@
+# A rule table applied until a sweep changes nothing, in the style of the
+# Go compiler's generated SSA rewrite passes and their driver.
+follows = [
+  "https://github.com/golang/go/blob/go1.26.5/src/cmd/compile/internal/ssa/README.md",
+  "https://github.com/golang/go/blob/go1.26.5/src/cmd/compile/internal/ssa/rewrite.go",
+]

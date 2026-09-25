@@ -1,0 +1,4 @@
+follows = [
+  "https://craftinginterpreters.com/representing-code.html",
+  "https://craftinginterpreters.com/parsing-expressions.html",
+]

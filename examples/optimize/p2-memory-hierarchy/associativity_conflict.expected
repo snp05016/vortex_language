@@ -1,0 +1,5 @@
+address 0x1234: tag 4, set 8, offset 52
+row length 1024 bytes, sets of rows 0..7: 0 0 0 0 0 0 0 0
+  misses: first pass 8, second pass 8
+row length 1088 bytes, sets of rows 0..7: 0 1 2 3 4 5 6 7
+  misses: first pass 8, second pass 0

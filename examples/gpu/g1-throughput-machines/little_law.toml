@@ -1,0 +1,4 @@
+follows = [
+  "https://www.nvidia.com/content/GTC-2010/pdfs/2238_GTC2010.pdf",
+  "https://people.cs.umass.edu/~emery/classes/cmpsci691st/readings/OS/Littles-Law-50-Years-Later.pdf",
+]

@@ -17,6 +17,8 @@ end with a block, such as `if`, `while` and `for`, take no semicolon after the
 closing brace; a semicolon there is a syntax error
 ([decision 54](../decisions/documentation.md#d54)).
 
+--8<-- "includes/remember/language-tour__09-statements.md"
+
 ## Statement quick reference
 
 | Statement | Example | Semicolon after it? |
@@ -66,6 +68,12 @@ values[0] = 10.0;
 
 Vortex does not allow assignment to a variable created without `mut`, or to a
 function parameter: parameters are immutable.
+
+??? check "Can a function change one of its own parameters, such as `value = 0;` where `value` is a plain `i32` parameter?"
+
+    No. Every parameter is immutable unless its type is `&mut T`; assigning to
+    a plain parameter is a semantic error, even though the parameter is only a
+    local name inside the function.
 
 The target may be a mutable variable, or a field or element of one. It may
 also be reached through a `&mut` reference, as in `values[index] *= factor`
@@ -121,6 +129,12 @@ works out which element the target names, then the value on the right, and
 only then checks the index and stores the result, so in `values[i] = next();`
 the call to `next` runs even when `i` is out of bounds
 ([decision 38](../decisions/statements.md#d38)).
+
+??? check "In `values[index] = make();`, where `make` prints a message and `index` is out of bounds, does `make` run before Vortex reports the error?"
+
+    Yes. Vortex works out the target's index and the value on the right
+    before it checks that the index is in bounds, so `make` runs and prints
+    its message, and only then does the program stop.
 
 On integers, a compound assignment has the same checks as its operator:
 `total += value` stops the program with a runtime error if the sum overflows,
@@ -258,6 +272,11 @@ cannot assign to it. A `..` range whose start is not below its end runs zero
 times, and a `..=` range that ends at the largest value of its type stops
 normally.
 
+??? check "If `count` changes inside the body of `for i in 0..count`, does the loop run a different number of times?"
+
+    No. `0` and `count` are evaluated once, before the loop starts. Changing
+    `count` inside the body has no effect on how many iterations remain.
+
 The loop variable is introduced by the loop and is visible only inside its
 body. Its name must not match a name that is already visible, so nested loops
 need different variable names, such as `row`, `column` and `k`. The expression
@@ -335,6 +354,13 @@ fn print_positive(value: i32) -> void {
   result of another `void` call.
 - A non-`void` function cannot use an empty `return;`.
 
+??? check "Does ending a function's body with `while true { ... }` and a `return` inside it satisfy the rule that a non-void function must always return?"
+
+    No. `while` and `for` never count as terminating statements, not even
+    `while true`. Vortex looks only at the shape of the statements, so a
+    `return` must follow the loop, even though such a loop can never finish
+    normally.
+
 Leaving out the value in a function that promises one, returning a value from a
 `void` function, and returning a value of the wrong type are all type errors; a
 non-`void` function whose body can reach its end is a semantic error
@@ -394,3 +420,38 @@ Answers:
 3. `fixed` is immutable.
 4. `break` is outside a loop.
 5. An `if` condition must be `bool`.
+
+## Key ideas
+
+!!! recap
+
+    - **When does a statement take a trailing semicolon?** Simple statements
+      (declarations, assignments, expression statements, `return`, `break`
+      and `continue`) always end with `;`. A statement that ends with a
+      block, such as `if`, `while` or `for`, takes no semicolon after the
+      closing brace.
+    - **What makes an assignment target valid?** Its root must be a variable
+      declared with `let mut`, or a name of type `&mut T`. A parameter, a
+      `for` loop variable, a `let` binding without `mut`, a literal, and a
+      calculation result are never assignable.
+    - **In `place = value;`, what runs first: the value or the target's
+      indices?** The target's base and indices, left to right, then the
+      value on the right, then the bounds check of each index, then the
+      store.
+    - **Does changing a variable used in a `for` loop's range change how many
+      times the loop runs?** No. Both endpoints are evaluated once, before
+      the loop starts.
+    - **Does a `while true` loop at the end of a function body count as a
+      guaranteed return path?** No. `while` and `for` never terminate, so a
+      `return` must follow the loop even when the loop can never finish
+      normally.
+    - **Where can a call to a `void` function appear?** Only as the whole
+      expression of an expression statement, optionally in parentheses;
+      never stored, passed as an argument, or returned.
+    - **Can two nested `for` loops reuse the same loop-variable name?** No.
+      Vortex has no shadowing, so nested loops need distinct names, such as
+      `row` and `column`.
+
+## Where this comes back
+
+--8<-- "includes/next/language-tour__09-statements.md"

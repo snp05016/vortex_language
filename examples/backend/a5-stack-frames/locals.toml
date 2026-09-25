@@ -1,0 +1,6 @@
+# The chapter compiles this file separately with clang -O0 -S -fno-stack-protector
+# -target arm64-apple-macos and quotes the listing; this check only builds and
+# runs it, at the harness's own optimization level.
+follows = [
+  "https://github.com/ARM-software/abi-aa/blob/main/aapcs64/aapcs64.rst",
+]

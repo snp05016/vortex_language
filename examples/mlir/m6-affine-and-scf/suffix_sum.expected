@@ -1,0 +1,12 @@
+module {
+  func.func @suffix_sum(%arg0: memref<8xf32>, %arg1: index) -> f32 {
+    %cst = arith.constant 0.000000e+00 : f32
+    %0 = affine.for %arg2 = %arg1 to 8 iter_args(%arg3 = %cst) -> (f32) {
+      %1 = affine.load %arg0[%arg2] : memref<8xf32>
+      %2 = arith.addf %arg3, %1 : f32
+      affine.yield %2 : f32
+    }
+    return %0 : f32
+  }
+}
+

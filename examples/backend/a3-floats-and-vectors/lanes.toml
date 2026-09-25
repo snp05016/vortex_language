@@ -1,0 +1,6 @@
+# Hand-written AArch64 inside a C++ harness: built and run on arm64 only.
+platforms = ["macos-arm64", "linux-arm64"]
+follows = [
+  "https://developer.arm.com/documentation/102474/0100/Fundamentals-of-Armv8-Neon-technology/Registers--vectors--lanes-and-elements",
+  "https://developer.arm.com/documentation/ddi0602/2026-06/SIMD-FP-Instructions/FADDP--vector---Floating-point-add-pairwise--vector--",
+]

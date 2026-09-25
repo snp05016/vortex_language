@@ -1,5 +1,7 @@
 # Runtime and numerical rules
 
+--8<-- "includes/remember/language-tour__06-runtime-and-numerical-rules.md"
+
 ## Learning goals
 
 After this chapter, you should be able to distinguish compile-time errors from
@@ -44,6 +46,13 @@ The [expressions chapter](../specification/expressions.md#checked-integer-operat
 lists every checked operation, and [record 34](../decisions/diagnostics.md#d34)
 explains the list.
 
+??? check "Why does subtracting 1 from a `u32` holding 0 stop the program instead of wrapping to a large number?"
+
+    Subtraction is a checked operation for every integer type: the exact
+    result, -1, must fit the type. -1 is outside `u32`'s range, so the
+    operation is an overflow runtime error. Silent wrapping is not part of
+    v0.1.
+
 ## Allowed examples
 
 ```vortex
@@ -60,6 +69,12 @@ let result = numerator / denominator;
 These operations are valid. `index` and `denominator` are variables, and a
 variable is never a constant expression, not even an immutable one, so both
 operations keep their runtime checks; here both checks pass.
+
+??? check "If you changed `let index: usize = 1;` above to `let index: usize = 3;`, would the compiler reject the program before it runs?"
+
+    No. `index` is still a variable, not a constant expression, so
+    `values[index]` keeps its runtime check. The program compiles and fails
+    with a runtime bounds error only once it runs.
 
 ## Rejected or checked examples
 
@@ -106,6 +121,11 @@ itself included. `print` shows these values as `inf`, `-inf` and `NaN`. The one
 operation that rejects them is a cast to an integer type, which stops the
 program with a runtime error. ([Why](../decisions/numbers.md#d24).)
 
+??? check "Does `0.0 / 0.0 == 0.0 / 0.0` evaluate to true or false?"
+
+    False. Both sides evaluate to NaN, and NaN is not equal to anything,
+    itself included, so `==` with a NaN operand is always false.
+
 Floating-point results are not exact decimal arithmetic. Programs should not
 assume that every decimal calculation can be represented perfectly. Vortex v0.1 also
 does not provide a fast-math flag, implicit integer-to-float conversion, or a
@@ -125,6 +145,13 @@ specification requires. An optimizer may remove a check only after proving the
 operation safe.
 
 </details>
+
+??? check "Which stage rejects `let x = 10 / 0;`, and which stage catches `let x = n / 0;` for a parameter `n`?"
+
+    Constant evaluation rejects `10 / 0` while compiling, because both
+    operands are integer literals. `n / 0` compiles, because `n` is a
+    parameter, and the check that code generation emits catches it while the
+    program runs.
 
 ## Practice and self-check
 
@@ -150,3 +177,32 @@ constant divisor, and `100` is a constant index past the end of the
 four-element array, whose length is part of its type
 ([decision](../decisions/arrays.md#d12)). The function compiles and keeps a
 runtime bounds check, because `index` is a parameter.
+
+## Key ideas
+
+!!! recap
+
+    - **What happens, in order, when a runtime check fails?** Everything the
+      program printed so far is written out, one line naming the failed check
+      goes to standard error, and the program exits with status 101.
+    - **What tells apart a constant-evaluation error from a runtime error for
+      the same checked operation?** Whether every value that decides the
+      check is an integer literal. Literals are checked while compiling;
+      a variable, parameter or call result is checked while the program runs.
+    - **How does integer `/` round, and what sign does `%` take?** `/`
+      truncates toward zero, and `%` takes the sign of the number divided, so
+      `(a / b) * b + a % b` equals `a`.
+    - **Is dividing a float by zero an error in Vortex?** No. It gives `inf`,
+      `-inf` or NaN following IEEE 754; only a cast of NaN or an infinity to
+      an integer type is a runtime error.
+    - **Why must the compiler never reorder or fuse floating-point
+      operations?** So the same program prints the same digits with every
+      conforming compiler; each operation rounds once, and reordering or
+      fusing could change the last digits.
+    - **What makes a shift count invalid?** A count that is negative, or at
+      least as large as the shifted value's type's bit width. Bits that `<<`
+      drops are not an error.
+
+## Where this comes back
+
+--8<-- "includes/next/language-tour__06-runtime-and-numerical-rules.md"

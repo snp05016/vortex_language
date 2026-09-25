@@ -1,0 +1,12 @@
+4 events on 2 counters
+  cycles        true   8000  counted in 4/8 slices  scaled     8000
+  instructions  true  12000  counted in 4/8 slices  scaled     4000
+  l1-misses     true    164  counted in 4/8 slices  scaled      164
+  branch-misses true     16  counted in 4/8 slices  scaled       16
+  IPC: true 1.50, from the scaled counts 0.50
+
+2 events on 2 counters
+  cycles        true   8000  counted in 8/8 slices  scaled     8000
+  instructions  true  12000  counted in 8/8 slices  scaled    12000
+  IPC: true 1.50, from the scaled counts 1.50
+

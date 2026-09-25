@@ -1,0 +1,6 @@
+neon mul+add: 0 of 16 elements differ from scalar
+neon fused:   3 of 16 elements differ from scalar
+y[0]  scalar 3dcccccd  mul+add 3dcccccd  fused 3dcccccd
+y[1]  scalar 3cf5c28c  mul+add 3cf5c28c  fused 3cf5c28d
+y[2]  scalar bd23d708  mul+add bd23d708  fused bd23d70a
+y[3]  scalar bde147ae  mul+add bde147ae  fused bde147ae

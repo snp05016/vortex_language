@@ -14,6 +14,16 @@ enough to exercise the whole compiler. It is also the program the roadmap's
 it works, the whole of the [compiler mountain](index.md#the-shape-of-the-whole-thing),
 up one side and down the other, has carried a real program.
 
+--8<-- "includes/remember/compiler__guide__stage-10-matrix-multiplication.md"
+
+!!! goals "In this stage"
+
+    - Write matrix multiplication with ordinary functions, loops, fixed-size arrays and references, exactly as the milestone specifies.
+    - Fix each function's shape through its parameter types, and add a separate function for every shape you test.
+    - Recognize why a mismatched inner dimension is a type error, caught before the program runs.
+    - Compare a computed result against a known answer, using exact equality only when it is safe and a tolerance otherwise.
+    - Explain why speed is deliberately out of scope for this stage.
+
 ## What this stage is for
 
 The roadmap's
@@ -189,6 +199,12 @@ rows, otherwise the row and column cannot be paired off. Second, the result
 has as many rows as `A` and as many columns as `B`. A 2 by 3 times a 3 by 2
 gives a 2 by 2. A 3 by 2 times a 2 by 3 gives a 3 by 3. Order matters.
 
+??? check "A 4 by 2 matrix is multiplied by a 2 by 5 matrix. What shape is the result, and why does the multiplication succeed at all?"
+
+    The result is 4 by 5: as many rows as the first matrix and as many columns
+    as the second. It succeeds because the inner dimension matches: the first
+    matrix has 2 columns and the second has 2 rows.
+
 ## The program the milestone asks for
 
 The roadmap describes the shape of the Vortex program precisely:
@@ -268,6 +284,15 @@ must not be regrouped or reordered, and `sum += a[row, k] * b[k, column]` must
 round the product and then the sum: the back end must not fuse them into one
 fused multiply-add ([decision](../../decisions/numbers.md#d56)).
 
+The same pattern, a fixed-size input the function only reads and a
+fixed-size output it writes into the caller's storage, works for any array
+operation, not only multiplication. The C++ example below transposes a grid
+instead: a different operation, built from the same pieces (a read-only
+`const` reference in, a writable reference out), and checked against a
+hand-worked known answer.
+
+--8<-- "includes/examples/build-v0.1/stage-10-matrix-multiplication/grid_transpose.cpp.md"
+
 ### One function per shape
 
 V0.1 has no generics and no runtime-sized arrays, so a function's parameter
@@ -278,6 +303,19 @@ workaround. It is what fixed-shape arrays mean, and it is exactly why the
 compiler knows every shape at compile time. Slices, tensors with shape
 parameters and generics are all on the roadmap's
 [after v0.1](../../roadmap.md#after-v01) list.
+
+A fixed-length parameter type rules out a mismatched argument in any language
+that checks it, not only Vortex. The next example compares two term-count
+vectors; its parameter type fixes their length the same way, so comparing
+vectors of a different length means writing another function.
+
+--8<-- "includes/examples/build-v0.1/stage-10-matrix-multiplication/cosine_similarity.cpp.md"
+
+??? check "V0.1 has no generics. If you also want to test a 3 by 3 square matrix, what has to change in your code?"
+
+    Write a second function, with parameter types fixed to the 3 by 3 shape,
+    such as `&[f32; 3, 3]`. The first function's type only accepts the
+    rectangular shape it was written for.
 
 ## Shape mistakes are compile-time errors
 
@@ -354,6 +392,13 @@ loop, but only a constant index is checked while compiling
 [record 39](../../decisions/diagnostics.md#d39)). A wrong answer is never
 acceptable.
 
+??? check "Why does `for k in 0..4` over an array with 3 columns compile without error, when a constant index such as `a[2, 0]` on a 2-row array does not?"
+
+    `k` is a loop variable, not a constant expression, so its value is unknown
+    while compiling; only the run-time bounds check from stage 9 can catch it.
+    `a[2, 0]`'s index and the array's extent are both constants, so stage 5
+    can evaluate the comparison itself and reject it before the program runs.
+
 ## Comparing with a known answer
 
 A matrix multiplication test is only as good as the answer it checks against.
@@ -390,6 +435,21 @@ extra precision. That rule is what makes the known answer stable. If your compil
 regrouped the sum inside the `k` loop, or fused each multiplication with its
 addition, the program might still be "roughly right" and yet print a different
 last digit on a different machine.
+
+A tolerance check usually needs both parts the example below combines: an
+absolute distance, for values near zero, and a relative distance, for large
+values where a fixed absolute distance would be too strict or too loose.
+Its second pair is one sum grouped two ways, which is exactly the kind of
+difference a regrouping compiler would introduce; `==` rejects it.
+
+--8<-- "includes/examples/build-v0.1/stage-10-matrix-multiplication/tolerance_compare.cpp.md"
+
+??? check "Why is comparing two results with `==` safe in the matrix multiplication program above, but not safe in general for floating-point results?"
+
+    Every input and every product and sum in that program is a whole number an
+    `f32` stores exactly, so no rounding ever happens. In general, arithmetic
+    rounds at each step, so two correct calculations done in a different order
+    can differ in their last bits, and `==` would call one of them wrong.
 
 ## Why speed can wait
 
@@ -503,6 +563,21 @@ annotation whenever you use a nested literal.
 three nested loops and swap in something clever. The milestone says ordinary
 functions and loops, compiled without optimization. Anything else hides bugs
 in the parts of the compiler this program is meant to test.
+
+## Key ideas
+
+!!! recap "Questions you can now answer"
+
+    - **What must match for two matrices to be multiplied, and what shape does the result have?** The inner dimension: the first matrix's columns and the second matrix's rows. The result has the first matrix's rows and the second matrix's columns.
+    - **Why does v0.1 need a separate function for every matrix shape you test?** A function's parameter types fix its array shapes, and v0.1 has no generics or runtime-sized arrays that would let one function accept several shapes.
+    - **Why is a shape mismatch a compile-time error rather than a runtime one?** The shapes live in the array types, so a shape mismatch is an ordinary type mismatch, caught by the same type equality rule that checks any other argument.
+    - **Why does a loop bound larger than an array's dimension compile, unlike a constant out-of-range index?** A loop variable is not a constant expression, so only the run-time bounds check can catch it; a constant index against a constant extent can be checked while compiling.
+    - **When is it safe to compare two floating-point results with `==` instead of a tolerance?** When no step can round: every input, product and sum is a value the type stores exactly, such as the small whole numbers in Figure 1.
+    - **Why is this stage's matrix multiplication deliberately unoptimized?** The milestone asks only for a correct baseline; that baseline becomes the known answer every later, faster version must reproduce.
+
+## Where this comes back
+
+--8<-- "includes/next/compiler__guide__stage-10-matrix-multiplication.md"
 
 ## How others teach this stage
 

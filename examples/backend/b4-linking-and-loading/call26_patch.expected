@@ -1,0 +1,9 @@
+layout: main.o report.o
+  P = 0x10008, S = 0x10018, X = 16
+  imm26 = 0x0000004, patched word = 0x94000004
+layout: report.o main.o
+  P = 0x10018, S = 0x10000, X = -24
+  imm26 = 0x3fffffa, patched word = 0x97fffffa
+layout: main.o big.o report.o
+  P = 0x10008, S = 0x8010018, X = 134217744
+  out of range for BL: the linker needs a veneer

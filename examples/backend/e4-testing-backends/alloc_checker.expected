@@ -1,0 +1,4 @@
+inputs a=2 b=3 c=3: good returns 15, bad returns 15
+inputs a=2 b=3 c=4: good returns 20, bad returns 15
+good: every read holds the value the program meant
+bad: step 9 "r0 = mul r0, r1" reads r1 holding v1, expected v2

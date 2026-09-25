@@ -1,0 +1,5 @@
+flags = ["-passes=loop(loop-rotate)"]
+follows = [
+  "https://llvm.org/docs/LoopTerminology.html",
+  "https://llvm.org/docs/Passes.html",
+]

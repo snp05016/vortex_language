@@ -1,0 +1,6 @@
+# Followed through llc -O2 with -stop-before and -stop-after
+# phi-node-elimination and register-coalescer.
+follows = [
+  "https://llvm.org/docs/CodeGenerator.html#the-ssa-deconstruction-phase",
+  "https://llvm.org/docs/MIRLangRef.html",
+]

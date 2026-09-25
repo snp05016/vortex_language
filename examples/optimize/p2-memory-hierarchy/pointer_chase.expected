@@ -1,0 +1,5 @@
+   slots   cycle length         same-line hops
+    4096           4096         3840 (sequential)
+    4096           4096           13 (random)
+ 1048576        1048576       983040 (sequential)
+ 1048576        1048576           23 (random)

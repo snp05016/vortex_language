@@ -1,0 +1,20 @@
+0x05 set_column 5
+0x00 set_address 0x0
+0x03 advance_line 9
+0x01 copy
+  row  0x00  line 10  col 5   (copy)
+0x05 set_column 9
+0x83 special: address += 8, line += 1
+  row  0x08  line 11  col 9   (special)
+0x05 set_column 5
+0x84 special: address += 8, line += 2
+  row  0x10  line 13  col 5   (special)
+0x05 set_column 9
+0x83 special: address += 8, line += 1
+  row  0x18  line 14  col 9   (special)
+0x05 set_column 5
+0x84 special: address += 8, line += 2
+  row  0x20  line 16  col 5   (special)
+0x02 advance_pc 4
+0x00 end_sequence
+  row  0x24  line 16  col 5   (end_sequence)

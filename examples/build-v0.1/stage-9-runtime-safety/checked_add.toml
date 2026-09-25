@@ -1,0 +1,4 @@
+follows = [
+  "https://clang.llvm.org/docs/LanguageExtensions.html#checked-arithmetic-builtins",
+  "https://gcc.gnu.org/onlinedocs/gcc/Integer-Overflow-Builtins.html",
+]

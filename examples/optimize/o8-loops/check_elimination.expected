@@ -1,0 +1,56 @@
+; ModuleID = 'check_elimination.ll'
+source_filename = "check_elimination.ll"
+
+; Function Attrs: noreturn
+declare void @report_bounds(i32, i32) #0
+
+define void @clear_all(ptr %values) {
+entry:
+  br label %header
+
+header:                                           ; preds = %body, %entry
+  %i = phi i32 [ 0, %entry ], [ %next, %body ]
+  %more = icmp ult i32 %i, 64
+  br i1 %more, label %body, label %done
+
+body:                                             ; preds = %header
+  %offset = zext i32 %i to i64
+  %p = getelementptr inbounds i32, ptr %values, i64 %offset
+  store i32 0, ptr %p, align 4
+  %next = add nuw nsw i32 %i, 1
+  br label %header
+
+done:                                             ; preds = %header
+  ret void
+}
+
+define void @clear_first(ptr %values, i32 %count) {
+entry:
+  br label %header
+
+header:                                           ; preds = %body, %entry
+  %i = phi i32 [ 0, %entry ], [ %next, %body ]
+  %more = icmp slt i32 %i, %count
+  br i1 %more, label %check, label %done
+
+check:                                            ; preds = %header
+  %ok = icmp ult i32 %i, 64
+  br i1 %ok, label %body, label %fail
+
+body:                                             ; preds = %check
+  %offset = zext i32 %i to i64
+  %p = getelementptr inbounds i32, ptr %values, i64 %offset
+  store i32 0, ptr %p, align 4
+  %next = add nuw nsw i32 %i, 1
+  br label %header
+
+done:                                             ; preds = %header
+  ret void
+
+fail:                                             ; preds = %check
+  %i.lcssa1 = phi i32 [ %i, %check ]
+  call void @report_bounds(i32 %i.lcssa1, i32 64)
+  unreachable
+}
+
+attributes #0 = { noreturn }

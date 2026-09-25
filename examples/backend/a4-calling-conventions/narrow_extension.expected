@@ -1,0 +1,8 @@
+AAPCS64 caller leaves x0 = 0xdeadbeefcafe12fb
+  sxtb x0, w0 -> -5
+  sxtw x0, w0 -> -889318661
+  use x0      -> -2401053089206496517
+Apple caller   leaves x0 = 0xdeadbeeffffffffb
+  sxtb x0, w0 -> -5
+  sxtw x0, w0 -> -5
+  use x0      -> -2401053088317177861

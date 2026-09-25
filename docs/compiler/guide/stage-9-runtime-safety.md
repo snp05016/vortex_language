@@ -19,6 +19,16 @@ The work happens on the right-hand slope of the
 [compiler mountain](index.md#the-shape-of-the-whole-thing): in the code the
 compiler generates, and in the small runtime library that reports the failure.
 
+--8<-- "includes/remember/compiler__guide__stage-9-runtime-safety.md"
+
+!!! goals "In this stage"
+
+    - Decide, for each risky operation, whether Vortex checks it while compiling or while running.
+    - Add a bounds check that holds separately in every array dimension.
+    - Add overflow checks to every integer operation that can overflow, including the smallest signed value divided by -1.
+    - Add range checks that catch invalid shift counts and casts whose value does not fit the destination.
+    - Report a runtime failure in the exact form the specification requires, and exit with the right status.
+
 ## What this stage is for
 
 The roadmap's [Milestone 9](../../roadmap.md#milestone-9-runtime-safety) has
@@ -193,6 +203,13 @@ The middle column is not new work for this stage: checking constant operands
 is the job of constant evaluation in [stage 5](stage-5-types-and-rules.md).
 The right column is new.
 
+??? check "`values` has three elements. The program writes `let index: usize = 3;` and then reads `values[index]`. The compiler can see that the read will fail. Must it reject the program?"
+
+    No. A name is never an integer constant expression, even when it holds a
+    literal, so the index is not constant. The compiler must accept the
+    program and keep the bounds check, which fails when the program runs. It
+    may print a warning.
+
 ## The checks Vortex requires
 
 The [expressions chapter](../../specification/expressions.md#checked-integer-operations)
@@ -255,6 +272,18 @@ mathematical integers ([decision](../../decisions/arrays.md#d12)). A negative
 catch both. Constant indexes never reach this check: stage 5 has already
 rejected the ones outside their extent.
 
+A small C++ program can show the same idea on a two-dimensional grid, checking
+each index against its own dimension rather than the grid's total size:
+
+--8<-- "includes/examples/build-v0.1/stage-9-runtime-safety/bounds_check.cpp.md"
+
+??? check "For a `[f32; 2, 3]`, does the access `a[0, 5]` pass the bounds check, given that the array has six elements in total?"
+
+    No. Row 0 is in range, but column 5 is not, because the row has only
+    three columns. Vortex checks each index against its own dimension's
+    extent, never the flattened position, even though position 5 does exist
+    somewhere in the six-element block.
+
 ### Integer division and remainder by zero
 
 `/` and `%` on integers need a check that the right-hand side is not zero.
@@ -281,6 +310,13 @@ can fault on this case, so the generated code must produce the 0 without that
 fault. The same decision fixes the rounding: `/` truncates toward zero and `%`
 takes the sign of the left operand.
 
+??? check "Your generated code checks every signed division for a zero divisor. Which `i32` division can still fail, and which kind of runtime error does it report?"
+
+    `-2147483648 / -1`. Its divisor is not zero, but the true quotient,
+    2,147,483,648, does not fit in an `i32`, so it fails with the kind
+    `overflow`. The matching remainder, `-2147483648 % -1`, does not fail: it
+    gives 0.
+
 ### Integer overflow
 
 Every integer operation whose result can fall outside its type needs an
@@ -291,6 +327,19 @@ are the same operations and need the same checks.
 Unsigned types overflow in the downward direction as well. In `u32` or
 `usize`, `0 - 1` has no answer, because the true result is negative. Under
 Vortex rules that is a runtime error, not a very large number.
+
+An overflow check does not need a wider type to hold the true result. In
+C++, Clang and GCC both offer a builtin that computes a sum and reports, in
+the same step, whether it fit. The example below uses one to check a few
+`i32` additions on both sides of the edge:
+
+--8<-- "includes/examples/build-v0.1/stage-9-runtime-safety/checked_add.cpp.md"
+
+??? check "A `u32` variable `size` holds 0. What does `size - 1` do when the program runs?"
+
+    It stops the program with a runtime error of kind `overflow` and exit
+    status 101. The true result, -1, is outside the range of `u32`, and
+    Vortex never wraps it around to 4,294,967,295.
 
 ### Shift counts
 
@@ -303,6 +352,12 @@ overflow, so a left shift needs no other check. `>>` must copy the sign bit for
 [Expressions 5.5](../../specification/expressions.md#checked-integer-operations);
 records [22](../../decisions/operators.md#d22) and
 [34](../../decisions/diagnostics.md#d34) give the reasons.
+
+C++ leaves a shift by a negative count, or by the width or more, undefined,
+so a C++ program that wants a defined answer has to check the count first,
+the same test Vortex requires:
+
+--8<-- "includes/examples/build-v0.1/stage-9-runtime-safety/shift_range.cpp.md"
 
 ### Invalid numeric casts
 
@@ -325,7 +380,7 @@ the same type does nothing.
 ```vortex
 // statements: valid
 let temperature: f32 = 21.8;
-let whole_degrees = i32(temperature); // 21, rounded toward zero
+let whole_degrees = i32(temperature); // 21, truncated toward zero
 ```
 
 ```vortex
@@ -336,6 +391,19 @@ let impossible = u32(-1); // constant-evaluation error: -1 does not fit in u32
 The second program never reaches this stage's checks: its operand is a
 constant expression, so [stage 5](stage-5-types-and-rules.md) evaluates the
 cast and reports the failure.
+
+Three tests decide whether a float-to-integer cast can go ahead: the value is
+not NaN, it is not an infinity, and after truncation it fits the target. The
+example applies them for an `i32` target, with two values on either side of
+the largest `i32`:
+
+--8<-- "includes/examples/build-v0.1/stage-9-runtime-safety/float_to_int_cast.cpp.md"
+
+??? check "An `f64` holding a value larger than any `f32` is cast to `f32`. Does the program stop with a runtime error?"
+
+    No. Casts to a floating-point type are never checked: the value rounds
+    to nearest, and one too large for `f32` becomes an infinity. Only casts
+    to an integer type can fail.
 
 ### Running out of stack
 
@@ -569,6 +637,22 @@ not a proof.
 programmer search the whole program. The runtime error line must name the
 position, so carry the source location of each checked operation into the
 report.
+
+## Key ideas
+
+!!! recap "Questions you can now answer"
+
+    - **When is an out-of-bounds index caught while compiling instead of at run time?** When every operand deciding the index is an integer constant expression; stage 5 then reports a constant-evaluation error.
+    - **What must a bounds check do for a multi-dimensional array?** Check each index against its own dimension's extent, never the flattened position.
+    - **Which division case overflows even though its divisor is not zero?** The smallest `i32` divided by -1, because the true quotient does not fit in an `i32`.
+    - **Which shift counts are valid when an `i32` is shifted?** 0 to 31. Any other count, held in a variable, stops the program with the kind `shift`.
+    - **When may the compiler leave a check out of the generated code?** Only when it can prove, from the source, that the operation cannot fail; a compiler that does not bother must still keep the check.
+    - **What four things about a runtime error does the specification fix?** The line's layout (kind, message, position), that it goes to standard error, the exit status 101, and that output already printed appears first.
+    - **Does dividing a floating-point number by zero raise a runtime error?** No. IEEE 754 rules give an infinity or NaN, and no check is needed there.
+
+## Where this comes back
+
+--8<-- "includes/next/compiler__guide__stage-9-runtime-safety.md"
 
 ## How others teach this stage
 

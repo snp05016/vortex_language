@@ -1,0 +1,12 @@
+2 blocks of 40 threads:
+ block  warp global-ids  threads
+     0     0    0 to 31      32
+     0     1   32 to 39       8
+     1     0   40 to 71      32
+     1     1   72 to 79       8
+one 16 x 4 block:
+  warp 0: ids   0 to 31  = (x 0, y 0) to (x 15, y 1)
+  warp 1: ids  32 to 63  = (x 0, y 2) to (x 15, y 3)
+one 32 x 2 block:
+  warp 0: ids   0 to 31  = (x 0, y 0) to (x 31, y 0)
+  warp 1: ids  32 to 63  = (x 0, y 1) to (x 31, y 1)

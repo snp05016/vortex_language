@@ -1,0 +1,10 @@
+flags = [
+  "--convert-arith-to-llvm",
+  "--finalize-memref-to-llvm",
+  "--convert-func-to-llvm=use-bare-ptr-memref-call-conv=1",
+  "--reconcile-unrealized-casts",
+]
+follows = [
+  "https://mlir.llvm.org/docs/TargetLLVMIR/",
+  "https://mlir.llvm.org/docs/Passes/",
+]

@@ -1,0 +1,6 @@
+flags = ["-passes=inline,sroa"]
+follows = [
+  "https://github.com/llvm/llvm-project/blob/release/18.x/llvm/lib/Transforms/Utils/InlineFunction.cpp",
+  "https://github.com/llvm/llvm-project/blob/release/18.x/llvm/lib/Transforms/Scalar/SROA.cpp",
+  "https://llvm.org/docs/LangRef.html#noalias-and-alias-scope-metadata",
+]

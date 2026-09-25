@@ -1,0 +1,6 @@
+below_zero: PASS (expected negative, got negative)
+at_zero: PASS (expected zero, got zero)
+above_zero: PASS (expected positive, got positive)
+deliberate_failure: FAIL (expected negative, got positive)
+3 passed, 1 failed
+exit status: 1

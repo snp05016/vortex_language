@@ -716,3 +716,16 @@ svg.railroad-diagram a text { fill: var(--vortex-accent); text-decoration: under
   -webkit-mask-image: var(--md-admonition-icon--check);
   mask-image: var(--md-admonition-icon--check);
 }
+
+/* Specification rule identifiers: a small permalink above each normative rule. */
+.md-typeset a.vx-rule {
+  display: block;
+  width: fit-content;
+  margin-bottom: 0.15rem;
+  font-family: var(--md-code-font-family);
+  font-size: 0.68rem;
+  color: var(--md-default-fg-color--light);
+}
+.md-typeset a.vx-rule::before { content: "["; }
+.md-typeset a.vx-rule::after { content: "]"; }
+.md-typeset a.vx-rule:hover { color: var(--md-accent-fg-color); }

@@ -1,0 +1,4 @@
+follows = [
+  "https://docs.nvidia.com/cuda/hopper-tuning-guide/index.html",
+  "https://developer.apple.com/metal/Metal-Feature-Set-Tables.pdf",
+]

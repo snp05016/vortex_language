@@ -1,0 +1,34 @@
+priority = longest path to the end, in cycles
+  x  = load v[0] 13
+  xx = x * x     10
+  y  = load v[1] 13
+  yy = y * y     10
+  s  = xx + yy    7
+  z  = load v[2] 10
+  zz = z * z      7
+  t  = s + zz     4
+  store out, t    1
+issue width 1
+source order:
+  cycle  0  x  = load v[0]
+  cycle  3  xx = x * x
+  cycle  4  y  = load v[1]
+  cycle  7  yy = y * y
+  cycle 10  s  = xx + yy
+  cycle 11  z  = load v[2]
+  cycle 14  zz = z * z
+  cycle 17  t  = s + zz
+  cycle 20  store out, t
+  done after 21 cycles; 12 of them start nothing
+list schedule:
+  cycle  0  x  = load v[0]
+  cycle  1  y  = load v[1]
+  cycle  2  z  = load v[2]
+  cycle  3  xx = x * x
+  cycle  4  yy = y * y
+  cycle  5  zz = z * z
+  cycle  7  s  = xx + yy
+  cycle 10  t  = s + zz
+  cycle 13  store out, t
+  done after 14 cycles; 5 of them start nothing
+every dependence respected: yes, yes

@@ -1,0 +1,13 @@
+t1 = a + b    v2
+t2 = b + a    v2   redundant: t2 = t1
+t3 = t1 * c   v4
+a = 4         v5
+t4 = a + b    v6
+t5 = t2 * c   v4   redundant: t5 = t3
+x = b * c     v7
+x = 1         v8
+y = c * b     v7   no name holds v7 now: computed again
+t6 = t4 + c   v9
+t7 = b + c    v10
+t8 = a + t7   v11
+removed 2 of 10 operations

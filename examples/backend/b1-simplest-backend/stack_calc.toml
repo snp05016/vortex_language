@@ -1,0 +1,5 @@
+platforms = ["macos-arm64"]
+follows = [
+  "https://developer.apple.com/documentation/xcode/writing-arm64-code-for-apple-platforms",
+  "https://developer.apple.com/library/archive/documentation/DeveloperTools/Reference/Assembler/040-Assembler_Directives/asm_directives.html",
+]

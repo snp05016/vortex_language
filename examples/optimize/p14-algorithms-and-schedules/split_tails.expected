@@ -1,0 +1,6 @@
+guard        order: 0 1 2 3 4 5 6
+             count: 1 1 1 1 1 1 1   (7 evaluations)
+shift_inward order: 0 1 2 3 4 5 4 5 6
+             count: 1 1 1 1 2 2 1   (9 evaluations)
+cut          order: 0 1 2 3 4 5 6
+             count: 1 1 1 1 1 1 1   (7 evaluations)

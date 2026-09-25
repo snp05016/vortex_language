@@ -1,0 +1,6 @@
+i32(21.8) = 21
+i32(-21.8) = -21
+i32(NaN): invalid cast
+i32(infinity): invalid cast
+i32(2147483647.5) = 2147483647
+i32(2147483648.0): invalid cast

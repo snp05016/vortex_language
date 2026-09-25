@@ -1,0 +1,5 @@
+follows = [
+  "https://github.com/ARM-software/abi-aa/blob/main/aapcs64/aapcs64.rst",
+  "https://developer.apple.com/documentation/xcode/writing-arm64-code-for-apple-platforms",
+  "https://gitlab.com/x86-psABIs/x86-64-ABI",
+]

@@ -1,0 +1,5 @@
+follows = [
+  "https://github.com/llvm/llvm-project/blob/release/18.x/llvm/lib/Transforms/IPO/Inliner.cpp",
+  "https://github.com/llvm/llvm-project/blob/release/18.x/llvm/include/llvm/Analysis/CGSCCPassManager.h",
+  "https://github.com/llvm/llvm-project/blob/release/18.x/llvm/include/llvm/ADT/SCCIterator.h",
+]

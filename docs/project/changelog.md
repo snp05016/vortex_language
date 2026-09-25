@@ -4,6 +4,43 @@
 
 ## 2026-09-24
 
+- **Four books, finished.** [Back end](../backend/index.md) (A1 to E4),
+  [Optimize](../optimize/index.md) (O1 to O12 and P1 to P16, plus
+  [the CPU matmul ladder](../optimize/ladder.md)), [GPU](../gpu/index.md)
+  (G1 to G15, with [the GPU matmul ladder](../gpu/g10-matmul-ladder.md) in
+  G10) and [MLIR](../mlir/index.md) (M1 to M12): every chapter is now
+  written
+  ([eaf0c0b](https://github.com/snp05016/vortex_language/commit/eaf0c0bf9c67c04bfa0cd399cfa4a6584a1efd5e),
+  [1982184](https://github.com/snp05016/vortex_language/commit/19821844f5710c91a92c514f4be152972359b123)).
+- **Build v0.1, finished.** Every stage now has a "Before you start,
+  remember" box, goals, check questions, C++ examples that follow the cited
+  documentation, a "Key ideas" recap and a "You will use this again in" box.
+  Four review pages cover stages 0 to 11, five
+  [recipes](../compiler/recipes/add-a-token.md) walk through common changes,
+  and a [workbook](../compiler/workbook.md) tracks every stage, with ticks
+  kept in the reader's browser only
+  ([2f8caff](https://github.com/snp05016/vortex_language/commit/2f8caff2074c5736533d416e4ad2d52c97ed3603),
+  [eaf0c0b](https://github.com/snp05016/vortex_language/commit/eaf0c0bf9c67c04bfa0cd399cfa4a6584a1efd5e)).
+- **Language tour, finished.** The same remember, next and check-question
+  boxes and a "Key ideas" recap in every chapter, plus three review pages
+  covering chapters 1 to 10
+  ([a5ee191](https://github.com/snp05016/vortex_language/commit/a5ee1911aac48b4d1f124e84cbfee814a31f553f),
+  [eaf0c0b](https://github.com/snp05016/vortex_language/commit/eaf0c0bf9c67c04bfa0cd399cfa4a6584a1efd5e)).
+- **Specification: rule identifiers.** Every normative rule now carries a
+  stable identifier, such as `arrays.dims.const`: 382 in total, one on each
+  rule, explained on the
+  [specification's front page](../specification/index.md#rule-identifiers)
+  ([eaf0c0b](https://github.com/snp05016/vortex_language/commit/eaf0c0bf9c67c04bfa0cd399cfa4a6584a1efd5e)).
+- **Case studies reviewed.** The ten [case studies](case-studies/index.md)
+  were checked against the finished books; their status has not changed,
+  since none has started and none has results
+  ([eaf0c0b](https://github.com/snp05016/vortex_language/commit/eaf0c0bf9c67c04bfa0cd399cfa4a6584a1efd5e)).
+- **Two new pages.** [Your progress](../progress.md) records which
+  chapters you have opened and says when a review page is due, and the
+  [concept map](../concept-map.md) draws which ideas each idea needs first,
+  one tab per book, with a smaller map at the end of every page that
+  introduces a concept. The progress record stays in your browser, with no
+  account and nothing sent anywhere.
 - **Language decisions.** The v0.1 documents had left 56 questions open or
   answered them in two different ways. Each is now settled by a
   **decision record**: the question, what the documents said, what other

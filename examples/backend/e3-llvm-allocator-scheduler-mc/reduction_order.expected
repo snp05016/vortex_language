@@ -1,0 +1,31 @@
+; ModuleID = 'reduction_order.ll'
+source_filename = "reduction_order.ll"
+
+; Function Attrs: mustprogress nofree norecurse nosync nounwind willreturn memory(none)
+define float @chain_sum(float %a, float %b, float %c, float %d) local_unnamed_addr #0 {
+entry:
+  %s1 = fadd float %a, %b
+  %s2 = fadd float %s1, %c
+  %s3 = fadd float %s2, %d
+  ret float %s3
+}
+
+; Function Attrs: mustprogress nofree norecurse nosync nounwind willreturn memory(none)
+define float @tree_sum(float %a, float %b, float %c, float %d) local_unnamed_addr #0 {
+entry:
+  %s1 = fadd float %a, %b
+  %s2 = fadd float %c, %d
+  %s3 = fadd float %s1, %s2
+  ret float %s3
+}
+
+; Function Attrs: mustprogress nofree norecurse nosync nounwind willreturn memory(none)
+define float @tree_sum_reassoc(float %a, float %b, float %c, float %d) local_unnamed_addr #0 {
+entry:
+  %s2 = fadd reassoc nsz float %b, %a
+  %s1 = fadd reassoc nsz float %s2, %c
+  %s3 = fadd reassoc nsz float %s1, %d
+  ret float %s3
+}
+
+attributes #0 = { mustprogress nofree norecurse nosync nounwind willreturn memory(none) }

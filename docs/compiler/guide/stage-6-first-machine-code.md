@@ -20,6 +20,20 @@ one test program. Functions and branches wait for
 [stage 7](stage-7-functions-and-control-flow.md). Arrays, strings and structs
 wait for [stage 8](stage-8-data-in-memory.md).
 
+--8<-- "includes/remember/compiler__guide__stage-6-first-machine-code.md"
+
+!!! goals "In this stage"
+
+    - Explain why an intermediate representation sits between the front end
+      and the back end.
+    - Compare what generating LLVM IR, generating C and generating assembly
+      each give up and gain.
+    - Trace a checked program through lowering, an object file and a link
+      step to a running executable.
+    - Recognize why static single assignment does not have to be built yet.
+    - State the exact output and exit-status contract the first end-to-end
+      test checks.
+
 ## What this stage is for
 
 [Milestone 6](../../roadmap.md#milestone-6-basic-cpu-code-generation) has four
@@ -184,6 +198,15 @@ kept. Everything above it is shared. Only the part below it changes.
 <figcaption>Figure 1. The front end ends in an intermediate representation. Below it, the back end is a replaceable part. Any one of the three options on the right can turn the IR into machine code, and a later GPU path would start from the same IR instead of from the source.</figcaption>
 </figure>
 
+??? check "Why does an IR matter for Vortex, given that it has only one source language?"
+
+    Not for Nystrom's front-end-times-back-end argument, since Vortex only has
+    one front end. It matters because Vortex plans more than one target: a
+    CPU back end now, a GPU path later. The IR is the one place where everything
+    above stays shared and only the part below changes, which is what lets a
+    later GPU path reuse the checked program instead of building a second
+    interpretation of Vortex.
+
 Vortex has not chosen its IR. The step-through on the
 [overview page](index.md#follow-one-line-through-the-compiler) shows a sketch
 of three lines for `let result = 2 + 3 * 4;`, and it says plainly that the
@@ -212,6 +235,14 @@ The only facts lowering needs are ones earlier stages already worked out. The
 parser decided the shape, name resolution connected `result` in `print(result)`
 to its declaration, and type checking decided that every value in the line is
 an `i32`. Lowering reads those answers. It does not make up new ones.
+
+The next example lowers a calculator expression, `-(3 + 4) * 2 - 1`, outside
+any compiler, to show the same shape on a tree with a unary operator and a
+subtraction. Each operator node becomes one instruction, in an order
+fixed by visiting children before parents, and each instruction names its
+inputs either as a literal or as an earlier instruction's result.
+
+--8<-- "includes/examples/build-v0.1/stage-6-first-machine-code/lower_expr.cpp.md"
 
 The same rule covers floating-point values. The
 [types chapter](../../specification/types-and-values.md#44-floating-point-values)
@@ -277,6 +308,15 @@ for example `-ffp-contract=off`, and without fast-math options. Errors from the
 C compiler, if any slip through, will talk about generated C lines, not Vortex
 lines. And you now
 depend on a C compiler being present at every use of `vortex`.
+
+??? check "Your back end writes C, and the C it writes for `a * b + c` on `f64` values is correct line by line. Compiled with the C compiler's default settings, what can still break?"
+
+    The floating-point rule. By default GCC may fuse the multiply and the add
+    into one fused multiply-add outside strict ISO modes, and Clang may do so
+    within an expression. A fused operation rounds once instead of twice, so
+    the result can differ from two separate IEEE 754 operations, which the
+    types chapter requires. Compile the generated C with contraction off
+    (`-ffp-contract=off`) and without fast-math options.
 
 ### Generating assembly directly
 
@@ -367,6 +407,14 @@ For Milestone 6 none of this bites yet. The first program has no branches, so
 there are no joins and no phis. It starts to matter in stage 7, when `if` and
 `while` arrive.
 
+??? check "Why does Milestone 6 not need to build or reason about a single phi?"
+
+    A phi is only needed at a join point, where two control-flow paths meet
+    holding different versions of a variable. The first program has no
+    branches, so it has exactly one path and no joins. Phis become necessary
+    starting in stage 7, once `if` and `while` create paths that can meet
+    again.
+
 ## From object file to executable
 
 Most compilers do not produce the final executable alone. They produce an
@@ -430,6 +478,23 @@ produce something that runs.[^kal8] Sandler's first chapter does it with
 If you generate assembly or C, there is one more tool in the chain (the
 assembler or the C compiler) before the linker. The shape does not change.
 
+The next example models the hole-and-fill idea directly, for a tiny made-up
+instruction set rather than for a real object format. A "module" is a list of
+instructions; some call a symbol by name because the code that defines it
+lives elsewhere. Linking checks every such name against a table of routines
+before anything runs, and reports the first name it cannot find, the way a
+real linker reports an undefined symbol instead of producing a broken program.
+
+--8<-- "includes/examples/build-v0.1/stage-6-first-machine-code/resolve_symbols.cpp.md"
+
+??? check "If the compiler's own test only checks that an object file was produced, what could still be broken?"
+
+    Linking and start-up. An object file can exist and be perfectly
+    well-formed while the link step fails to resolve `print`, or the runtime
+    never reaches `main`. Only a test that runs the finished executable and
+    checks its output and exit status shows that the whole chain works:
+    compiler, linker and runtime together.
+
 ## The small runtime
 
 The **runtime library** is the code every Vortex program gets without writing
@@ -467,6 +532,15 @@ The Milestone 6 test compares output and exit status, and both are now fixed.
 defines `print` ([decision](../../decisions/program.md#d4)): it writes its
 arguments to standard output with one space between them and a line feed after
 the last. So `print(14)` writes three bytes: `1`, `4` and a line feed.
+
+That layout rule, one space between arguments and one line feed after the
+last, is one half of the contract. The other half is the text of each value,
+which the same section fixes type by type: an `f64` holding sixteen prints as
+`16.0`, for example, where C++'s `{}` format would print `16`. The next example
+applies only the layout half, to ordinary C++ values, to show how little code
+it takes once it is kept apart from the formatting of each value.
+
+--8<-- "includes/examples/build-v0.1/stage-6-first-machine-code/join_print.cpp.md"
 
 **What exit status a Vortex program returns.** A program whose `main` returns
 exits with status 0, and a program stopped by a runtime error exits with 101
@@ -629,6 +703,31 @@ live in the compiler.
 default, and C compilers may fuse a multiply and an add unless told not to.
 Any setting that fuses, reorders or widens floating-point arithmetic, or
 flushes tiny values to zero, breaks the spec's rule on floating-point results.
+
+## Key ideas
+
+!!! recap
+
+    - Why does an IR sit between the front end and the back end? So the
+      checked program has one shared representation, and only the part below
+      it changes when the target changes.
+    - What must the back end never do to a validated program? Re-decide
+      anything the front end already settled, such as a value's type.
+    - What is a phi for? Picking which SSA version of a value is current at a
+      point where two control-flow paths join.
+    - Why does Milestone 6 need no phis yet? The first program has no
+      branches, so it has no join points.
+    - What turns an object file into a program that can run? The linker,
+      which fills in names such as `print` with real addresses from the
+      runtime library.
+    - What two facts does the Milestone 6 test check about the finished
+      program? Its exact standard output and its exit status.
+    - What does the compiler leave behind when it rejects a program? A
+      diagnostic on standard error, exit status 1, and no executable.
+
+## Where this comes back
+
+--8<-- "includes/next/compiler__guide__stage-6-first-machine-code.md"
 
 ## How others teach this stage
 

@@ -1,0 +1,72 @@
+; ModuleID = 'irce.ll'
+source_filename = "irce.ll"
+
+; Function Attrs: noreturn
+declare void @report_bounds(i32, i32) #0
+
+define void @clear_first(ptr %values, i32 %count) {
+entry:
+  %more2 = icmp slt i32 0, %count
+  br i1 %more2, label %check.lr.ph, label %done
+
+check.lr.ph:                                      ; preds = %entry
+  %smin = call i32 @llvm.smin.i32(i32 %count, i32 64)
+  %exit.mainloop.at = call i32 @llvm.smax.i32(i32 %smin, i32 0)
+  %0 = icmp slt i32 0, %exit.mainloop.at
+  br i1 %0, label %check, label %postloop
+
+check:                                            ; preds = %check.lr.ph, %check
+  %i3 = phi i32 [ %next, %check ], [ 0, %check.lr.ph ]
+  %offset = zext i32 %i3 to i64
+  %p = getelementptr inbounds i32, ptr %values, i64 %offset
+  store i32 0, ptr %p, align 4
+  %next = add nsw i32 %i3, 1
+  %1 = icmp slt i32 %next, %exit.mainloop.at
+  br i1 %1, label %check, label %main.exit.selector
+
+main.exit.selector:                               ; preds = %check
+  %next.lcssa = phi i32 [ %next, %check ]
+  %2 = icmp slt i32 %next.lcssa, %count
+  br i1 %2, label %postloop, label %done
+
+done:                                             ; preds = %main.exit.selector, %body.postloop, %entry
+  ret void
+
+fail:                                             ; preds = %check.postloop
+  %i.lcssa1.ph = phi i32 [ %i3.postloop, %check.postloop ]
+  call void @report_bounds(i32 %i.lcssa1.ph, i32 64)
+  unreachable
+
+postloop:                                         ; preds = %check.lr.ph, %main.exit.selector
+  %i3.copy = phi i32 [ 0, %check.lr.ph ], [ %next.lcssa, %main.exit.selector ]
+  br label %check.postloop
+
+check.postloop:                                   ; preds = %postloop, %body.postloop
+  %i3.postloop = phi i32 [ %i3.copy, %postloop ], [ %next.postloop, %body.postloop ]
+  %ok.postloop = icmp ult i32 %i3.postloop, 64
+  br i1 %ok.postloop, label %body.postloop, label %fail
+
+body.postloop:                                    ; preds = %check.postloop
+  %offset.postloop = zext i32 %i3.postloop to i64
+  %p.postloop = getelementptr inbounds i32, ptr %values, i64 %offset.postloop
+  store i32 0, ptr %p.postloop, align 4
+  %next.postloop = add nsw i32 %i3.postloop, 1
+  %more.postloop = icmp slt i32 %next.postloop, %count
+  br i1 %more.postloop, label %check.postloop, label %done, !llvm.loop !0, !loop_constrainer.loop.clone !5
+}
+
+; Function Attrs: nocallback nofree nosync nounwind speculatable willreturn memory(none)
+declare i32 @llvm.smin.i32(i32, i32) #1
+
+; Function Attrs: nocallback nofree nosync nounwind speculatable willreturn memory(none)
+declare i32 @llvm.smax.i32(i32, i32) #1
+
+attributes #0 = { noreturn }
+attributes #1 = { nocallback nofree nosync nounwind speculatable willreturn memory(none) }
+
+!0 = distinct !{!0, !1, !2, !3, !4}
+!1 = !{!"llvm.loop.unroll.disable"}
+!2 = !{!"llvm.loop.vectorize.enable", i1 false}
+!3 = !{!"llvm.loop.licm_versioning.disable"}
+!4 = !{!"llvm.loop.distribute.enable", i1 false}
+!5 = !{}

@@ -1,0 +1,4 @@
+follows = [
+  "https://docs.nvidia.com/nsight-compute/ProfilingGuide/index.html",
+  "https://www.nvidia.com/content/GTC-2010/pdfs/2238_GTC2010.pdf",
+]

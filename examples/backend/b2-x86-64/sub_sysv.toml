@@ -1,0 +1,9 @@
+# x86-64 System V assembly for ELF: assembled on the linux-x86_64 runner and
+# skipped elsewhere.
+platforms = ["linux-x86_64"]
+follows = [
+  "https://gitlab.com/x86-psABIs/x86-64-ABI",
+  "https://sourceware.org/binutils/docs/as/i386_002dVariations.html",
+  "https://sourceware.org/binutils/docs/as/Type.html",
+  "https://sourceware.org/binutils/docs/as/Size.html",
+]

@@ -1,0 +1,4 @@
+follows = [
+  "https://doi.org/10.1145/3453483.3454030",
+  "https://llvm.org/docs/LangRef.html#add-instruction",
+]

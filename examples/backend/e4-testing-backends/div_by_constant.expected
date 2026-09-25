@@ -1,0 +1,15 @@
+; ModuleID = 'div_by_constant.ll'
+source_filename = "div_by_constant.ll"
+
+define i32 @div7(i32 %x) {
+  %q = udiv i32 %x, 7
+  ret i32 %q
+}
+
+define i32 @clamp(i32 %x, i32 %lo, i32 %hi) {
+  %below = icmp slt i32 %x, %lo
+  %a = select i1 %below, i32 %lo, i32 %x
+  %above = icmp sgt i32 %a, %hi
+  %r = select i1 %above, i32 %hi, i32 %a
+  ret i32 %r
+}

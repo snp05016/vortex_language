@@ -1,0 +1,3 @@
+follows = [
+  "https://mlir.llvm.org/docs/Dialects/GPU/#memory-attribution",
+]

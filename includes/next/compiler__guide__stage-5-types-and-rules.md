@@ -8,3 +8,28 @@
     - [11. Release](stage-11-release.md): *constant evaluation*
     - [Compiler internals: Architecture](../architecture.md): *type checking*, *constant evaluation*
     - [Compiler internals: Parser design](../parser-design.md): *type checking*, *compatible*, *constant evaluation*, *semantic analysis*
+
+??? info "Concept map for this page"
+
+    ```mermaid
+    flowchart LR
+      c_type_checking["type checking"]
+      c_compatible["compatible"]
+      c_control_flow_path["control-flow path"]
+      c_constant_evaluation["constant evaluation"]
+      c_static_rule["static rule"]
+      c_dynamic_rule["dynamic rule"]
+      c_well_formed["well-formed"]
+      c_ill_formed["ill-formed"]
+      c_negative_test["negative test"]
+      c_semantic_analysis["semantic analysis"]
+      c_dimension["dimension"]
+      c_type["type"]
+      c_type --> c_type_checking
+      c_type --> c_compatible
+      c_dimension --> c_constant_evaluation
+      c_static_rule --> c_dynamic_rule
+      c_static_rule --> c_well_formed
+      c_well_formed --> c_ill_formed
+      c_static_rule --> c_semantic_analysis
+    ```

@@ -1,0 +1,10 @@
+[1] new  compile_unit clamp.c
+[2] new  subprogram clamp
+[3] new  formal_parameter v
+[3]      formal_parameter lo
+[3]      formal_parameter hi
+[4] new  variable r
+[5] new  base_type int
+[6] new  variable t (optimized out)
+[7] new  subprogram zero (no children)
+9 DIEs, 7 abbreviations

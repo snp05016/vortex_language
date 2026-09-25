@@ -1,0 +1,36 @@
+module attributes {gpu.container_module} {
+  func.func @brighten(%arg0: memref<256xf32>, %arg1: f32) {
+    %c1 = arith.constant 1 : index
+    %c4 = arith.constant 4 : index
+    %c64 = arith.constant 64 : index
+    %cst = arith.constant 1.000000e+00 : f32
+    gpu.launch_func  @brighten_kernel::@brighten_kernel blocks in (%c4, %c1, %c1) threads in (%c64, %c1, %c1)  args(%c64 : index, %arg0 : memref<256xf32>, %arg1 : f32, %cst : f32)
+    return
+  }
+  gpu.module @brighten_kernel {
+    gpu.func @brighten_kernel(%arg0: index, %arg1: memref<256xf32>, %arg2: f32, %arg3: f32) kernel attributes {gpu.known_block_size = array<i32: 64, 1, 1>, gpu.known_grid_size = array<i32: 4, 1, 1>} {
+      %0 = gpu.block_id  x
+      %1 = gpu.block_id  y
+      %2 = gpu.block_id  z
+      %3 = gpu.thread_id  x
+      %4 = gpu.thread_id  y
+      %5 = gpu.thread_id  z
+      %6 = gpu.grid_dim  x
+      %7 = gpu.grid_dim  y
+      %8 = gpu.grid_dim  z
+      %9 = gpu.block_dim  x
+      %10 = gpu.block_dim  y
+      %11 = gpu.block_dim  z
+      cf.br ^bb1
+    ^bb1:  // pred: ^bb0
+      %12 = arith.muli %0, %arg0 : index
+      %13 = arith.addi %12, %3 : index
+      %14 = memref.load %arg1[%13] : memref<256xf32>
+      %15 = arith.addf %14, %arg2 : f32
+      %16 = arith.minimumf %15, %arg3 : f32
+      memref.store %16, %arg1[%13] : memref<256xf32>
+      gpu.return
+    }
+  }
+}
+

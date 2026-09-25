@@ -1,0 +1,4 @@
+follows = [
+  "https://docs.nvidia.com/cuda/parallel-thread-execution/index.html#warp-level-matrix-instructions",
+  "https://developer.nvidia.com/blog/programming-tensor-cores-cuda-9/",
+]

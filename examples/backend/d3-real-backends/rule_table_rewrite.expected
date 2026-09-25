@@ -1,0 +1,11 @@
+mul-by-one beside a constant product:
+  pass 0: (add (mul x 1) (mul 2 3))
+  pass 1: (add x 6)
+  pass 2: (add x 6)
+  fixpoint after 2 passes
+constants on the left:
+  pass 0: (add 0 (mul 1 y))
+  pass 1: (add (mul y 1) 0)
+  pass 2: y
+  pass 3: y
+  fixpoint after 3 passes

@@ -1,0 +1,3 @@
+follows = [
+  "https://github.com/llvm/llvm-project/blob/llvmorg-18.1.8/llvm/include/llvm/Target/TargetSchedule.td",
+]

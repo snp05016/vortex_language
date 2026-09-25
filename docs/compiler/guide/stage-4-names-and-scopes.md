@@ -17,6 +17,18 @@ this is the third step up. It sits between the [parser](stage-3-parser-and-tree.
 which builds the tree, and [type checking](stage-5-types-and-rules.md), which
 needs to know what each name refers to before it can ask what type it has.
 
+--8<-- "includes/remember/compiler__guide__stage-4-names-and-scopes.md"
+
+!!! goals "In this stage"
+
+    - Record every declaration your compiler meets, in the scope where it lives.
+    - Walk scopes outward to resolve a use to its nearest visible declaration.
+    - Reject unknown names, duplicates in one scope, and names that shadow an
+      outer one.
+    - Recognize the handful of uses that must wait for stage 5's type
+      information.
+    - Check that the program has exactly one valid `main`.
+
 ## What this stage is for
 
 Name resolution answers one question for every name the program uses: which
@@ -134,8 +146,8 @@ fn main() {
 The declarations are `Point`, its fields `x` and `y`, the functions `shift`
 and `main`, the parameters `point` and `amount`, and the locals `moved`,
 `start` and `end`. Everything else that looks like a name is a use: `Point`
-in the parameter type and in the two struct expressions, `point`, `amount`,
-`moved`, `start`, `end`, `shift`, and `print`.
+in the parameter type, the return type and the two struct expressions, `point`,
+`amount`, `moved`, `start`, `end`, `shift`, and `print`.
 
 The [language tour](../../language-tour/10-declarations.md#declaration-quick-reference)
 lists the five kinds of declaration Vortex v0.1 has. Functions and structs
@@ -149,6 +161,13 @@ once the compiler knows that `point` is a `Point`, and that is a fact about
 types. The [expressions chapter](../../specification/expressions.md#59-postfix-expressions)
 gives that check to type checking. More on this in
 [names that wait for types](#names-that-wait-for-types).
+
+??? check "`Point` is written five times in the program above. How many of those does this stage have to resolve?"
+
+    Four. `struct Point` is the one declaration. The parameter type
+    `point: Point`, the return type `-> Point` and the two struct expressions
+    are all uses of it. A name written as a type needs resolving as much
+    as a name in an expression.
 
 ## Scopes nest
 
@@ -217,6 +236,12 @@ fn main() {
 <figcaption>Figure 1. Scopes as nested boxes. The use of <code>factor</code> is not declared in the inner block, so the lookup moves outward to the function scope of <code>scale</code>, which holds its parameters and the locals of its body. If no scope out to the built-in one declared it, <code>factor</code> would be an unknown name.</figcaption>
 </figure>
 
+Searching from the inside out, one scope at a time, is the whole algorithm.
+The next example does exactly that over a stack of scopes, though its scopes
+hold configuration settings rather than program names:
+
+--8<-- "includes/examples/build-v0.1/stage-4-names-and-scopes/nested_lookup.cpp.md"
+
 The same rules explain why a block keeps its variables to itself. The tour's
 example:
 
@@ -252,6 +277,13 @@ fn main() {
     let total = 10;
 }
 ```
+
+??? check "Why does `print(total); let total = 10;` fail, when `total` is declared in the same block as the `print`?"
+
+    Because a local is visible only after its complete declaration. At the
+    point of the `print`, no scope in reach has declared `total` yet, so the
+    lookup fails exactly as if `total` were never declared at all in that
+    block.
 
 ## What the symbol table must answer
 
@@ -340,10 +372,23 @@ when it arrived. The
 allows "optional notes pointing to related declarations", and a duplicate is
 the clearest case for one: point at the second, and add a note at the first.
 
+Catching a duplicate is one lookup, done at the moment a declaration arrives:
+try to add the name to the current scope, and see whether it was already
+there. The next example does this on a simpler problem, using the return
+value a standard container already gives you for exactly this question:
+
+--8<-- "includes/examples/build-v0.1/stage-4-names-and-scopes/duplicate_insert.cpp.md"
+
 **Shadowing.** An inner scope declaring a name that is visible from an outer
 scope. Neither declaration is a duplicate, because they are in different
 scopes, but Vortex rejects the inner one as a name error, reported there with a
 note at the outer one ([decision record](../../decisions/names.md#d2)).
+
+??? check "Inside `main`, one block is followed by another, and each declares `let count`. Is the second `count` shadowing the first?"
+
+    No. Shadowing needs the earlier declaration to be visible where the new
+    one appears. Once the first block ends, its `count` is gone, so the second
+    block's `count` hides nothing and is allowed.
 
 ## Naming decisions this stage enforces {#decisions-vortex-has-not-made-yet}
 
@@ -427,6 +472,21 @@ file, including above its declaration
 function written below it, a function may call itself, two functions may call
 each other, and a parameter or field type may name a struct declared later.
 Name resolution must accept all four; write a test for each.
+
+A single walk that resolves each name as it meets it cannot do this: it would
+fail on a name used above its declaration. The usual cure is to record every
+top-level name before resolving any use. The next example shows the
+difference on a smaller problem, jumps between labelled steps, where a jump may
+name a label written below it:
+
+--8<-- "includes/examples/build-v0.1/stage-4-names-and-scopes/two_pass_forward_refs.cpp.md"
+
+??? check "A function's body uses a helper function written below it, and also a local declared a few lines below the use. Which use is an error?"
+
+    Only the local. Every top-level function and struct name is visible
+    throughout the file, including above its own declaration. A local becomes
+    visible only after its complete declaration, so using it earlier is an
+    unknown name.
 
 ### Where `print` lives
 
@@ -660,6 +720,33 @@ links each use of `total` to it without reporting anything.
 **Reporting at the wrong place.** A duplicate is reported at the second
 declaration, not the first. An unknown name is reported at the use, not at
 the end of the function. The span is half the message.
+
+## Key ideas
+
+!!! recap
+
+    - **What does name resolution link every use to?** Exactly one
+      declaration, or it reports why it could not.
+    - **In which direction does a lookup search nested scopes?** From the
+      innermost scope outward, stopping at the first scope that declares the
+      name.
+    - **Where is a duplicate-name error reported?** At the second
+      declaration, with a note at the first.
+    - **What makes an inner declaration shadowing rather than a fresh name?**
+      Its name is still visible from an outer scope that is currently open;
+      Vortex rejects that as a name error.
+    - **Why is `end.x`'s `x` left unresolved by this stage?** Which field it
+      names depends on the type of `end`, and this stage does not know types.
+    - **Why can `main` call a function defined later in the file?** Every
+      top-level function and struct name is visible throughout the file,
+      above and below its own declaration.
+    - **What happens when a file declares `main` twice?** It is reported once,
+      as an ordinary duplicate-declaration name error at the second `main`,
+      and the separate entry-point check is skipped for it.
+
+## Where this comes back
+
+--8<-- "includes/next/compiler__guide__stage-4-names-and-scopes.md"
 
 ## How others teach this stage
 

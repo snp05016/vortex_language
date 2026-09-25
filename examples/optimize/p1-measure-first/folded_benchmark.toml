@@ -1,0 +1,5 @@
+flags = ["-passes=default<O2>"]
+follows = [
+  "https://github.com/google/benchmark/blob/main/docs/user_guide.md",
+  "https://llvm.org/docs/LangRef.html",
+]

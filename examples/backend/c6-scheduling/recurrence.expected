@@ -1,0 +1,4 @@
+loop       ResMII  RecMII  II cycles per output
+1 column        1       4   4              4.00
+4 columns       4       4   4              1.00
+8 columns       8       4   8              1.00

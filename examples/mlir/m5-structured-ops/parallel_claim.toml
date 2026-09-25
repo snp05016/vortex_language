@@ -1,0 +1,5 @@
+flags = ["--convert-linalg-to-parallel-loops"]
+follows = [
+  "https://mlir.llvm.org/docs/Dialects/Linalg/",
+  "https://mlir.llvm.org/docs/Passes/",
+]

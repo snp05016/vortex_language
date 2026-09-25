@@ -1,0 +1,16 @@
+; ModuleID = 'optimistic.ll'
+source_filename = "optimistic.ll"
+
+define i32 @flip(i32 %n) {
+entry:
+  br label %loop
+
+loop:                                             ; preds = %loop, %entry
+  %i = phi i32 [ 0, %entry ], [ %i.next, %loop ]
+  %i.next = add i32 %i, 1
+  %done = icmp sge i32 %i.next, %n
+  br i1 %done, label %exit, label %loop
+
+exit:                                             ; preds = %loop
+  ret i32 1
+}

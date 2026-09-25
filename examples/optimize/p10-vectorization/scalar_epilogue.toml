@@ -1,0 +1,4 @@
+flags = ["-passes=loop-vectorize", "-force-vector-width=4", "-force-vector-interleave=1"]
+follows = [
+  "https://llvm.org/docs/Vectorizers.html#epilogue-vectorization",
+]

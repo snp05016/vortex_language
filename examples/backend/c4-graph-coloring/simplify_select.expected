@@ -1,0 +1,23 @@
+Chaitin (spill on stuck):
+  stuck; spill s outright (degree 4)
+  simplify p (degree 2 < 3)
+  simplify q (degree 1 < 3)
+  simplify r (degree 1 < 3)
+  simplify t (degree 0 < 3)
+  select t: color 0
+  select r: color 1
+  select q: color 0
+  select p: color 1
+  result: 1 spill(s)
+Briggs (optimistic):
+  stuck; push s anyway (degree 4)
+  simplify p (degree 2 < 3)
+  simplify q (degree 1 < 3)
+  simplify r (degree 1 < 3)
+  simplify t (degree 0 < 3)
+  select t: color 0
+  select r: color 1
+  select q: color 0
+  select p: color 1
+  select s: color 2
+  result: every node colored, no spills

@@ -1,0 +1,10 @@
+gpu        latency  throughput  in flight
+G80-GT200       24           8        192
+GF100           18          32        576
+GF104           18          48        864
+
+ilp  predicted threads  measured threads (GTX480)
+  1                576               576
+  2                288               320
+  3                192               256
+  4                144               192

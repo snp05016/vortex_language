@@ -24,6 +24,8 @@ values[index]
 x > y
 ```
 
+--8<-- "includes/remember/language-tour__08-expressions.md"
+
 ## Expression quick reference
 
 | Form | Syntax example | Result |
@@ -87,6 +89,11 @@ The lexer recognizes scalar literals.
 The parser (the stage that checks how tokens fit together) wraps them in
 expression nodes, and type checking determines or verifies their Vortex types.
 
+??? check "In a call `square(4)` where `square` takes an `f32` parameter, what type does the literal `4` have?"
+
+    `f32`, not the default `i32`. An integer literal takes whatever type its
+    surroundings ask for; here that is the parameter's declared type.
+
 ## Name expressions
 
 Writing the name of a variable reads its value:
@@ -146,6 +153,12 @@ operand. Reference analysis additionally checks addressability, mutability, and
 where the reference appears: `&value` and `&mut value` may be written only as a
 whole call argument or as the initializer of a `let` without `mut`
 ([decision](../decisions/references.md#d41)).
+
+??? check "Can a reference expression such as `&value` be stored in a struct field?"
+
+    No. A reference expression may appear only as a whole call argument or as
+    the complete initializer of a `let` without `mut`. Anywhere else, such as
+    a struct field value, it is a type error.
 
 ## Arithmetic expressions
 
@@ -275,6 +288,13 @@ like integer overflow, any other count is a checked error
 ([record 34](../decisions/diagnostics.md#d34)). Bits that `<<` pushes out are
 dropped, which is not overflow. `>>` keeps the sign of a signed value:
 `-8 >> 1` is -4 ([why](../decisions/operators.md#d22)).
+
+??? check "Is `mask << 32` valid when `mask` has type `u32`?"
+
+    No. The rule applies to every integer type, not only `i32`: the shift
+    count must be less than the bit width of the left operand's type, 32 for
+    `u32` as well. A count of 32 or more is a checked error, the same kind of
+    failure as integer overflow.
 
 ## Grouped expressions
 
@@ -496,6 +516,12 @@ first word: those type names are keywords, so `f32(` always starts a cast, and
 `bool(flag)` is a syntax error.
 ([Why casts are written this way](../decisions/numbers.md#d1).)
 
+??? check "In `i32(50000.0)`, does the literal `50000.0` first become `f64`?"
+
+    No. A cast gives the value inside it no type, so the literal keeps its
+    default type, `f32`; the cast then converts that `f32` to `i32`. Only an
+    annotation such as `let x: f64 = 50000.0;` would make the literal `f64`.
+
 ## Operator precedence
 
 Precedence decides how operators group when parentheses are not used.
@@ -590,3 +616,33 @@ Answers:
 4. Invalid unless `count` is `bool`.
 5. Valid struct expression when `Point` declares exactly the fields `x` and
    `y`, both with a floating-point type.
+
+## Key ideas
+
+!!! recap
+
+    - **What is the difference between an expression and a statement?** An
+      expression produces a value; a statement performs an action. A complete
+      expression never ends in `;`, its containing statement supplies that.
+    - **Does a whole-number literal ever become a float on its own?** No.
+      Write `1.0`, not `1`, where a float is expected; Vortex never converts a
+      value to another type automatically.
+    - **What is `-7 % 2`?** -1. Integer division truncates toward zero and
+      `%` takes the sign of the left operand.
+    - **What decides how operators group when there are no parentheses?**
+      Precedence. It never changes evaluation order, which is always left to
+      right.
+    - **Which dimensions are allowed in a repeat-array expression, such as
+      `[0.0; n]`?** Only integer constant expressions built from literals,
+      `+`, `-`, `*`, `/`, `%` and parentheses; a name or a call is invalid.
+    - **When is an out-of-range index caught during compilation instead of
+      while the program runs?** Only when the index is made only of integer
+      literals, such as `values[3]`; an index that is a name or expression
+      with a name is checked at run time.
+    - **What can a cast convert to?** Only one of the five numeric types
+      `i32`, `u32`, `usize`, `f32` and `f64`; `bool`, `char` and `String` are
+      never cast targets.
+
+## Where this comes back
+
+--8<-- "includes/next/language-tour__08-expressions.md"

@@ -1,0 +1,5 @@
+flags = ["-ffp-contract=off"]
+follows = [
+  "https://suif.stanford.edu/papers/wolf91a.pdf",
+  "https://doi.org/10.1145/106972.106981",
+]

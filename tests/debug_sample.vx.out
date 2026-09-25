@@ -1,0 +1,45 @@
+Tokenizing /Users/saumya/vortex/tests/sample.vx
+
+Token kind: fn, Location: 30-32
+Token kind: main, Location: 33-37
+Token kind: (, Location: 37-38
+Token kind: ), Location: 38-39
+Token kind: {, Location: 40-41
+Token kind: let, Location: 90-93
+Token kind: value, Location: 94-99
+Token kind: :, Location: 99-100
+Token kind: i32, Location: 101-104
+Token kind: =, Location: 105-106
+Token kind: 10, Location: 107-109
+Token kind: ;, Location: 109-110
+Token kind: let, Location: 115-118
+Token kind: result, Location: 119-125
+Token kind: =, Location: 126-127
+Token kind: value, Location: 128-133
+Token kind: +, Location: 134-135
+Token kind: 5, Location: 136-137
+Token kind: ;, Location: 137-138
+Token kind: }, Location: 139-140
+
+ Debugging tokens:
+KW_FN, Location: [30, 2], Text: fn
+IDENTIFIER, Location: [33, 4], Text: main
+PUNC_LPAREN, Location: [37, 1], Text: (
+PUNC_RPAREN, Location: [38, 1], Text: )
+PUNC_LBRACE, Location: [40, 1], Text: {
+KW_LET, Location: [90, 3], Text: let
+IDENTIFIER, Location: [94, 5], Text: value
+PUNC_COLON, Location: [99, 1], Text: :
+KW_I32, Location: [101, 3], Text: i32
+OP_ASSIGN, Location: [105, 1], Text: =
+LIT_INT, Location: [107, 2], Text: 10
+PUNC_SEMICOLON, Location: [109, 1], Text: ;
+KW_LET, Location: [115, 3], Text: let
+IDENTIFIER, Location: [119, 6], Text: result
+OP_ASSIGN, Location: [126, 1], Text: =
+IDENTIFIER, Location: [128, 5], Text: value
+OP_PLUS, Location: [134, 1], Text: +
+LIT_INT, Location: [136, 1], Text: 5
+PUNC_SEMICOLON, Location: [137, 1], Text: ;
+PUNC_RBRACE, Location: [139, 1], Text: }
+EOF_TOKEN, Location: [141, 0], Text: 

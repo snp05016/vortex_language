@@ -1,0 +1,14 @@
+lazy binding
+  resolver: slot 0 now holds square
+  square(3) = 9
+  square(4) = 16
+  resolver: slot 1 now holds negate
+  negate(5) = -5
+  square(6) = 36
+  lookups: 2 for 4 calls
+eager binding
+  square(3) = 9
+  square(4) = 16
+  negate(5) = -5
+  square(6) = 36
+  lookups: 3 for 4 calls

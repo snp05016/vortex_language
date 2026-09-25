@@ -1,0 +1,7 @@
+fmul, fadd: 0p+0
+fmadd:      1p-24
+a = 2, b = 3, c = 1:
+  fmadd    7
+  fmsub   -5
+  fnmadd  -7
+  fnmsub   5

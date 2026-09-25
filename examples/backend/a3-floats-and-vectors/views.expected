@@ -1,0 +1,7 @@
+s0 view of d0 = 1 + 2^-52: 0x00000001
+fcvt s0, d0 of the same:   0x3f800000
+q0 before fadd s0, s0, s0: 1 2 3 4
+q0 after:                  2 0 0 0
+fadd v0.4s: 11 22 33 44
+FPCR.RMode = 0 (0 is round to nearest, ties to even)
+FPCR.FZ    = 0 (0 keeps subnormal numbers)

@@ -1,0 +1,46 @@
+module {
+  func.func @matmul_clamp(%arg0: memref<1x8x16xf32, strided<[?, ?, ?], offset: ?>>, %arg1: memref<1x16x4xf32, strided<[?, ?, ?], offset: ?>>) -> memref<1x8x4xf32> {
+    %c16 = arith.constant 16 : index
+    %c4 = arith.constant 4 : index
+    %c8 = arith.constant 8 : index
+    %c1 = arith.constant 1 : index
+    %c0 = arith.constant 0 : index
+    %cst = arith.constant 3.40282347E+38 : f32
+    %cst_0 = arith.constant 0.000000e+00 : f32
+    %alloc = memref.alloc() {alignment = 64 : i64} : memref<1x8x4xf32>
+    scf.for %arg2 = %c0 to %c1 step %c1 {
+      scf.for %arg3 = %c0 to %c8 step %c1 {
+        scf.for %arg4 = %c0 to %c4 step %c1 {
+          memref.store %cst_0, %alloc[%arg2, %arg3, %arg4] : memref<1x8x4xf32>
+        }
+      }
+    }
+    scf.for %arg2 = %c0 to %c1 step %c1 {
+      scf.for %arg3 = %c0 to %c8 step %c1 {
+        scf.for %arg4 = %c0 to %c4 step %c1 {
+          scf.for %arg5 = %c0 to %c16 step %c1 {
+            %0 = memref.load %arg0[%arg2, %arg3, %arg5] : memref<1x8x16xf32, strided<[?, ?, ?], offset: ?>>
+            %1 = memref.load %arg1[%arg2, %arg5, %arg4] : memref<1x16x4xf32, strided<[?, ?, ?], offset: ?>>
+            %2 = memref.load %alloc[%arg2, %arg3, %arg4] : memref<1x8x4xf32>
+            %3 = arith.mulf %0, %1 : f32
+            %4 = arith.addf %2, %3 : f32
+            memref.store %4, %alloc[%arg2, %arg3, %arg4] : memref<1x8x4xf32>
+          }
+        }
+      }
+    }
+    %alloc_1 = memref.alloc() {alignment = 64 : i64} : memref<1x8x4xf32>
+    scf.for %arg2 = %c0 to %c1 step %c1 {
+      scf.for %arg3 = %c0 to %c8 step %c1 {
+        scf.for %arg4 = %c0 to %c4 step %c1 {
+          %0 = memref.load %alloc[%c0, %arg3, %arg4] : memref<1x8x4xf32>
+          %1 = arith.minimumf %0, %cst : f32
+          %2 = arith.maximumf %1, %cst_0 : f32
+          memref.store %2, %alloc_1[%arg2, %arg3, %arg4] : memref<1x8x4xf32>
+        }
+      }
+    }
+    return %alloc_1 : memref<1x8x4xf32>
+  }
+}
+

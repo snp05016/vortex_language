@@ -1,0 +1,5 @@
+parts  sum        bits      same as serial
+    1  204.8033   434ccda5  yes
+    2  204.798    434ccc4b  no
+    4  204.7992   434ccc96  no
+    8  204.8005   434cccee  no

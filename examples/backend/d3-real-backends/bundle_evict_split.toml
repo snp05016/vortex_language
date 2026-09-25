@@ -1,0 +1,7 @@
+# The take, evict or split loop of a backtracking allocator, following
+# Fallin's regalloc2 post ("Step 3: Assignment Loop and Splitting
+# Heuristics") and regalloc2's ION.md (priority, weight, split strategy).
+follows = [
+  "https://cfallin.org/blog/2022/06/09/cranelift-regalloc2/",
+  "https://github.com/bytecodealliance/regalloc2/blob/main/doc/ION.md",
+]

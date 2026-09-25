@@ -1,0 +1,55 @@
+#map = affine_map<(d0)[s0, s1] -> ((d0 - s0) ceildiv s1)>
+#map1 = affine_map<(d0)[s0, s1] -> (d0 * s0 + s1)>
+module attributes {gpu.container_module} {
+  func.func @matmul4(%arg0: memref<4x4xf32>, %arg1: memref<4x4xf32>, %arg2: memref<4x4xf32>) {
+    %c0 = arith.constant 0 : index
+    %c4 = arith.constant 4 : index
+    %c1 = arith.constant 1 : index
+    %c0_0 = arith.constant 0 : index
+    %c2 = arith.constant 2 : index
+    %c2_1 = arith.constant 2 : index
+    %0 = arith.muli %c1, %c2 : index
+    %1 = arith.muli %c1, %c2_1 : index
+    %c1_2 = arith.constant 1 : index
+    %2 = affine.apply #map(%c4)[%c0, %0]
+    %3 = affine.apply #map(%c4)[%c0, %1]
+    %4 = affine.apply #map(%0)[%c0_0, %c1]
+    %5 = affine.apply #map(%1)[%c0_0, %c1]
+    gpu.launch_func  @matmul4_kernel::@matmul4_kernel blocks in (%2, %3, %c1_2) threads in (%4, %5, %c1_2)  args(%0 : index, %c0 : index, %1 : index, %c1 : index, %c0_0 : index, %arg0 : memref<4x4xf32>, %arg1 : memref<4x4xf32>, %arg2 : memref<4x4xf32>, %c4 : index)
+    return
+  }
+  gpu.module @matmul4_kernel {
+    gpu.func @matmul4_kernel(%arg0: index, %arg1: index, %arg2: index, %arg3: index, %arg4: index, %arg5: memref<4x4xf32>, %arg6: memref<4x4xf32>, %arg7: memref<4x4xf32>, %arg8: index) kernel {
+      %0 = gpu.block_id  x
+      %1 = gpu.block_id  y
+      %2 = gpu.block_id  z
+      %3 = gpu.thread_id  x
+      %4 = gpu.thread_id  y
+      %5 = gpu.thread_id  z
+      %6 = gpu.grid_dim  x
+      %7 = gpu.grid_dim  y
+      %8 = gpu.grid_dim  z
+      %9 = gpu.block_dim  x
+      %10 = gpu.block_dim  y
+      %11 = gpu.block_dim  z
+      cf.br ^bb1
+    ^bb1:  // pred: ^bb0
+      %12 = affine.apply #map1(%0)[%arg0, %arg1]
+      %13 = affine.apply #map1(%1)[%arg2, %arg1]
+      %14 = affine.apply #map1(%3)[%arg3, %arg4]
+      %15 = affine.apply #map1(%4)[%arg3, %arg4]
+      %16 = arith.addi %14, %12 : index
+      %17 = arith.addi %15, %13 : index
+      scf.for %arg9 = %arg1 to %arg8 step %arg3 {
+        %18 = memref.load %arg5[%16, %arg9] : memref<4x4xf32>
+        %19 = memref.load %arg6[%arg9, %17] : memref<4x4xf32>
+        %20 = memref.load %arg7[%16, %17] : memref<4x4xf32>
+        %21 = arith.mulf %18, %19 : f32
+        %22 = arith.addf %20, %21 : f32
+        memref.store %22, %arg7[%16, %17] : memref<4x4xf32>
+      }
+      gpu.return
+    }
+  }
+}
+

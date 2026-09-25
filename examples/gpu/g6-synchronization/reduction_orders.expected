@@ -1,0 +1,4 @@
+sequential 0x41600000 = 14
+tree       0x41e80000 = 29
+butterfly  0x41e80000 = 29
+segmented  0x41b80000 = 23

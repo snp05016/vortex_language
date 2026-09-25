@@ -1,0 +1,5 @@
+flags = ["--convert-gpu-to-spirv"]
+follows = [
+  "https://mlir.llvm.org/docs/Dialects/SPIR-V/",
+  "https://registry.khronos.org/SPIR-V/specs/unified1/SPIRV.html#ShaderValidation",
+]

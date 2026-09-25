@@ -1,0 +1,4 @@
+2147483646 + 1 -> 2147483647
+2147483647 + 1 -> overflow
+u32(1): the C++ cast gives 1, the range check says fits
+u32(-1): the C++ cast gives 4294967295, the range check says overflow

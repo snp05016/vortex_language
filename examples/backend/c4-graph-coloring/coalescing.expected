@@ -1,0 +1,6 @@
+graph 1: coalesce p and q?
+  Briggs: merge   George: merge   merged graph 3-colorable: yes
+graph 2: coalesce a and b?
+  Briggs: refuse   George: refuse   merged graph 3-colorable: no
+graph 3: coalesce u and v?
+  Briggs: refuse   George: merge   merged graph 3-colorable: yes

@@ -1,0 +1,4 @@
+follows = [
+  "https://standards.ieee.org/ieee/754/6210/",
+  "https://en.cppreference.com/w/cpp/numeric/math/fma",
+]

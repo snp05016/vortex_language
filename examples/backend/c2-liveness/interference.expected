@@ -1,0 +1,9 @@
+instr  code        live-in  live-out
+    0  a = load p  p        a
+    1  c = a       a        ac
+    2  b = a + 1   ac       bc
+    3  d = b * c   bc       bc
+    4  e = c + b   bc       e
+    5  return e    e        -
+edges by the definition rule: b-c b-d c-d
+edges by the live-in shortcut: a-c b-c

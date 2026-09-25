@@ -1,0 +1,5 @@
+micro-kernel calls: 48
+multiply-adds: 864 (m*n*k = 630)
+elements copied into packed b: 108 (k*n = 90)
+elements copied into packed a: 144 (m*k = 63)
+bitwise equal to naive: 70 of 70

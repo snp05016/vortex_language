@@ -1,0 +1,10 @@
+; ModuleID = 'address.ll'
+source_filename = "address.ll"
+
+define i32 @element(ptr %a, i64 %i, i64 %j) {
+  %row = mul i64 %i, 4
+  %index = add i64 %row, %j
+  %p = getelementptr i32, ptr %a, i64 %index
+  %v = load i32, ptr %p, align 4
+  ret i32 %v
+}

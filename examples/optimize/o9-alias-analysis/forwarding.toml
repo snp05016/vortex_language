@@ -1,0 +1,6 @@
+flags = ["-passes=early-cse<memssa>"]
+follows = [
+  "https://llvm.org/docs/AliasAnalysis.html",
+  "https://llvm.org/docs/MemorySSA.html",
+  "https://github.com/llvm/llvm-project/blob/release/18.x/llvm/lib/Transforms/Scalar/EarlyCSE.cpp",
+]

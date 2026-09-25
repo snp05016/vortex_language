@@ -1,0 +1,4 @@
+follows = [
+  "https://en.cppreference.com/cpp/container/vector",
+  "https://en.cppreference.com/cpp/utility/format/format",
+]

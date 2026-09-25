@@ -1,0 +1,5 @@
+flags = ["-passes=sccp"]
+follows = [
+  "https://llvm.org/docs/Passes.html",
+  "https://doi.org/10.1145/103135.103136",
+]

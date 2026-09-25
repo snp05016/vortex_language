@@ -1,0 +1,6 @@
+flags = ["--canonicalize"]
+follows = [
+  "https://mlir.llvm.org/docs/Dialects/GPU/#gputhread_id-gputhreadidop",
+  "https://mlir.llvm.org/docs/Dialects/GPU/#gpufunc-gpugpufuncop",
+  "https://mlir.llvm.org/docs/Canonicalization/",
+]

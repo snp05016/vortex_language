@@ -1,0 +1,5 @@
+# Apple's red zone: Apple-only, so this file is not checked on Linux arm64.
+platforms = ["macos-arm64"]
+follows = [
+  "https://developer.apple.com/documentation/xcode/writing-arm64-code-for-apple-platforms",
+]

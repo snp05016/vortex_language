@@ -4,3 +4,29 @@
 
     - [Project: Implementation roadmap](../../roadmap.md): *release*, *release gate*, *test suite*, *end-to-end test* and 2 more
     - [Compiler internals: Architecture](../architecture.md): *end-to-end test*
+
+??? info "Concept map for this page"
+
+    ```mermaid
+    flowchart LR
+      c_release["release"]
+      c_release_gate["release gate"]
+      c_version_number["version number"]
+      c_test_suite["test suite"]
+      c_valid_and_invalid_pair["valid and invalid pair"]
+      c_end_to_end_test["end-to-end test"]
+      c_clean_checkout["clean checkout"]
+      c_known_limitation["known limitation"]
+      c_implementation_limit["implementation limit"]
+      c_expected_failure["expected failure"]
+      c_clean_configuration["clean configuration"]
+      c_invalid_program["invalid program"]
+      c_release --> c_release_gate
+      c_test_suite --> c_release_gate
+      c_release --> c_version_number
+      c_invalid_program --> c_valid_and_invalid_pair
+      c_clean_configuration --> c_clean_checkout
+      c_release --> c_known_limitation
+      c_known_limitation --> c_implementation_limit
+      c_known_limitation --> c_expected_failure
+    ```

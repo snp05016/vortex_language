@@ -1,0 +1,9 @@
+1  live after: a
+2  live after: a b
+3  live after: a b c
+4  live after: c d
+5  live after: e
+6  live after:
+most values live at once: 3
+edges from definitions (4): a-b a-c b-c c-d
+edges from interval overlap (8): a-b a-c a-d b-c b-d c-d c-e d-e

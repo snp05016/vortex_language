@@ -5,6 +5,38 @@
     - [0. The workbench](stage-0-workbench.md): *compiler*, *source code*
     - [1. Source text and error messages](stage-1-source-and-diagnostics.md): *compiler*
     - [4. Names and scopes](stage-4-names-and-scopes.md): *compiler*
-    - [5. Types and language rules](stage-5-types-and-rules.md): *compiler*
     - [6. The first machine code](stage-6-first-machine-code.md): *compiler*, *source code*, *machine code*
     - [8. Data in memory](stage-8-data-in-memory.md): *machine code*, *code generator*
+    - [C. Software stack: G9. GPU compilers inside LLVM](../../gpu/g9-gpu-compilers-in-llvm.md): *machine code*, *code generator*
+
+??? info "Concept map for this page"
+
+    ```mermaid
+    flowchart LR
+      c_compiler["compiler"]
+      c_source_code["source code"]
+      c_machine_code["machine code"]
+      c_code_generator["code generator"]
+      c_build["build"]
+      c_driver["driver"]
+      c_diagnostic["diagnostic"]
+      c_source_file["source file"]
+      c_assembly_language["assembly language"]
+      c_back_end["back end"]
+      c_bytecode["bytecode"]
+      c_executable["executable"]
+      c_compiler --> c_source_code
+      c_compiler --> c_machine_code
+      c_compiler --> c_code_generator
+      c_machine_code --> c_code_generator
+      c_compiler --> c_build
+      c_source_code --> c_build
+      c_compiler --> c_driver
+      c_compiler --> c_diagnostic
+      c_source_file --> c_diagnostic
+      c_source_code --> c_source_file
+      c_machine_code --> c_assembly_language
+      c_machine_code --> c_back_end
+      c_machine_code --> c_bytecode
+      c_machine_code --> c_executable
+    ```

@@ -33,6 +33,15 @@ it.
 | [11. Formal grammar](grammar.md) | What is the exact EBNF accepted by the parser? |
 | [12. Glossary](glossary.md) | What do recurring specification terms mean? |
 
+## Rule identifiers
+
+Each normative rule starts with a short identifier, such as
+`arrays.dims.const`: the chapter, the topic, then the rule. Identifiers are
+stable. A rule keeps its identifier when its wording is edited, and an
+identifier is never reused for a different rule, so a test, a decision record
+or a guide page can point at one exact rule with a link of the form
+`arrays.md#<identifier>`.
+
 ## Normative vocabulary
 
 The words **must**, **must not**, **required**, and **shall** state requirements.

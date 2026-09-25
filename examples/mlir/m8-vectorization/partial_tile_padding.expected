@@ -1,0 +1,11 @@
+module {
+  func.func @read_partial_tile(%arg0: memref<3x3xf32>) -> vector<2x2xf32> {
+    %c2 = arith.constant 2 : index
+    %cst = arith.constant -1.000000e+00 : f32
+    %cst_0 = arith.constant dense<-1.000000e+00> : vector<2x2xf32>
+    %0 = vector.transfer_read %arg0[%c2, %c2], %cst : memref<3x3xf32>, vector<2xf32>
+    %1 = vector.insert %0, %cst_0 [0] : vector<2xf32> into vector<2x2xf32>
+    return %1 : vector<2x2xf32>
+  }
+}
+

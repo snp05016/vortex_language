@@ -1,0 +1,6 @@
+follows = [
+  "https://en.cppreference.com/w/cpp/numeric/math/isnan.html",
+  "https://en.cppreference.com/w/cpp/numeric/math/isinf.html",
+  "https://en.cppreference.com/w/cpp/numeric/math/trunc.html",
+  "https://en.cppreference.com/w/cpp/types/numeric_limits.html",
+]

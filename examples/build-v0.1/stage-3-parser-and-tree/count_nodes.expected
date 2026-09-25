@@ -1,0 +1,2 @@
+parse tree (11 nodes): (additive (multiplicative (primary 2)) + (multiplicative (primary 3) * (primary 4)))
+syntax tree (5 nodes): (+ 2 (* 3 4))

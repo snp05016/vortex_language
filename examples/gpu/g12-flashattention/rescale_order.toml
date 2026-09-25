@@ -1,0 +1,4 @@
+flags = ["-ffp-contract=off"]
+follows = [
+  "https://arxiv.org/abs/1805.02867",
+]

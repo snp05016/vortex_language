@@ -1,0 +1,49 @@
+#map = affine_map<(d0) -> (d0)>
+#map1 = affine_map<(d0) -> (d0 + 1)>
+#map2 = affine_map<(d0) -> (d0 + 2)>
+#map3 = affine_map<(d0) -> (d0 + 4)>
+module {
+  func.func @small(%arg0: memref<64x64xf32>, %arg1: memref<64x64xf32>, %arg2: memref<64x64xf32>) {
+    affine.for %arg3 = 0 to 64 {
+      affine.for %arg4 = 0 to 64 {
+        affine.for %arg5 = 0 to 64 step 2 {
+          affine.for %arg6 = #map(%arg3) to #map1(%arg3) {
+            affine.for %arg7 = #map(%arg4) to #map1(%arg4) {
+              affine.for %arg8 = #map(%arg5) to #map2(%arg5) {
+                %0 = affine.load %arg0[%arg6, %arg7] : memref<64x64xf32>
+                %1 = affine.load %arg1[%arg7, %arg8] : memref<64x64xf32>
+                %2 = affine.load %arg2[%arg6, %arg8] : memref<64x64xf32>
+                %3 = arith.mulf %0, %1 : f32
+                %4 = arith.addf %2, %3 : f32
+                affine.store %4, %arg2[%arg6, %arg8] : memref<64x64xf32>
+              }
+            }
+          }
+        }
+      }
+    }
+    return
+  }
+  func.func @large(%arg0: memref<256x256xf32>, %arg1: memref<256x256xf32>, %arg2: memref<256x256xf32>) {
+    affine.for %arg3 = 0 to 256 step 2 {
+      affine.for %arg4 = 0 to 256 step 2 {
+        affine.for %arg5 = 0 to 256 step 4 {
+          affine.for %arg6 = #map(%arg3) to #map2(%arg3) {
+            affine.for %arg7 = #map(%arg4) to #map2(%arg4) {
+              affine.for %arg8 = #map(%arg5) to #map3(%arg5) {
+                %0 = affine.load %arg0[%arg6, %arg7] : memref<256x256xf32>
+                %1 = affine.load %arg1[%arg7, %arg8] : memref<256x256xf32>
+                %2 = affine.load %arg2[%arg6, %arg8] : memref<256x256xf32>
+                %3 = arith.mulf %0, %1 : f32
+                %4 = arith.addf %2, %3 : f32
+                affine.store %4, %arg2[%arg6, %arg8] : memref<256x256xf32>
+              }
+            }
+          }
+        }
+      }
+    }
+    return
+  }
+}
+

@@ -1,0 +1,4 @@
+follows = [
+  "https://en.cppreference.com/w/cpp/container/array.html",
+  "https://en.cppreference.com/w/cpp/container/array/operator_cmp.html",
+]

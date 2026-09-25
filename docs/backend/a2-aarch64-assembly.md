@@ -97,7 +97,7 @@ instruction works on. In AArch64 assembly the destination comes first, so
 the line.
 
 <figure class="vx-figure">
-<svg viewBox="0 0 760 260" role="img" aria-labelledby="a2-line-title a2-line-desc">
+<svg viewBox="0 0 760 260" role="img" aria-label="The parts of one line of AArch64 assembly" aria-describedby="a2-line-desc">
 <title id="a2-line-title">The parts of one line of AArch64 assembly</title>
 <desc id="a2-line-desc">The line "1: ldr w10, [x0, x9, lsl #2] // w10 = v[i]" split into five boxes, each labelled underneath. "1:" is a label, which names this address. "ldr" is the mnemonic, which chooses the instruction. "w10" is the destination, the register written. "[x0, x9, lsl #2]" is the address operand, x0 plus x9 shifted left by two, where the load reads. The comment after two slashes is skipped by the assembler. A second row shows the directive ".p2align 2", an order to the assembler rather than an instruction, and "add w0, w0, w1", which reads destination first as w0 = w0 + w1.</desc>
 <g class="vx-seq" style="--vx-i: 0; --vx-n: 5">
@@ -150,7 +150,7 @@ the line.
 <text class="vx-text" x="596" y="210">destination first</text>
 <text class="vx-mono" x="596" y="230">w0 = w0 + w1</text>
 </svg>
-<figcaption>Figure 1. One line from the loop example later in this chapter, taken apart. A line may hold a label, a mnemonic with its operands, and a comment, in that order. Lines that start with a dot are directives for the assembler. Operands put the destination first, and a memory address always sits in square brackets.</figcaption>
+<figcaption>Figure 1. One line from the loop example later in this chapter, taken apart. A line may hold a label, a mnemonic with its operands, and a comment, in that order. Lines that start with a dot are directives for the assembler. Operands put the destination first, and an address built from registers sits in square brackets.</figcaption>
 </figure>
 
 The lines that start with a dot are **directives**: orders to the assembler,
@@ -260,8 +260,8 @@ register name sets the size, as it does for arithmetic: `ldr w0, [...]` moves
 `strb w0, [...]` stores the low byte of `w0` and `strh` its low 16
 bits[^arm-size].
 
-The address always sits in square brackets, and the forms it can take inside
-them are the addressing modes[^arm-addr]:
+The address sits in square brackets, and the forms it can take inside them
+are the addressing modes[^arm-addr]:
 
 | Written | Address used | Base register afterwards |
 | --- | --- | --- |
@@ -332,7 +332,7 @@ starts[^a64-madd]. The load then adds `col` scaled by 4 on its own. Figure 2
 follows the three steps for `row = 1` and `col = 2`.
 
 <figure class="vx-figure">
-<svg viewBox="0 0 760 320" role="img" aria-labelledby="a2-cell-title a2-cell-desc">
+<svg viewBox="0 0 760 320" role="img" aria-label="Finding element [1][2] of a 2 by 3 matrix" aria-describedby="a2-cell-desc">
 <title id="a2-cell-title">Finding element [1][2] of a 2 by 3 matrix</title>
 <desc id="a2-cell-desc">Six int32 cells in a row, m[0][0] to m[1][2], at byte offsets 0, 4, 8, 12, 16 and 20 from the address in x0. Row 0 covers the first three cells and row 1 the last three. Three instructions find m[1][2]. mov w8, #12 puts the row stride of 12 bytes in w8. madd x8, x1, x8, x0 computes 1 times 12 plus x0, the start of row 1 at byte 12. ldr w0, [x8, x2, lsl #2] adds 2 times 4 and reads the cell at byte 20, which holds 6.</desc>
 <text class="vx-text-muted" x="230" y="18" text-anchor="middle">row 0</text>
@@ -491,7 +491,7 @@ same; only the notation differs. So does the section for read-only data:
 `__TEXT,__const` on Mach-O[^apple-as] and `.rodata` on ELF[^gabi].
 
 <figure class="vx-figure">
-<svg viewBox="0 0 760 290" role="img" aria-labelledby="a2-adrp-title a2-adrp-desc">
+<svg viewBox="0 0 760 290" role="img" aria-label="How adrp and add reach a global table" aria-describedby="a2-adrp-desc">
 <title id="a2-adrp-title">How adrp and add reach a global table</title>
 <desc id="a2-adrp-desc">Memory drawn as a row of 4 KiB pages. The adrp instruction sits in the first page, and the table squares sits inside the last page. An arrow arcs from adrp to the start of the table's page: adrp computes that page's address by counting pages from its own page, within plus or minus 4 GB. A short arrow then moves from the page start to the table: add supplies the offset inside the page, the low 12 bits. Below, the pair is spelled for Mach-O as adrp x8, _squares@PAGE and add x8, x8, _squares@PAGEOFF, and for ELF as adrp x8, squares and add x8, x8, :lo12:squares.</desc>
 <path class="vx-line" d="M105 78 C 105 0, 590 0, 590 58"/>
@@ -545,9 +545,18 @@ A variable defined in another file or library is often one step further away.
 For `extern int shared_count;` Apple clang 21 wrote
 `adrp x8, _shared_count@GOTPAGE` and `ldr x8, [x8, _shared_count@GOTPAGEOFF]`:
 the pair loads the variable's address from the **global offset table** (GOT),
-a table of addresses that the linker and loader fill in[^xnu-reloc], and a
-third instruction loads the value. ELF listings spell the same requests `:got:`
-and `:got_lo12:`[^aaelf64]; [B4](b4-linking-and-loading.md) explains the table.
+a table of addresses that the linker and loader fill in[^aaelf64], and a third
+instruction loads the value. Mach-O has its own relocations for this
+pair[^xnu-reloc], and ELF listings spell the same requests `:got:` and
+`:got_lo12:`[^aaelf64]; [B4](b4-linking-and-loading.md) explains the table.
+
+The full Apple listing adds two things around those three instructions: a
+label such as `Lloh0:` in front of each, and a line
+`.loh AdrpLdrGotLdr Lloh0, Lloh1, Lloh2` after the function. These are
+**linker optimization hints**. They tell the linker which instructions compute
+one address, so that it can replace them with cheaper ones once the final
+addresses are known; only Mach-O object files record them[^llvm-loh]. When you
+read for meaning, skip them as you skip the `.cfi` lines.
 
 Tutorials written for Linux often load an address with the pseudo-instruction
 `ldr x1, =msg` instead. The assembler puts the address in a **literal pool**, a
@@ -557,18 +566,28 @@ with "Found illegal text-relocations"), so on Apple platforms use the `adrp`
 and `add` pair.
 
 Constants meet the same limit on a smaller scale. `mov w8, #12` works because
-12 fits in 16 bits: this form of `mov` is another name for `movz`, which moves
-a 16-bit immediate into a register[^a64-mov]. A wider constant is usually built
-16 bits at a time with `movk` (move wide with keep), which writes 16 bits at a
-shift of 0 or 16 in a `w` register, or also 32 or 48 in an `x` register, and
-leaves the other bits alone[^a64-movk]. The 32-bit constant `0x12345678`
-therefore takes two instructions, `mov w0, #0x5678` followed by
-`movk w0, #0x1234, lsl #16`, and such pairs appear wherever a compiler needs a
-large integer.
+12 fits in 16 bits. This `mov` is an **alias**, a second name for another
+instruction: here `movz`, which moves a 16-bit immediate into a
+register[^a64-mov]. Assemblers accept aliases, disassemblers print them, and
+Arm's manual gives each one a page that names the instruction behind it.
+
+A wider constant is usually built 16 bits at a time with `movk` (move wide with
+keep), which writes 16 bits at a shift of 0 or 16 in a `w` register, or also 32
+or 48 in an `x` register, and leaves the other bits alone[^a64-movk]. The
+32-bit constant `0x12345678` therefore takes two instructions,
+`mov w0, #0x5678` followed by `movk w0, #0x1234, lsl #16`.
+
+Arithmetic immediates are narrower still. `add` and `sub` take an unsigned
+12-bit immediate, 0 to 4095, which may be shifted left by 12[^a64-add-imm]. The
+assembler accepts `add x0, x0, #4096` and encodes it as
+`add x0, x0, #1, lsl #12`, but 4097 fits neither form: for `x + 4097`, Apple
+clang 21 wrote `mov w8, #4097` and then `add x0, x0, x8`. A back end meets this
+limit whenever it moves `sp` by the size of a large stack frame
+([A5](a5-stack-frames.md)).
 
 ## Flags and conditions
 
-Conditional branches on AArch64 do not compare anything themselves. A
+A conditional branch such as `b.lo` does not compare anything itself. A
 comparison runs first and records four facts about its result in the
 **condition flags**; a later instruction reads the flags and decides. The next
 example makes the flags visible. It is the bounds check that Vortex needs for
@@ -599,9 +618,9 @@ them[^arm-cc][^arm-carry][^arm-v]:
   operation below $-2^{31}$ or at $2^{31}$ and above?
 
 Only instructions that ask to set the flags do so: `adds` and `subs` set them,
-while `add` and `sub` leave them alone[^arm-cc]. `cmp x9, #4` is another name
-for `subs xzr, x9, #4`: it subtracts, sends the result to the zero register,
-and keeps only the flags. `tst` does the same for a bitwise AND[^arm-cc]. Some
+while `add` and `sub` leave them alone[^arm-cc]. `cmp x9, #4` is an alias of
+`subs xzr, x9, #4`: it subtracts, sends the result to the zero register, and
+keeps only the flags. `tst` does the same for a bitwise AND[^arm-cc]. Some
 branches skip the flags altogether, such as `cbz x0, label`, which branches
 when `x0` is zero and leaves the flags unchanged[^a64-cbz]; its partner `cbnz`
 branches when the register is not zero.
@@ -631,7 +650,7 @@ unsigned, the 64-bit pattern of -1 is $2^{64} - 1$, which is not lower than 4.
 The same bits have two orders and give two answers, and Figure 4 draws both.
 
 <figure class="vx-figure">
-<svg viewBox="0 0 760 280" role="img" aria-labelledby="a2-order-title a2-order-desc">
+<svg viewBox="0 0 760 280" role="img" aria-label="The same 64-bit values in signed and unsigned order" aria-describedby="a2-order-desc">
 <title id="a2-order-title">The same 64-bit values in signed and unsigned order</title>
 <desc id="a2-order-desc">Two number lines. The upper line orders 64-bit values as signed numbers, from minus 2 to the 63 on the left to 2 to the 63 minus 1 on the right, with minus 2 to the 31, minus 1, 0 and 4 marked. A dashed region covers everything left of 4: a signed test for less than 4 accepts all of it, negative indexes included, while only 0 to 3 are in bounds. The lower line orders the same values as unsigned numbers, from 0 to 2 to the 64 minus 1, with 4, 2 to the 63 and 2 to the 64 minus 2 to the 31 marked; only 0 to 3 lie below 4. Two flowing arrows carry minus 2 to the 31 and minus 1 from the upper line to 2 to the 64 minus 2 to the 31 and 2 to the 64 minus 1 on the lower line, above 2 to the 63, where an unsigned test rejects them.</desc>
 <text class="vx-text" x="40" y="26">signed order: lt, le, gt, ge</text>
@@ -973,7 +992,8 @@ differences this chapter has met:
 | Vector operands in clang's listings | `smax.4s v0, v1, v2` | `smax v0.4s, v1.4s, v2.4s` |
 | Compiler's local labels | `LBB0_2` | `.LBB0_2` |
 | Function type and size | not written | `.type`, `.size` |
-| Last line of the file | `.subsections_via_symbols` | nothing extra |
+| Linker optimization hints | `Lloh0:` labels and `.loh` lines[^llvm-loh] | not written |
+| Cutting the file into blocks at symbols | `.subsections_via_symbols`, on the last line[^apple-as] | not written |
 | Register `x18` | reserved: never use it[^apple-arm64] | platform-specific; portable code avoids it[^aapcs64] |
 
 The two listings can also differ in ways that have nothing to do with the file
@@ -997,13 +1017,16 @@ A procedure that works on any compiler's output:
    on Linux. Everything up to the next function's label belongs to it.
 2. **Skip the bookkeeping.** Lines that start with `.cfi` describe the
    function to unwinders and debuggers. Leave them for a second reading.
-3. **Mark the blocks.** Every label starts a basic block and every branch ends
-   one ([stage 7](../compiler/guide/stage-7-functions-and-control-flow.md#basic-blocks-and-control-flow-graphs)).
-   Draw the arrows between blocks before reading any arithmetic; a loop shows
-   up as an arrow that points backwards.
+3. **Mark the blocks.** Every branch ends a basic block, and every branch
+   target, such as `LBB0_2:` or `1:`, starts one
+   ([stage 7](../compiler/guide/stage-7-functions-and-control-flow.md#basic-blocks-and-control-flow-graphs)).
+   Clang also marks a block that no branch targets with a comment such as
+   `; %bb.1:`. Draw the arrows between blocks before reading any arithmetic;
+   a loop shows up as an arrow that points backwards.
 4. **Name the registers.** Write down what each argument register holds on
    entry and follow each value forward. A `w` destination means a 32-bit
-   value, and a `sxtw` or `mov w` means a widening.
+   value; a `sxtw`, or a `w` result that is later read through its `x` name,
+   means a widening.
 5. **Read each condition.** For each flag-setting instruction, find the
    instruction that reads the flags and translate the pair back into a source
    comparison with the condition table. `lo`, `ls`, `hi` and `hs` mean the
@@ -1035,8 +1058,9 @@ A procedure that works on any compiler's output:
        unsigned condition (`hs`, `hi`, `lo` or `ls`, in a branch, a `cset` or
        a `csel`) on the way to the runtime-error path. A signed condition
        there would let a negative index through ([record 12](../decisions/arrays.md#d12)).
-       If your back end rejects negative indexes with a separate test of the
-       sign bit, check for that test instead.
+       If your back end rejects negative indexes with a separate test first
+       (of the sign bit, or a signed comparison with zero), check for that
+       test and for the comparison with the extent that follows it.
     3. **Results go through the reference.** With optimization off, at least
        one `f32` store (`str` or `stur` with an `s` register) uses a base
        register other than `sp` and `x29`. That is the write into `c`, whose
@@ -1058,8 +1082,8 @@ A procedure that works on any compiler's output:
     **Done when** the test passes on your unmodified compiler on macOS arm64
     (and on Linux arm64, if your CI runs there), and fails for each of three
     deliberate, temporary breakages: contraction allowed, one bounds check
-    switched to a signed condition, and the store of `sum` redirected to a
-    stack slot. A test that has never failed has not shown that it can.
+    changed so that a negative index would pass (for a single comparison,
+    a signed condition), and the store of `sum` redirected to a stack slot. A test that has never failed has not shown that it can.
 
     Try the first breakage at both optimization levels, because fusion
     depends on the level: on an Apple M4 Pro with macOS 27 in September 2026,
@@ -1103,9 +1127,10 @@ HelloSilicon collects the Apple-specific traps in one place.
 
 [^aapcs64]: Arm, "Procedure Call Standard for the Arm 64-bit Architecture (AArch64)", release 2025Q4: the general-purpose register table, the rule that unused bits of an argument register are unspecified, the NZCV flags being undefined on entry to and return from a public interface, and the use of IP0 and IP1 by linker veneers. <https://github.com/ARM-software/abi-aa/blob/main/aapcs64/aapcs64.rst>
 [^aaelf64]: Arm, "ELF for the Arm 64-bit Architecture (AArch64)", release 2025Q4: the relocation tables, including the range checks for branch relocations, and the `adrp` sequences with `:lo12:`, `:got:` and `:got_lo12:`. <https://github.com/ARM-software/abi-aa/blob/main/aaelf64/aaelf64.rst>
-[^apple-arm64]: Apple, "Writing ARM64 code for Apple platforms". <https://developer.apple.com/documentation/xcode/writing-arm64-code-for-apple-platforms>
+[^apple-arm64]: Apple, "Writing ARM64 code for Apple platforms", Apple Developer Documentation: the platforms reserve `x18`. <https://developer.apple.com/documentation/xcode/writing-arm64-code-for-apple-platforms>
 [^apple-as]: Apple, *OS X Assembler Reference*, chapter "Assembler Directives" (archived documentation, 2009): `.section`, `.text`, `.const`, `.globl`, `.p2align`, the data directives `.byte`, `.short`, `.long` and `.quad`, and `.subsections_via_symbols`. <https://developer.apple.com/library/archive/documentation/DeveloperTools/Reference/Assembler/040-Assembler_Directives/asm_directives.html>
 [^xnu-reloc]: Apple, XNU source, `EXTERNAL_HEADERS/mach-o/arm64/reloc.h`: the Mach-O relocation types for arm64, including the page and page-offset relocations for GOT slots. <https://github.com/apple-oss-distributions/xnu/blob/main/EXTERNAL_HEADERS/mach-o/arm64/reloc.h>
+[^llvm-loh]: LLVM Project, `llvm/lib/Target/AArch64/AArch64CollectLOH.cpp`, header comment: what a linker optimization hint (LOH) describes, the `.loh` forms, and which object writer records them. <https://github.com/llvm/llvm-project/blob/main/llvm/lib/Target/AArch64/AArch64CollectLOH.cpp>
 [^hellosilicon]: HelloSilicon, GitHub repository `below/HelloSilicon`: the examples of Stephen Smith's *Programming with 64-Bit ARM Assembly Language* adapted to Apple Silicon, with notes on `@PAGE` and `@PAGEOFF`, the underscore prefix, `x18`, the linker's refusal of `LDR X1, =symbol`, and labels in inline assembly. <https://github.com/below/HelloSilicon>
 [^gabi]: *System V Application Binary Interface*, draft of 10 June 2013, chapter 4, "Sections": the special sections `.text` and `.rodata`. <https://www.sco.com/developers/gabi/latest/ch4.sheader.html>
 [^arm-gpr]: Arm, "Learn the architecture: A64 Instruction Set Architecture Guide" (102374, version 1.3), "Registers in AArch64 - general-purpose registers". <https://developer.arm.com/documentation/102374/0103/Registers-in-AArch64---general-purpose-registers>
@@ -1116,9 +1141,9 @@ HelloSilicon collects the Apple-specific traps in one place.
 [^arm-cc]: Arm, A64 Instruction Set Architecture Guide (102374, version 1.3), "Program flow - generating condition code". <https://developer.arm.com/documentation/102374/0103/Program-flow---generating-condition-code>
 [^arm-csel]: Arm, A64 Instruction Set Architecture Guide (102374, version 1.3), "Program flow - conditional select instructions". <https://developer.arm.com/documentation/102374/0103/Program-flow---conditional-select-instructions>
 [^arm-call]: Arm, A64 Instruction Set Architecture Guide (102374, version 1.3), "Function calls". <https://developer.arm.com/documentation/102374/0103/Function-calls>
-[^arm-suffix]: Arm, "Arm Instruction Set Reference Guide" (100076, version 1.0), "Condition code suffixes and related flags", table D1-2. <https://developer.arm.com/documentation/100076/0100/A64-Instruction-Set-Reference/Condition-Codes/Condition-code-suffixes-and-related-flags>
-[^arm-carry]: Arm, "Arm Instruction Set Reference Guide" (100076, version 1.0), "Carry flag". <https://developer.arm.com/documentation/100076/0100/A64-Instruction-Set-Reference/Condition-Codes/Carry-flag>
-[^arm-v]: Arm, "Arm Instruction Set Reference Guide" (100076, version 1.0), "Overflow flag". <https://developer.arm.com/documentation/100076/0100/A64-Instruction-Set-Reference/Condition-Codes/Overflow-flag>
+[^arm-suffix]: Arm, "Arm Instruction Set Reference Guide" (100076, version 1.0, now marked superseded), "Condition code suffixes and related flags", table D1-2. <https://developer.arm.com/documentation/100076/0100/A64-Instruction-Set-Reference/Condition-Codes/Condition-code-suffixes-and-related-flags>
+[^arm-carry]: Arm, "Arm Instruction Set Reference Guide" (100076, version 1.0, now marked superseded), "Carry flag". <https://developer.arm.com/documentation/100076/0100/A64-Instruction-Set-Reference/Condition-Codes/Carry-flag>
+[^arm-v]: Arm, "Arm Instruction Set Reference Guide" (100076, version 1.0, now marked superseded), "Overflow flag". <https://developer.arm.com/documentation/100076/0100/A64-Instruction-Set-Reference/Condition-Codes/Overflow-flag>
 [^a64-index]: Arm, "Arm A-profile A64 Instruction Set Architecture" (DDI 0602, 2026-06), "Base Instructions", the alphabetic index: the instructions described as "setting flags" include no multiply. <https://developer.arm.com/documentation/ddi0602/2026-06/Base-Instructions>
 [^a64-ldr-reg]: Arm, DDI 0602 (2026-06), "LDR (register)". <https://developer.arm.com/documentation/ddi0602/2026-06/Base-Instructions/LDR--register---Load-register--register-->
 [^a64-ldr-imm]: Arm, DDI 0602 (2026-06), "LDR (immediate)". <https://developer.arm.com/documentation/ddi0602/2026-06/Base-Instructions/LDR--immediate---Load-register--immediate-->
@@ -1126,6 +1151,7 @@ HelloSilicon collects the Apple-specific traps in one place.
 [^a64-madd]: Arm, DDI 0602 (2026-06), "MADD". <https://developer.arm.com/documentation/ddi0602/2026-06/Base-Instructions/MADD--Multiply-add->
 [^a64-mov]: Arm, DDI 0602 (2026-06), "MOV (wide immediate)", an alias of MOVZ. <https://developer.arm.com/documentation/ddi0602/2026-06/Base-Instructions/MOV--wide-immediate---Move-wide-immediate-value--an-alias-of-MOVZ->
 [^a64-movk]: Arm, DDI 0602 (2026-06), "MOVK". <https://developer.arm.com/documentation/ddi0602/2026-06/Base-Instructions/MOVK--Move-wide-with-keep->
+[^a64-add-imm]: Arm, DDI 0602 (2026-06), "ADD (immediate)": an unsigned 12-bit immediate, optionally shifted left by 12. <https://developer.arm.com/documentation/ddi0602/2026-06/Base-Instructions/ADD--immediate---Add-immediate-value->
 [^a64-sxtw]: Arm, DDI 0602 (2026-06), "SXTW". <https://developer.arm.com/documentation/ddi0602/2026-06/Base-Instructions/SXTW--Sign-extend-word--an-alias-of-SBFM->
 [^a64-adrp]: Arm, DDI 0602 (2026-06), "ADRP". <https://developer.arm.com/documentation/ddi0602/2026-06/Base-Instructions/ADRP--Form-PC-relative-address-to-4KB-page->
 [^a64-cset]: Arm, DDI 0602 (2026-06), "CSET", an alias of CSINC. <https://developer.arm.com/documentation/ddi0602/2026-06/Base-Instructions/CSET--Conditional-set--an-alias-of-CSINC->

@@ -1,0 +1,9 @@
+# Hand-written AArch64 inside a C++ harness: built and run on arm64 only.
+platforms = ["macos-arm64", "linux-arm64"]
+follows = [
+  "https://github.com/ARM-software/abi-aa/blob/main/aapcs64/aapcs64.rst",
+  "https://developer.arm.com/documentation/102474/0100/Fundamentals-of-Armv8-Neon-technology/Registers--vectors--lanes-and-elements",
+  "https://developer.arm.com/documentation/ddi0602/2026-06/SIMD-FP-Instructions/FMOV--general---Floating-point-move-to-or-from-general-purpose-register-without-conversion-",
+  "https://developer.arm.com/documentation/ddi0602/2026-06/SIMD-FP-Instructions/FCVT--Floating-point-convert-precision--scalar--",
+  "https://developer.arm.com/documentation/ddi0601/2026-06/AArch64-Registers/FPCR--Floating-point-Control-Register",
+]

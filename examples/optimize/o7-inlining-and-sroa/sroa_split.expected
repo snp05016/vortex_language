@@ -1,0 +1,51 @@
+; ModuleID = 'sroa_split.ll'
+source_filename = "sroa_split.ll"
+
+%Vec2 = type { float, float }
+
+declare void @inspect(ptr)
+
+; Function Attrs: nocallback nofree nounwind willreturn memory(argmem: readwrite)
+declare void @llvm.memcpy.p0.p0.i64(ptr noalias nocapture writeonly, ptr noalias nocapture readonly, i64, i1 immarg) #0
+
+define float @length_squared(float %x, float %y) {
+entry:
+  %aa = fmul float %x, %x
+  %bb = fmul float %y, %y
+  %sum = fadd float %aa, %bb
+  ret float %sum
+}
+
+define float @copy_then_read(float %x, float %y) {
+entry:
+  ret float %y
+}
+
+define float @pick(i64 %i) {
+entry:
+  %a = alloca [4 x float], align 4
+  %a.1 = getelementptr inbounds [4 x float], ptr %a, i64 0, i64 1
+  %a.2 = getelementptr inbounds [4 x float], ptr %a, i64 0, i64 2
+  %a.3 = getelementptr inbounds [4 x float], ptr %a, i64 0, i64 3
+  store float 1.000000e+00, ptr %a, align 4
+  store float 2.000000e+00, ptr %a.1, align 4
+  store float 3.000000e+00, ptr %a.2, align 4
+  store float 4.000000e+00, ptr %a.3, align 4
+  %a.i = getelementptr inbounds [4 x float], ptr %a, i64 0, i64 %i
+  %r = load float, ptr %a.i, align 4
+  ret float %r
+}
+
+define float @shown(float %x, float %y) {
+entry:
+  %v = alloca %Vec2, align 8
+  %v.x = getelementptr inbounds %Vec2, ptr %v, i32 0, i32 0
+  %v.y = getelementptr inbounds %Vec2, ptr %v, i32 0, i32 1
+  store float %x, ptr %v.x, align 4
+  store float %y, ptr %v.y, align 4
+  call void @inspect(ptr %v)
+  %r = load float, ptr %v.x, align 4
+  ret float %r
+}
+
+attributes #0 = { nocallback nofree nounwind willreturn memory(argmem: readwrite) }

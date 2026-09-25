@@ -8,3 +8,35 @@
     - [Build v0.1: 5. Types and language rules](../compiler/guide/stage-5-types-and-rules.md): *declaration*, *function*, *parameter*, *argument*
     - [Build v0.1: 7. Functions and control flow](../compiler/guide/stage-7-functions-and-control-flow.md): *declaration*, *nested scope*, *function*, *parameter* and 1 more
     - [Compiler internals: Parser design](../compiler/parser-design.md): *declaration*, *function*, *parameter*, *field*
+
+??? info "Concept map for this page"
+
+    ```mermaid
+    flowchart LR
+      c_declaration["declaration"]
+      c_scope["scope"]
+      c_nested_scope["nested scope"]
+      c_duplicate_declaration["duplicate declaration"]
+      c_shadowing["shadowing"]
+      c_function["function"]
+      c_parameter["parameter"]
+      c_argument["argument"]
+      c_field["field"]
+      c_identifier["identifier"]
+      c_struct["struct"]
+      c_type["type"]
+      c_identifier --> c_declaration
+      c_declaration --> c_scope
+      c_scope --> c_nested_scope
+      c_declaration --> c_duplicate_declaration
+      c_scope --> c_duplicate_declaration
+      c_nested_scope --> c_shadowing
+      c_declaration --> c_shadowing
+      c_declaration --> c_function
+      c_function --> c_parameter
+      c_type --> c_parameter
+      c_parameter --> c_argument
+      c_struct --> c_field
+      c_declaration --> c_field
+      c_type --> c_struct
+    ```

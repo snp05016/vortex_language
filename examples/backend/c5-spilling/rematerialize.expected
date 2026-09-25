@@ -1,0 +1,7 @@
+4 later uses
+value             reload: instrs mem | recompute: instrs mem
+small constant             5   5 |             4   0
+64-bit constant            5   5 |            16   0
+global address             5   5 |             8   0
+stack address              5   5 |             4   0
+running sum                5   5 | not possible

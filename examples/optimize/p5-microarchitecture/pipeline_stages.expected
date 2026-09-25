@@ -1,0 +1,7 @@
+instr          F  D  E  W
+mul t0          0  1  2  3
+add t1          1  2  3  4
+add t2, t1      2  5  6  7
+mul t3          5  6  7  8
+cycles: 9 pipelined with the hazard, 7 pipelined without it, 16 run one at a time
+the hazard cost 2 cycle(s) of bubble

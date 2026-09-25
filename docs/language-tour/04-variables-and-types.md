@@ -6,6 +6,8 @@ After this chapter, you should be able to declare mutable and immutable local
 variables, choose a v0.1 type, read an array type, and explain how the compiler
 validates dimension expressions and references.
 
+--8<-- "includes/remember/language-tour__04-variables-and-types.md"
+
 ## Variable declaration syntax
 
 ```text
@@ -73,6 +75,13 @@ The compiler cannot infer a type when there is no starting value:
 // statements: syntax error
 let x; // syntax error: no starting value
 ```
+
+??? check "Why is `let x;` rejected before type checking ever runs?"
+
+    Every local variable declaration needs an initializer expression, and
+    `let x;` has none, so there is no expression for the compiler to read a
+    type from. The parser rejects the declaration as a syntax error, so type
+    checking never gets a chance to run on it.
 
 Every value in Vortex has a type. A type tells the compiler what kind of value it
 is working with and how that value can be used.
@@ -161,6 +170,12 @@ let name = "Vortex" % 2; // type error: remainder requires integers
 
 A literal that is too large for its type is also a type error, for example
 `let big: i32 = 3000000000;`. ([Why](../decisions/numbers.md#d32).)
+
+??? check "In `let limit: u32 = 100; let next = limit - 1;`, what type does the literal `1` have?"
+
+    `u32`. `1` is combined with `limit` by `-`, and `limit` is not itself a
+    literal-only value, so `1` takes its type from that peer instead of
+    falling back to the `i32` default.
 
 The lexer (the [compiler stage](../compiler/guide/index.md) that splits source text into tokens) records the integer literal. Unary `-` is represented separately.
 Type checking chooses or verifies `i32`, `u32`, or `usize` and checks whether
@@ -418,6 +433,13 @@ when comparing array shapes ([decision](../decisions/arrays.md#d52)). Code
 generation receives the final fixed layout rather than evaluating dimensions at
 runtime.
 
+??? check "Is `[f32; 4 / 0]` a valid array type?"
+
+    No. A dimension is evaluated with checked `usize` arithmetic at compile
+    time, and dividing by zero fails that check. The array type is a
+    constant-evaluation error, the same category as a dimension that names a
+    variable or holds a non-integer value.
+
 ## Repeat array expressions
 
 Vortex also supports Rust-style repeat array expressions. Write one value, then
@@ -542,6 +564,12 @@ parsing) checks addressability, mutability, where references appear, and
 conflicting access. A reference is a
 safe connection to an existing value, not a raw integer memory address.
 
+??? check "While `shared` borrows `value`, can `value` still be read directly, and can a second `&value` be taken?"
+
+    Yes to both. A shared borrow only rules out assigning to the borrowed
+    variable or borrowing it with `&mut`; reading the variable directly and
+    taking further shared references are both still allowed.
+
 ## Practice and self-check
 
 For each declaration, decide whether it is valid and, if it is not, name the
@@ -565,3 +593,32 @@ Answers:
    evaluates the dimensions of the array type.
 4. Invalid: a type error, found by type checking, because `'V'` is a `char`,
    not a `String`.
+
+## Key ideas
+
+!!! recap "Questions you can now answer"
+
+    - **What decides a local variable's type when you write `let width = 128;`
+      with no annotation?** The initializer expression; here the literal's
+      default type, `i32`, since nothing else decides it.
+    - **Why must every array dimension be an integer constant expression,
+      never a variable?** v0.1 has no named constants, and the compiler must
+      evaluate every dimension before it can compare array types or lay out
+      storage.
+    - **What is the default type of a floating-point literal, and when does it
+      change?** `f32`, unless a peer operand or an expected type (such as a
+      `let`'s written type) gives it `f64` instead.
+    - **Why can a call to a `void` function only stand alone as a
+      statement?** `void` describes the absence of a value, so the call
+      cannot appear anywhere a value is required, such as an initializer or
+      an argument.
+    - **What must be true of every field when constructing a struct value?**
+      Every declared field must be present exactly once, with the right
+      type; unknown, missing, repeated, or mistyped fields are type errors.
+    - **What can a shared reference (`&T`) never do that a mutable reference
+      (`&mut T`) can?** Write to its referent. Only a `&mut` reference lets
+      the function change the value it refers to.
+
+## Where this comes back
+
+--8<-- "includes/next/language-tour__04-variables-and-types.md"

@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "docs",
+      "runtimeExecutable": "/private/tmp/claude-501/-Users-saumya-vortex/a80fe933-4d4a-4bfd-9636-7466aacc890c/scratchpad/zvenv/bin/zensical",
+      "runtimeArgs": ["serve", "-f", "mkdocs.yml", "--dev-addr", "127.0.0.1:8766"],
+      "port": 8766
+    }
+  ]
+}

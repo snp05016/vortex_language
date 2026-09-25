@@ -1,0 +1,5 @@
+flags = ["-passes=loop-interchange", "-disable-output", "-pass-remarks-output=-"]
+follows = [
+  "https://github.com/llvm/llvm-project/blob/release/18.x/llvm/lib/Analysis/DependenceAnalysis.cpp",
+  "https://github.com/llvm/llvm-project/blob/release/18.x/llvm/lib/Transforms/Scalar/LoopInterchange.cpp",
+]

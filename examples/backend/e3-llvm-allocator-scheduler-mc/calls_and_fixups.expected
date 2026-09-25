@@ -1,0 +1,30 @@
+; ModuleID = 'calls_and_fixups.ll'
+source_filename = "calls_and_fixups.ll"
+
+declare void @external_sink(i32)
+
+define internal void @local_helper(i32 %x) {
+entry:
+  call void @external_sink(i32 %x)
+  ret void
+}
+
+define void @shared_helper(i32 %x) {
+entry:
+  call void @external_sink(i32 %x)
+  ret void
+}
+
+define void @caller(i32 %n) {
+entry:
+  %skip = icmp eq i32 %n, 0
+  br i1 %skip, label %done, label %work
+
+work:                                             ; preds = %entry
+  call void @local_helper(i32 %n)
+  call void @shared_helper(i32 %n)
+  br label %done
+
+done:                                             ; preds = %work, %entry
+  ret void
+}

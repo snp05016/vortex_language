@@ -1,0 +1,12 @@
+AArch64 (bl): sp mod 16 at entry = 0
+   0 stack-argument bytes: reserve 16, sp mod 16 at the call = 0, in the callee = 0
+   8 stack-argument bytes: reserve 32, sp mod 16 at the call = 0, in the callee = 0
+  16 stack-argument bytes: reserve 32, sp mod 16 at the call = 0, in the callee = 0
+  24 stack-argument bytes: reserve 48, sp mod 16 at the call = 0, in the callee = 0
+  32 stack-argument bytes: reserve 48, sp mod 16 at the call = 0, in the callee = 0
+x86-64 (call): sp mod 16 at entry = 8
+   0 stack-argument bytes: reserve  8, sp mod 16 at the call = 0, in the callee = 8
+   8 stack-argument bytes: reserve 24, sp mod 16 at the call = 0, in the callee = 8
+  16 stack-argument bytes: reserve 24, sp mod 16 at the call = 0, in the callee = 8
+  24 stack-argument bytes: reserve 40, sp mod 16 at the call = 0, in the callee = 8
+  32 stack-argument bytes: reserve 40, sp mod 16 at the call = 0, in the callee = 8

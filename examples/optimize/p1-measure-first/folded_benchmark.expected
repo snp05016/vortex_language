@@ -1,0 +1,40 @@
+; ModuleID = 'folded_benchmark.ll'
+source_filename = "folded_benchmark.ll"
+
+; Function Attrs: mustprogress nofree norecurse nosync nounwind willreturn memory(none)
+define noundef i64 @plain() local_unnamed_addr #0 {
+entry:
+  ret i64 70225
+}
+
+define i64 @guarded() local_unnamed_addr {
+entry:
+  %in = tail call i64 asm sideeffect "", "=r,0"(i64 42) #1
+  %a.i = mul i64 %in, %in
+  %b.i = xor i64 %a.i, 12345
+  tail call void asm sideeffect "", "r,~{memory}"(i64 %b.i) #1
+  %in.1 = tail call i64 asm sideeffect "", "=r,0"(i64 42) #1
+  %a.i.1 = mul i64 %in.1, %in.1
+  %b.i.1 = xor i64 %a.i.1, 12345
+  tail call void asm sideeffect "", "r,~{memory}"(i64 %b.i.1) #1
+  %total.next.1 = add i64 %b.i.1, %b.i
+  %in.2 = tail call i64 asm sideeffect "", "=r,0"(i64 42) #1
+  %a.i.2 = mul i64 %in.2, %in.2
+  %b.i.2 = xor i64 %a.i.2, 12345
+  tail call void asm sideeffect "", "r,~{memory}"(i64 %b.i.2) #1
+  %total.next.2 = add i64 %b.i.2, %total.next.1
+  %in.3 = tail call i64 asm sideeffect "", "=r,0"(i64 42) #1
+  %a.i.3 = mul i64 %in.3, %in.3
+  %b.i.3 = xor i64 %a.i.3, 12345
+  tail call void asm sideeffect "", "r,~{memory}"(i64 %b.i.3) #1
+  %total.next.3 = add i64 %b.i.3, %total.next.2
+  %in.4 = tail call i64 asm sideeffect "", "=r,0"(i64 42) #1
+  %a.i.4 = mul i64 %in.4, %in.4
+  %b.i.4 = xor i64 %a.i.4, 12345
+  tail call void asm sideeffect "", "r,~{memory}"(i64 %b.i.4) #1
+  %total.next.4 = add i64 %b.i.4, %total.next.3
+  ret i64 %total.next.4
+}
+
+attributes #0 = { mustprogress nofree norecurse nosync nounwind willreturn memory(none) }
+attributes #1 = { nounwind }

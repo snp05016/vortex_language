@@ -1,0 +1,7 @@
+flags = [
+    "--pass-pipeline=builtin.module(func.func(tosa-to-linalg-named,tosa-to-linalg))",
+]
+follows = [
+    "https://mlir.llvm.org/docs/Passes/",
+    "https://mlir.llvm.org/docs/Dialects/Linalg/",
+]

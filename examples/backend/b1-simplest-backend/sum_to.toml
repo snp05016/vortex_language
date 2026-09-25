@@ -1,0 +1,5 @@
+platforms = ["macos-arm64"]
+follows = [
+  "http://scheme2006.cs.uchicago.edu/11-ghuloum.pdf",
+  "https://developer.arm.com/documentation/ddi0602/latest",
+]

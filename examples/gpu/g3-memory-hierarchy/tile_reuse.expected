@@ -1,0 +1,9 @@
+N = 4: naive reads 128 values from device memory
+  T =  2: device     64 (1/2 of naive), shared    128, tiles    32 bytes, bits equal
+  T =  4: device     32 (1/4 of naive), shared    128, tiles   128 bytes, bits equal
+N = 64: naive reads 524288 values from device memory
+  T =  2: device 262144 (1/2 of naive), shared 524288, tiles    32 bytes, bits equal
+  T =  4: device 131072 (1/4 of naive), shared 524288, tiles   128 bytes, bits equal
+  T =  8: device  65536 (1/8 of naive), shared 524288, tiles   512 bytes, bits equal
+  T = 16: device  32768 (1/16 of naive), shared 524288, tiles  2048 bytes, bits equal
+  T = 32: device  16384 (1/32 of naive), shared 524288, tiles  8192 bytes, bits equal

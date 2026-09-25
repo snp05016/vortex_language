@@ -1,6 +1,6 @@
 # 4. Types and values
 
-Every Vortex expression has a type known before executable code is produced,
+<a class="vx-rule" id="types.general.every-expr-typed" href="#types.general.every-expr-typed">types.general.every-expr-typed</a> Every Vortex expression has a type known before executable code is produced,
 except a range, which is not a value in v0.1
 ([Expressions 5.8](expressions.md#58-ranges)). Types determine valid
 operations, storage layout, calling behavior, and the checks required by later
@@ -35,7 +35,7 @@ reference_type ::=
     "&", [ "mut" ], type ;
 ```
 
-Named types are preserved as identifiers until name resolution. The parser
+<a class="vx-rule" id="types.grammar.named-types-deferred" href="#types.grammar.named-types-deferred">types.grammar.named-types-deferred</a> Named types are preserved as identifiers until name resolution. The parser
 must not assume that an identifier names a struct merely because structs are
 the only user-defined type form in v0.1.
 
@@ -53,7 +53,7 @@ the only user-defined type form in v0.1.
 | `f64` | 64-bit floating-point number | Context only |
 | `String` | UTF-8 text value | String literal |
 
-`void` may appear only as a function's return type, written as `-> void` or
+<a class="vx-rule" id="types.void.restrictions" href="#types.void.restrictions">types.void.restrictions</a> `void` may appear only as a function's return type, written as `-> void` or
 implied by omitting the return type. Using it anywhere else, such as a
 parameter type, a `let` annotation, a struct field, an array element or a
 referenced type, is a type error. `void` has no values: a call to a `void`
@@ -72,7 +72,7 @@ The operators each kind of operand accepts:
 | `f32`, `f64` | yes | no | no | yes | yes | no |
 | `String`, arrays, structs | no | no | no | no | no | no |
 
-Both operands of a binary operator must have the same type, except the count
+<a class="vx-rule" id="types.operators.operand-types" href="#types.operators.operand-types">types.operators.operand-types</a> Both operands of a binary operator must have the same type, except the count
 of a shift ([Expressions](expressions.md#55-arithmetic-and-bitwise-expressions)).
 Unary `-` accepts `i32`, `f32` and `f64`, and unary `+` any numeric type. An
 operand of reference type reads the value it refers to.
@@ -80,26 +80,26 @@ operand of reference type reads the value it refers to.
 
 ### Literal typing {#literal-typing}
 
-An integer or floating literal has no type of its own; its context gives it
+<a class="vx-rule" id="types.literal.context-type" href="#types.literal.context-type">types.literal.context-type</a> An integer or floating literal has no type of its own; its context gives it
 one. An expression built only from literals, parentheses, and unary and binary
 operators is **literal-only**: `2 * (3 + 1)` is literal-only, while
 `count * 2` and `f64(1)` are not. A literal-only expression takes a
 **target type** from the first of these rules that applies:
 
-1. **Peer.** It is one operand of an arithmetic (`+ - * / %`), bitwise
+1. <a class="vx-rule" id="types.literal.target-peer" href="#types.literal.target-peer">types.literal.target-peer</a> **Peer.** It is one operand of an arithmetic (`+ - * / %`), bitwise
    (`& | ^`), equality or comparison operator, or one endpoint of a range, and
    the other operand is not literal-only. The target type is the other
    operand's type. A shift count is not an operand for this rule.
-2. **Expected type.** Its position expects a type: the written type of a
+2. <a class="vx-rule" id="types.literal.target-expected" href="#types.literal.target-expected">types.literal.target-expected</a> **Expected type.** Its position expects a type: the written type of a
    `let`; the type of an assignment or compound-assignment target; the
    parameter type, for a call argument; the function's result type, for a
    `return` value; the element type, for an element or the repeated value of
    an array expression whose array type is expected; the field type, for a
    field value in a struct expression; `usize`, for an array dimension.
-3. Otherwise it has no target type. The operand of a cast, an index, a shift
+3. <a class="vx-rule" id="types.literal.target-none" href="#types.literal.target-none">types.literal.target-none</a> Otherwise it has no target type. The operand of a cast, an index, a shift
    count and an argument to `print` have no expected type.
 
-The target type passes down through parentheses, unary `+`, `-` and `~`, both
+<a class="vx-rule" id="types.literal.target-propagation" href="#types.literal.target-propagation">types.literal.target-propagation</a> The target type passes down through parentheses, unary `+`, `-` and `~`, both
 operands of a binary arithmetic or bitwise operator, and the left operand of a
 shift, until it reaches each literal. A literal takes the target type when
 that type is of its own kind: an integer type for an integer literal, a
@@ -108,20 +108,20 @@ floating-point type for a floating literal. Any other literal takes its
 literal. The ordinary type rules then check the result, so
 `let ratio: f32 = 1;` is a type error.
 
-After a literal has its type, its value must be representable in that type
+<a class="vx-rule" id="types.literal.representable" href="#types.literal.representable">types.literal.representable</a> After a literal has its type, its value must be representable in that type
 ([4.3](#43-integers), [4.4](#44-floating-point-values)).
 [Decision record](../decisions/numbers.md#d31).
 
 ## 4.3 Integers
 
-`i32` represents signed values from `-2^31` through `2^31 - 1`. `u32`
+<a class="vx-rule" id="types.integers.ranges" href="#types.integers.ranges">types.integers.ranges</a> `i32` represents signed values from `-2^31` through `2^31 - 1`. `u32`
 represents values from `0` through `2^32 - 1`. `usize` represents nonnegative
 sizes and indices. Its width in bits is implementation-defined
 ([Conformance 1.6](conformance.md#16-implementation-defined-behavior)); every
 v0.1 target uses 64 bits, so there `usize` holds values from `0` through
 `2^64 - 1`. [Decision record](../decisions/numbers.md#d42).
 
-An integer literal has the type that [literal typing](#literal-typing) gives
+<a class="vx-rule" id="types.integers.literal-value" href="#types.integers.literal-value">types.integers.literal-value</a> An integer literal has the type that [literal typing](#literal-typing) gives
 it, `i32` by default. Its value must be representable in that type; otherwise
 the program has a type error at the literal. This includes values larger than
 any fixed-width integer, which the lexer accepts as ordinary tokens. When a
@@ -130,7 +130,7 @@ checked instead: `-2147483648` is a valid `i32`, while `2147483648` on its own
 is not. Unary `-` remains a separate operator in the syntax tree.
 [Decision record](../decisions/numbers.md#d32).
 
-Integer arithmetic, bitwise operations, shifts, remainder, and comparisons are
+<a class="vx-rule" id="types.integers.no-implicit-conversion" href="#types.integers.no-implicit-conversion">types.integers.no-implicit-conversion</a> Integer arithmetic, bitwise operations, shifts, remainder, and comparisons are
 available only where the operand types support them ([4.2](#42-primitive-types)).
 Vortex v0.1 has no implicit conversions between types. Only
 [literal typing](#literal-typing) chooses a type without a cast, and only a
@@ -139,7 +139,7 @@ Vortex v0.1 has no implicit conversions between types. Only
 
 ## 4.4 Floating-point values
 
-A floating literal has the type that [literal typing](#literal-typing) gives
+<a class="vx-rule" id="types.float.literal-rounding" href="#types.float.literal-rounding">types.float.literal-rounding</a> A floating literal has the type that [literal typing](#literal-typing) gives
 it, `f32` by default. Its exact decimal value is rounded once, to the nearest
 value of that type with ties to even; it is never rounded to another format
 first. A finite literal that rounds to an infinity is a type error at the
@@ -149,11 +149,11 @@ no expected type, so `f64(0.1)` converts the `f32` nearest to 0.1, while
 `let x: f64 = 0.1;` gives the `f64` nearest to 0.1.
 [Decision record](../decisions/numbers.md#d32).
 
-Floating-point values support arithmetic and compatible comparisons.
+<a class="vx-rule" id="types.float.supported-ops" href="#types.float.supported-ops">types.float.supported-ops</a> Floating-point values support arithmetic and compatible comparisons.
 Remainder, bitwise, and shift operations are not defined for floating-point
 values in v0.1.
 
-`f32` is the IEEE 754 binary32 format and `f64` is binary64. Each
+<a class="vx-rule" id="types.float.ieee-strictness" href="#types.float.ieee-strictness">types.float.ieee-strictness</a> `f32` is the IEEE 754 binary32 format and `f64` is binary64. Each
 floating-point operation (unary `-`; binary `+`, `-`, `*` and `/`; and each
 cast to a floating-point type) must produce the IEEE 754 result rounded to
 nearest with ties to even, in the operation's type. An implementation must not
@@ -164,7 +164,7 @@ The same holds for any floating-point value computed during compilation.
 Relaxed floating-point modes may be added in a future version only as an
 explicit opt-in. [Decision record](../decisions/numbers.md#d56).
 
-Floating-point arithmetic never causes a runtime error. A nonzero finite value
+<a class="vx-rule" id="types.float.special-values" href="#types.float.special-values">types.float.special-values</a> Floating-point arithmetic never causes a runtime error. A nonzero finite value
 divided by zero gives an infinity with the sign IEEE 754 specifies,
 `0.0 / 0.0` gives NaN (not a number), overflow gives an infinity, and
 operations on NaN and infinities follow IEEE 754. NaN is unordered: `==` with
@@ -176,22 +176,22 @@ writes NaN and the infinities as `NaN`, `inf` and `-inf`.
 
 ## 4.5 Boolean values
 
-`bool` has exactly two values, `true` and `false`. Vortex does not implicitly
+<a class="vx-rule" id="types.bool.values" href="#types.bool.values">types.bool.values</a> `bool` has exactly two values, `true` and `false`. Vortex does not implicitly
 interpret integers, pointers, strings, or collections as booleans. Conditions
 for `if` and `while` must have type `bool`.
 
-Logical `&&` and `||` short-circuit from left to right. `!` computes logical
+<a class="vx-rule" id="types.bool.logical-ops" href="#types.bool.logical-ops">types.bool.logical-ops</a> Logical `&&` and `||` short-circuit from left to right. `!` computes logical
 negation.
 
 ## 4.6 Characters and strings
 
-A `char` stores one Unicode scalar value: a Unicode code point other than a
+<a class="vx-rule" id="types.char.scalar-value" href="#types.char.scalar-value">types.char.scalar-value</a> A `char` stores one Unicode scalar value: a Unicode code point other than a
 surrogate (U+D800 to U+DFFF), as defined in
 [Lexical structure 2.1](lexical-structure.md#source-encoding). Its storage
 representation is an implementation detail, but it is not defined as a
 one-byte value ([decision 15](../decisions/lexical.md#d15)).
 
-A `String` stores UTF-8 text. Vortex v0.1 specifies string literals and
+<a class="vx-rule" id="types.string.utf8-scope" href="#types.string.utf8-scope">types.string.utf8-scope</a> A `String` stores UTF-8 text. Vortex v0.1 specifies string literals and
 passing a `String` to the built-in `print` function, which writes its bytes
 unchanged ([Programs and declarations 3.9](declarations.md#39-built-in-functions)).
 String mutation, indexing, interpolation, concatenation, searching, and
@@ -199,7 +199,7 @@ numeric parsing are not yet specified.
 
 ## 4.7 Arrays
 
-An array type has one element type and one or more dimensions. Each dimension
+<a class="vx-rule" id="types.arrays.dimensions" href="#types.arrays.dimensions">types.arrays.dimensions</a> An array type has one element type and one or more dimensions. Each dimension
 is an integer constant expression whose value is at least 1
 ([Arrays and shapes, 7.2](arrays.md#72-dimension-rules);
 [decision 11](../decisions/arrays.md#d11)). Dimensions are part of the type.
@@ -216,7 +216,7 @@ rules.
 
 ## 4.8 Struct values
 
-A struct declaration introduces a named value type with ordered named fields.
+<a class="vx-rule" id="types.structs.value-type" href="#types.structs.value-type">types.structs.value-type</a> A struct declaration introduces a named value type with ordered named fields.
 Struct values are constructed by naming each field. Vortex v0.1 defines no
 inheritance or object identity model.
 
@@ -224,7 +224,7 @@ See [Structs](structs.md) for full rules.
 
 ## 4.9 References
 
-`&T` is a shared reference to an existing `T`. `&mut T` is a mutable
+<a class="vx-rule" id="types.refs.allowed-positions" href="#types.refs.allowed-positions">types.refs.allowed-positions</a> `&T` is a shared reference to an existing `T`. `&mut T` is a mutable
 reference, which also permits writing the referent (the storage the reference
 refers to). A reference type may appear only as the type of a parameter or of
 a `let` binding declared without `mut`. It is not a storable value type
@@ -233,7 +233,7 @@ the referenced type of another reference is a type error. The borrow rules
 are in [References and mutability](references.md) 9.7 and 9.8
 ([record 41](../decisions/references.md#d41)).
 
-References are not raw integer addresses and do not permit pointer arithmetic.
+<a class="vx-rule" id="types.refs.no-pointer-arithmetic" href="#types.refs.no-pointer-arithmetic">types.refs.no-pointer-arithmetic</a> References are not raw integer addresses and do not permit pointer arithmetic.
 See [References and mutability](references.md). A name of reference type used
 as a value reads the referent; there is no dereference operator
 ([References and mutability](references.md) 9.4;
@@ -241,7 +241,7 @@ as a value reads the referent; there is no dereference operator
 
 ## 4.10 Type inference
 
-Local variable type inference uses the initializer:
+<a class="vx-rule" id="types.inference.uses-initializer" href="#types.inference.uses-initializer">types.inference.uses-initializer</a> Local variable type inference uses the initializer:
 
 ```vortex
 // statements: valid
@@ -251,22 +251,22 @@ let ready = false;    // bool
 let name = "Vortex"; // String
 ```
 
-Inference does not make the language dynamically typed. Once inferred, the
+<a class="vx-rule" id="types.inference.fixed-type" href="#types.inference.fixed-type">types.inference.fixed-type</a> Inference does not make the language dynamically typed. Once inferred, the
 variable has one fixed type. Function parameters, struct fields, and explicit
 function return types are written in source.
 
-An element-list array with no expected type takes its type from its elements,
+<a class="vx-rule" id="types.inference.array-literal-type" href="#types.inference.array-literal-type">types.inference.array-literal-type</a> An element-list array with no expected type takes its type from its elements,
 so a list of lists has a nested array type: `let grid = [[1, 2], [3, 4]];`
 gives `grid` the type `[[i32; 2]; 2]`. With an expected multidimensional type,
 the same literal fills that type instead
 ([Arrays and shapes, 7.3](arrays.md#73-element-list-construction)).
 
-An empty array expression is excluded from v0.1 because local inference has no
+<a class="vx-rule" id="types.inference.no-empty-array" href="#types.inference.no-empty-array">types.inference.no-empty-array</a> An empty array expression is excluded from v0.1 because local inference has no
 element value from which to determine its element type.
 
 ## 4.11 Type equality
 
-Primitive types are equal when their primitive kinds match. Named types are
+<a class="vx-rule" id="types.equality.criteria" href="#types.equality.criteria">types.equality.criteria</a> Primitive types are equal when their primitive kinds match. Named types are
 equal when name resolution identifies the same declaration. Reference types
 include mutability and referenced type. Array types include element type,
 rank, and the value of every dimension, which the compiler evaluates when it
@@ -279,7 +279,7 @@ For example, `[f32; 2 + 2]` and `[f32; 4]` are the same type, while
 types, and neither converts to the other
 ([decision 21](../decisions/arrays.md#d21)).
 
-Two types are **compatible** when they are equal under this section. Wherever
+<a class="vx-rule" id="types.equality.compatible" href="#types.equality.compatible">types.equality.compatible</a> Two types are **compatible** when they are equal under this section. Wherever
 this specification requires compatible types, for operands, initializers,
 assignment values, arguments, return values, array elements or struct field
 values, the types must be equal after [literal typing](#literal-typing);
@@ -289,7 +289,7 @@ explicitly, as the count of a shift and an array index do.
 
 ## 4.12 Casts and conversions
 
-A cast converts one value to a numeric type. It is written as a numeric type
+<a class="vx-rule" id="types.cast.syntax" href="#types.cast.syntax">types.cast.syntax</a> A cast converts one value to a numeric type. It is written as a numeric type
 keyword followed by exactly one parenthesized operand:
 
 ```ebnf
@@ -310,12 +310,12 @@ let count: i32 = 10;
 let value: f32 = f32(count);
 ```
 
-Because the numeric type names are keywords, the parser recognizes a cast from
+<a class="vx-rule" id="types.cast.not-a-call" href="#types.cast.not-a-call">types.cast.not-a-call</a> Because the numeric type names are keywords, the parser recognizes a cast from
 its first token. A cast is not a call, and name resolution never looks up its
 type name. `void`, `bool`, `char` and `String` cannot begin an expression, so
 `bool(flag)` is a syntax error. [Decision record](../decisions/numbers.md#d1).
 
-The operand must have type `i32`, `u32`, `usize`, `f32` or `f64`; any other
+<a class="vx-rule" id="types.cast.operand-type" href="#types.cast.operand-type">types.cast.operand-type</a> The operand must have type `i32`, `u32`, `usize`, `f32` or `f64`; any other
 operand type is a type error. There are no casts to or from `bool`, `char`,
 `String`, arrays or structs. The operand has no expected type, so a literal
 operand takes its default type ([literal typing](#literal-typing)). A cast
@@ -330,7 +330,7 @@ never wraps or saturates:
 | floating-point | integer | The value truncated toward zero. If the operand is NaN or an infinity, or the target type cannot represent the truncated value, a runtime error. |
 | any numeric type | the same type | The operand, unchanged. |
 
-When the operand is an integer constant expression
+<a class="vx-rule" id="types.cast.constant-evaluation" href="#types.cast.constant-evaluation">types.cast.constant-evaluation</a> When the operand is an integer constant expression
 ([Expressions 5.12](expressions.md#512-constant-expressions)), the cast is
 evaluated during compilation and a failure is a constant-evaluation error
 ([decision record 39](../decisions/diagnostics.md#d39)); `u32(-1)` is
@@ -339,7 +339,7 @@ therefore rejected before the program runs.
 
 ## 4.13 Types outside v0.1
 
-Tuples, unions, enums, vectors, slices, runtime-sized arrays, function types,
+<a class="vx-rule" id="types.future.reserved-names" href="#types.future.reserved-names">types.future.reserved-names</a> Tuples, unions, enums, vectors, slices, runtime-sized arrays, function types,
 raw pointers, generic types, aliases, `i8`, `i16`, `i64`, `u8`, `u16`, `u64`,
 `f16`, and `bf16` are not v0.1 types. The spellings of these eight numeric
 types, and `const`, are reserved for a future version

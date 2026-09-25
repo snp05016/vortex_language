@@ -1,0 +1,6 @@
+link 1: reaches middle's record: true; at a higher address: true
+link 2: reaches outer's record: true; at a higher address: true
+link 3: reaches main's record: true; at a higher address: true
+back in middle
+back in outer
+3 of 3 links matched

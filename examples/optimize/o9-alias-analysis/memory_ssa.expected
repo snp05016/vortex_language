@@ -1,0 +1,11 @@
+entry:
+  1 = MemoryDef(liveOnEntry)  store x
+  2 = MemoryDef(1)            store y
+loop:
+  4 = MemoryPhi({entry,2},{loop,3})
+  MemoryUse(4)                load x   clobbered by 1
+  MemoryUse(4)                load y   clobbered by 4
+  3 = MemoryDef(4)            store *p
+exit:
+  MemoryUse(3)                load x   clobbered by 1
+  MemoryUse(3)                load y   clobbered by 3

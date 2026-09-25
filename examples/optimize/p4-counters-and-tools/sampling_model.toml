@@ -1,0 +1,4 @@
+follows = [
+  "https://perfwiki.github.io/main/tutorial/",
+  "https://www.brendangregg.com/perf.html",
+]

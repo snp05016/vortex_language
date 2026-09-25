@@ -1,0 +1,8 @@
+value    10^depth  exact
+a            1001     13
+b            1001     13
+c             101      5
+row          1131     23
+column       1410     30
+k            5100     64
+spill first: c

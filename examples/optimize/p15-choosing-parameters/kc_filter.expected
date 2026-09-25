@@ -1,0 +1,9 @@
+kc     C-initialized  zero-initialized
+16     0x43846a05     0x438469fe
+32     0x43846a05     0x438469fe
+64     0x43846a05     0x438469ff
+128    0x43846a05     0x43846a00
+256    0x43846a05     0x43846a00
+512    0x43846a05     0x43846a05
+naive  0x43846a05
+distinct results: C-initialized 1, zero-initialized 4

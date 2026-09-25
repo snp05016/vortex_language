@@ -110,7 +110,7 @@
 
 ??? question "What is it called when an inner block redeclares a name that an outer block already declares, and does v0.1 allow it?"
 
-    Shadowing. Whether Vortex allows it is not yet decided, so do not rely on it.
+    Shadowing. v0.1 forbids it; redeclaring a visible name is a name error.
 
     Introduced in [7. Declarations](10-declarations.md). Specification: [3. Programs and declarations](../specification/declarations.md#36-scopes).
 

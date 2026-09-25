@@ -1,0 +1,18 @@
+; ModuleID = 'len2.ll'
+source_filename = "len2.ll"
+
+define void @len2(ptr %v, ptr %out) {
+entry:
+  %x = load float, ptr %v, align 4
+  %xx = fmul float %x, %x
+  %py = getelementptr inbounds float, ptr %v, i64 1
+  %y = load float, ptr %py, align 4
+  %yy = fmul float %y, %y
+  %s = fadd float %xx, %yy
+  %pz = getelementptr inbounds float, ptr %v, i64 2
+  %z = load float, ptr %pz, align 4
+  %zz = fmul float %z, %z
+  %t = fadd float %s, %zz
+  store float %t, ptr %out, align 4
+  ret void
+}

@@ -1,0 +1,25 @@
+toy cache: 8 lines x 4 elements = 32 elements
+
+stride  32: 1 of 8 rows land on distinct lines
+stride  33: 2 of 8 rows land on distinct lines
+stride  17: 4 of 8 rows land on distinct lines
+stride  20: 8 of 8 rows land on distinct lines
+
+stride 32 in full:
+  row 0: address    0, line 0
+  row 1: address   32, line 0
+  row 2: address   64, line 0
+  row 3: address   96, line 0
+  row 4: address  128, line 0
+  row 5: address  160, line 0
+  row 6: address  192, line 0
+  row 7: address  224, line 0
+stride 33 in full:
+  row 0: address    0, line 0
+  row 1: address   33, line 0
+  row 2: address   66, line 0
+  row 3: address   99, line 0
+  row 4: address  132, line 1
+  row 5: address  165, line 1
+  row 6: address  198, line 1
+  row 7: address  231, line 1

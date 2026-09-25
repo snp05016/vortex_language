@@ -1,0 +1,6 @@
+flags = ["-passes=loop-vectorize", "-disable-output", "-pass-remarks-output=-"]
+follows = [
+  "https://llvm.org/docs/Remarks.html",
+  "https://github.com/llvm/llvm-project/blob/release/18.x/llvm/lib/Transforms/Vectorize/LoopVectorizationLegality.cpp",
+  "https://github.com/llvm/llvm-project/blob/release/18.x/llvm/include/llvm/Analysis/TargetTransformInfoImpl.h",
+]

@@ -1,0 +1,11 @@
+module {
+  func.func @load_add_store(%arg0: memref<4x4xf32>, %arg1: memref<4x4xf32>) {
+    %c1 = arith.constant 1 : index
+    %cst = arith.constant 0.000000e+00 : f32
+    %0 = vector.transfer_read %arg0[%c1, %c1], %cst {in_bounds = [true, true]} : memref<4x4xf32>, vector<2x2xf32>
+    %1 = arith.addf %0, %0 : vector<2x2xf32>
+    vector.transfer_write %1, %arg1[%c1, %c1] {in_bounds = [true, true]} : vector<2x2xf32>, memref<4x4xf32>
+    return
+  }
+}
+

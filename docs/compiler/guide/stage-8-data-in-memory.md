@@ -16,6 +16,22 @@ stage, every array shape is a known list of integers, every field name is
 resolved, and every reference has passed the mutability rules. What is left is
 to give all of that a physical form.
 
+--8<-- "includes/remember/compiler__guide__stage-8-data-in-memory.md"
+
+!!! goals "In this stage"
+
+    - Write a layout document that records the size, alignment, offsets and
+      padding of every v0.1 type.
+    - Compute the offset of an array element in row-major order, for arrays
+      of rank 1 and higher.
+    - Store struct fields in declaration order and account for padding
+      between and after them.
+    - Store a string literal's UTF-8 bytes and distinguish a byte count from
+      a character count.
+    - Pass a reference that reaches the caller's storage without a copy, and
+      pass an array or struct by value so that the callee cannot change the
+      caller's value.
+
 ## What this stage is for
 
 The roadmap's
@@ -235,6 +251,15 @@ difference hardly shows, but it is the first thing the post-v0.1 optimization
 work in the roadmap will care about. Because the order is fixed, the optimizer
 can rely on it.
 
+--8<-- "includes/examples/build-v0.1/stage-8-data-in-memory/row_major_offset.cpp.md"
+
+??? check "For `b: [f32; 3, 5]`, at what byte offset does `b[2, 1]` start, with four-byte elements?"
+
+    `(2 × 5 + 1) × 4 = 44`. Rows 0 and 1 come first, five elements each, so
+    row 2 starts 10 elements in, and column 1 is one element further. Using
+    the number of rows (3) in place of the number of columns (5) would give
+    `(2 × 3 + 1) × 4 = 28`, a plausible but wrong address.
+
 Arrays of higher rank follow the same idea. A rank-3 array is a list of
 rank-2 blocks, and the last index changes fastest as you move through memory.
 
@@ -254,6 +279,13 @@ Both are stored as six numbers in a row, in the same order; the specification
 requires that. What is not allowed is letting that shared layout leak back
 into the language, so that one type is quietly accepted where the other was
 required.
+
+??? check "`[f32; 3, 2]` and `[[f32; 2]; 3]` end up with the same six numbers in the same order. Why are they still different types?"
+
+    Rank is part of a type's identity, separate from its layout. The [type
+    equality rule](../../specification/types-and-values.md#411-type-equality)
+    compares rank, so a rank-1 array of rank-1 arrays is never the same type
+    as a rank-2 array, no matter how the bytes happen to line up.
 
 ### Expression dimensions and total size
 
@@ -333,6 +365,15 @@ it means. [I6](../../decisions/implementation.md#i6) suggests a stored length:
 a `String` is the address of its UTF-8 bytes and a length in bytes, and every
 count the runtime keeps is in bytes.
 
+--8<-- "includes/examples/build-v0.1/stage-8-data-in-memory/utf8_length.cpp.md"
+
+??? check "A string literal holds one `λ` and nothing else. Is its stored length 1 or 2?"
+
+    2. `λ` is one character but two bytes in UTF-8, and I6's stored length
+    counts bytes, not characters. A runtime that counted characters instead
+    would have to decode the UTF-8 bytes to answer "how long is this
+    string?".
+
 ## Structs in memory
 
 A struct is a named group of fields. The layout question for a struct is the
@@ -394,6 +435,16 @@ save padding. Whatever the padding, **field access** becomes the same thing
 array indexing became: a known offset from the start of the value. `p.charge`
 in Figure 2 means "the four bytes that start four bytes into `p`". The field
 name is gone by the time the machine code runs.
+
+--8<-- "includes/examples/build-v0.1/stage-8-data-in-memory/struct_layout.cpp.md"
+
+??? check "In the C++ example, the last field ends at byte 9, but `sizeof(Reading)` is 12. What are the other 3 bytes for?"
+
+    Trailing padding. C++ rounds a struct's size up to a multiple of its
+    alignment, 4 here, so that in an array of `Reading` every element's
+    `value` still starts at a multiple of four. The padding sits between
+    every pair of elements, not only at the end of the array. I6 suggests the
+    same rule for Vortex structs.
 
 Nested structs and arrays of structs follow from the same rules. The spec's
 example `points[index].position.x` is an array index, then a field offset,
@@ -500,6 +551,8 @@ Passing an array *without* a reference is also legal. A parameter of type
 never tell a real copy from a hidden address of the caller's array. The choice
 is yours, and it goes in the layout document with everything else.
 
+--8<-- "includes/examples/build-v0.1/stage-8-data-in-memory/reference_vs_copy.cpp.md"
+
 ## What you need to have
 
 <div class="vx-split" markdown="1">
@@ -602,6 +655,43 @@ or the second element's fields will be read from the wrong place.
 **Copying when the program asked for a reference, or sharing when it asked
 for a value.** Both mistakes compile and run. Only a test that changes data on
 one side of a call and looks on the other side will catch them.
+
+## Key ideas
+
+!!! recap
+
+    - **Which index of a Vortex array varies fastest in memory, and who
+      chooses that?**
+      The last one (row-major order). The specification fixes it; your layout
+      document records it but does not choose it.
+    - **Why are `[f32; 3, 2]` and `[[f32; 2]; 3]` different types even though
+      they hold the same six numbers in the same order?**
+      Type equality compares rank, and layout is not part of a type's
+      identity. Sharing a layout does not make two types interchangeable.
+    - **Why can a string's length not be read from its type, the way an
+      array's size can?**
+      A string's size is not part of its type in v0.1. Something else, such
+      as a stored length, has to carry it.
+    - **When do a string's length in bytes and its length in characters
+      differ, and which one does I6 suggest the runtime keep?**
+      They differ as soon as one character takes more than one UTF-8 byte.
+      I6 suggests counting bytes, and every count should say which it means.
+    - **May the code generator reorder a struct's fields to save padding?**
+      No. The structs chapter requires declaration order; only padding and
+      alignment are left to you, and your layout document records them.
+    - **What does a `&mut [f32; 4]` parameter hold at run time, and what does
+      it not hold?**
+      A way to reach the caller's array, an 8-byte address in I6's
+      suggestion. It does not hold a copy of the four numbers.
+    - **Why can the code generator trust that a `&mut` parameter never
+      aliases another parameter of the same call?**
+      Stage 5 already rejects a call that passes a `&mut` variable in
+      another argument too. Stage 8 relies on that guarantee instead of
+      checking it again.
+
+## Where this comes back
+
+--8<-- "includes/next/compiler__guide__stage-8-data-in-memory.md"
 
 ## How others teach this stage
 

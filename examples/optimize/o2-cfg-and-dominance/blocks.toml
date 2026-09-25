@@ -1,0 +1,4 @@
+follows = [
+  "https://llvm.org/docs/LangRef.html#functions",
+  "https://doi.org/10.1145/115372.115320",
+]

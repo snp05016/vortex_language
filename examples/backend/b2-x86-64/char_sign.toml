@@ -1,0 +1,10 @@
+# char is signed on macOS arm64 and on Linux x86-64, but unsigned on a
+# plain Linux arm64 target (clang predefines __CHAR_UNSIGNED__ only for
+# aarch64-unknown-linux-gnu; checked with Apple clang 21, 24 September 2026),
+# so this example is skipped there rather than given a second .expected file.
+platforms = ["macos-arm64", "linux-x86_64"]
+follows = [
+  "https://developer.apple.com/documentation/xcode/writing-arm64-code-for-apple-platforms",
+  "https://github.com/ARM-software/abi-aa/blob/main/aapcs64/aapcs64.rst",
+  "https://gitlab.com/x86-psABIs/x86-64-ABI",
+]

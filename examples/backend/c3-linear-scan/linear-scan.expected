@@ -1,0 +1,31 @@
+a  [ 1, 8]:
+  allocate r0
+b  [ 2, 4]:
+  allocate r1
+c  [ 3, 9]:
+  allocate r2
+d  [ 5, 6]:
+  expire b  (frees r1)
+  allocate r1
+e  [ 6,10]:
+  spill  e : nothing active ends after it
+f  [ 7, 7]:
+  expire d  (frees r1)
+  allocate r1
+g  [ 8,12]:
+  expire f  (frees r1)
+  allocate r1
+h  [10,11]:
+  expire a  (frees r0)
+  expire c  (frees r2)
+  allocate r0
+
+final assignment:
+  a  [ 1, 8] r0
+  b  [ 2, 4] r1
+  c  [ 3, 9] r2
+  d  [ 5, 6] r1
+  e  [ 6,10] spilled
+  f  [ 7, 7] r1
+  g  [ 8,12] r1
+  h  [10,11] r0

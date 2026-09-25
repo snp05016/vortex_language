@@ -1,0 +1,2 @@
+platforms = ["macos-arm64", "linux-arm64"]
+follows   = ["https://github.com/ARM-software/abi-aa/blob/main/aapcs64/aapcs64.rst", "https://llvm.org/docs/CommandGuide/llvm-mc.html"]

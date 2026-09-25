@@ -1,0 +1,21 @@
+; ModuleID = 'freeze.ll'
+source_filename = "freeze.ll"
+
+define i32 @raw_poison() {
+  ret i32 0
+}
+
+define i32 @raw_undef() {
+  ret i32 0
+}
+
+define i32 @freeze_of_a_parameter(i32 %x) {
+  %f = freeze i32 %x
+  ret i32 %f
+}
+
+define i32 @freeze_of_an_overflow(i32 %x) {
+  %x.fr = freeze i32 %x
+  %y = add i32 %x.fr, 1
+  ret i32 %y
+}

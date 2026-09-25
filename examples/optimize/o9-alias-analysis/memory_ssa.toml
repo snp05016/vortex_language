@@ -1,0 +1,4 @@
+follows = [
+  "https://llvm.org/docs/MemorySSA.html",
+  "https://github.com/llvm/llvm-project/blob/release/18.x/llvm/lib/Analysis/MemorySSA.cpp",
+]

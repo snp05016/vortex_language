@@ -1,0 +1,7 @@
+7            reference=7    native=7    agree
+7 + 2        reference=9    native=9    agree
+7 - 2        reference=5    native=-5   DISAGREE
+7 * 2        reference=14   native=14   agree
+(7 - 2) * 3  reference=15   native=-15  DISAGREE
+4 - 4        reference=0    native=0    agree
+4 of 6 agree

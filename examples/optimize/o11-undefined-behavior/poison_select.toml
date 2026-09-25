@@ -1,0 +1,6 @@
+flags = ["-passes=instcombine"]
+follows = [
+  "https://llvm.org/docs/LangRef.html#poisonvalues",
+  "https://llvm.org/docs/LangRef.html#select-instruction",
+  "https://llvm.org/docs/UndefinedBehavior.html#propagation-of-poison-through-select",
+]

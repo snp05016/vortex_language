@@ -1,0 +1,5 @@
+flags = ["--transform-interpreter"]
+follows = [
+  "https://mlir.llvm.org/docs/Dialects/Linalg/#linalgsoftmax-linalgsoftmaxop",
+  "https://mlir.llvm.org/docs/Dialects/Transform/#transformstructureddecompose_interface-transformdecomposeinterfaceop",
+]

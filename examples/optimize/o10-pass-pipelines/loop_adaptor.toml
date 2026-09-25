@@ -1,0 +1,6 @@
+flags = ["-passes=loop-mssa(licm)"]
+follows = [
+  "https://llvm.org/docs/NewPassManager.html",
+  "https://github.com/llvm/llvm-project/blob/release/18.x/llvm/include/llvm/Transforms/Scalar/LoopPassManager.h",
+  "https://github.com/llvm/llvm-project/blob/release/18.x/llvm/lib/Transforms/Scalar/LICM.cpp",
+]

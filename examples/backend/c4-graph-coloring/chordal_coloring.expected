@@ -1,0 +1,5 @@
+MCS order: a b e c d
+greedy in MCS order: a=0 b=1 e=2 c=0 d=1
+  colors used: 3
+greedy in order a, d, b, c, e: a=0 d=0 b=1 c=2 e=3
+  colors used: 4

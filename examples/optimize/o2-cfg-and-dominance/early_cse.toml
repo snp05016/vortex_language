@@ -1,0 +1,5 @@
+flags = ["-passes=early-cse"]
+follows = [
+  "https://github.com/llvm/llvm-project/blob/release/18.x/llvm/lib/Transforms/Scalar/EarlyCSE.cpp",
+  "https://llvm.org/docs/LangRef.html#well-formedness",
+]

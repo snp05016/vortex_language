@@ -1,0 +1,4 @@
+follows = [
+  "https://docs.nvidia.com/nsight-compute/ProfilingGuide/index.html#warp-stall-reasons",
+  "https://docs.nvidia.com/nsight-compute/ProfilingGuide/index.html#sections-and-rules",
+]

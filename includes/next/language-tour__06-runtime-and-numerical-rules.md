@@ -5,6 +5,35 @@
     - [Specification: 1. Conformance and terminology](../specification/conformance.md): *runtime check*, *runtime error*
     - [Specification: 10. Diagnostics](../specification/diagnostics.md): *runtime check*, *runtime error*
     - [Build v0.1: 5. Types and language rules](../compiler/guide/stage-5-types-and-rules.md): *compile time*, *run time*, *runtime check*
-    - [Build v0.1: 6. The first machine code](../compiler/guide/stage-6-first-machine-code.md): *compile time*, *run time*, *runtime check*, *runtime error*
-    - [Build v0.1: 9. Runtime safety](../compiler/guide/stage-9-runtime-safety.md): *compile time*, *run time*, *runtime check*, *runtime error*
+    - [Build v0.1: 6. The first machine code](../compiler/guide/stage-6-first-machine-code.md): *compile time*, *run time*, *runtime check*, *runtime error* and 3 more
+    - [Build v0.1: 9. Runtime safety](../compiler/guide/stage-9-runtime-safety.md): *compile time*, *run time*, *runtime check*, *runtime error* and 3 more
     - [Build v0.1: 10. Matrix multiplication](../compiler/guide/stage-10-matrix-multiplication.md): *compile time*, *run time*
+
+??? info "Concept map for this page"
+
+    ```mermaid
+    flowchart LR
+      c_compile_time["compile time"]
+      c_run_time["run time"]
+      c_runtime_check["runtime check"]
+      c_runtime_error["runtime error"]
+      c_ieee_754["IEEE 754"]
+      c_nan["NaN"]
+      c_infinity["infinity"]
+      c_bounds_check["bounds check"]
+      c_cast["cast"]
+      c_constant_evaluation["constant evaluation"]
+      c_dynamic_rule["dynamic rule"]
+      c_static_rule["static rule"]
+      c_compile_time --> c_run_time
+      c_run_time --> c_runtime_check
+      c_bounds_check --> c_runtime_check
+      c_cast --> c_runtime_check
+      c_runtime_check --> c_runtime_error
+      c_ieee_754 --> c_nan
+      c_ieee_754 --> c_infinity
+      c_compile_time --> c_constant_evaluation
+      c_run_time --> c_dynamic_rule
+      c_static_rule --> c_dynamic_rule
+      c_compile_time --> c_static_rule
+    ```

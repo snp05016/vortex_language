@@ -1,0 +1,6 @@
+flags = ["-ffp-contract=off"]
+follows = [
+  "https://en.cppreference.com/w/cpp/numeric/bit_cast",
+  "https://en.cppreference.com/w/cpp/numeric/math/fma",
+  "https://github.com/flame/blis/blob/master/docs/KernelsHowTo.md",
+]

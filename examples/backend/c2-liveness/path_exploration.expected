@@ -1,0 +1,9 @@
+block   fixed point   two-pass, pass 1   two-pass, pass 2   path exploration
+entry   -             -                  -                  -
+header  x0            x0                 x0                 x0
+pos     x0 i1 acc1    i1 acc1            x0 i1 acc1         x0 i1 acc1
+neg     x0 i1 acc1    x0 i1 acc1         x0 i1 acc1         x0 i1 acc1
+latch   x0 i1         i1                 x0 i1              x0 i1
+exit    -             -                  -                  -
+fixed point: 3 passes, the last one only confirming
+all three agree: yes

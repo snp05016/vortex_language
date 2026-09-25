@@ -1,0 +1,6 @@
+b sliver, kc=256 x nr=4, rows 1024 wide: 4096 bytes of data
+  in place: lines=256 pages=64 useful bytes per line=16
+  packed:   lines=32 pages=1 useful bytes per line=128
+a block, mc=64 x kc=256, rows 1024 wide: 65536 bytes of data
+  in place: lines=512 pages=16 useful bytes per line=128
+  packed:   lines=512 pages=4 useful bytes per line=128

@@ -1,0 +1,4 @@
+follows = [
+  "https://en.cppreference.com/w/cpp/numeric/math/fabs.html",
+  "https://en.cppreference.com/w/cpp/algorithm/max.html",
+]

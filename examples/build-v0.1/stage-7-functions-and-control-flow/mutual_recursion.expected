@@ -1,0 +1,11 @@
+is_even(4) called
+  is_odd(3) called
+    is_even(2) called
+      is_odd(1) called
+        is_even(0) called
+        is_even(0) returns true
+      is_odd(1) returns true
+    is_even(2) returns true
+  is_odd(3) returns true
+is_even(4) returns true
+is_even(4) = true

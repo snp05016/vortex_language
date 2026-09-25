@@ -1,0 +1,23 @@
+; ModuleID = 'halve.ll'
+source_filename = "halve.ll"
+
+define i32 @half(i32 %x) {
+  %q = sdiv i32 %x, 2
+  ret i32 %q
+}
+
+define i32 @half_exact(i32 %x) {
+  %q = ashr exact i32 %x, 1
+  ret i32 %q
+}
+
+define i32 @half_masked(i32 %x) {
+  %m = lshr i32 %x, 1
+  %q1 = and i32 %m, 511
+  ret i32 %q1
+}
+
+define i32 @half_unsigned(i32 %x) {
+  %q1 = lshr i32 %x, 1
+  ret i32 %q1
+}

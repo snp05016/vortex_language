@@ -1,0 +1,5 @@
+flags = ["--mlir-print-op-generic"]
+follows = [
+  "https://mlir.llvm.org/docs/Dialects/Linalg/",
+  "https://mlir.llvm.org/docs/LangRef/",
+]

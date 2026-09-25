@@ -1,0 +1,4 @@
+follows = [
+  "https://doi.org/10.1145/73560.73561",
+  "https://github.com/llvm/llvm-project/blob/release/18.x/llvm/lib/Transforms/Scalar/GVN.cpp",
+]

@@ -1,0 +1,6 @@
+follows = [
+  "https://llvm.org/docs/tutorial/MyFirstLanguageFrontend/LangImpl01.html",
+  "https://en.cppreference.com/cpp/string/byte/isdigit",
+  "https://en.cppreference.com/cpp/string/byte/isspace",
+  "https://en.cppreference.com/cpp/string/basic_string_view",
+]

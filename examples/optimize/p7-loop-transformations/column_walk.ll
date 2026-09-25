@@ -4,7 +4,10 @@
 ; outer loop runs over columns (%j) and its inner loop over rows (%i), so
 ; consecutive inner iterations are a whole row (256 bytes) apart. The only
 ; dependence is each element on itself within one iteration, so swapping the
-; loops is legal, and the pass's cache cost model finds it profitable.
+; loops is legal. The pass's first cost model, loop cache analysis, needs a
+; cache line size, which this file does not give, so it rates both loops alike
+; (opt -passes='print<loop-cache-cost>'). Its fallback sees the subscripts
+; [%i][%j] name the inner loop's variable first and finds the swap profitable.
 ;
 ; Run: opt -S -passes=loop-interchange column_walk.ll
 ; Add -pass-remarks=loop-interchange to see the remark on standard error:

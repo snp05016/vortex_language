@@ -1,0 +1,6 @@
+follows = [
+  "https://docs.nvidia.com/cuda/cuda-programming-guide/02-basics/intro-to-cuda-cpp.html",
+  "https://registry.khronos.org/OpenCL/specs/3.0-unified/html/OpenCL_API.html#clEnqueueNDRangeKernel",
+  "https://developer.apple.com/documentation/metal/calculating-threadgroup-and-grid-sizes",
+  "https://www.w3.org/TR/WGSL/#compute-shader-workgroups",
+]

@@ -8,3 +8,28 @@
     - [Specification: 6. Statements and control flow](../specification/statements.md): *identifier*
     - [Specification: 11. Formal grammar](../specification/grammar.md): *identifier*
     - [Build v0.1: 2. The lexer](../compiler/guide/stage-2-lexer.md): *comment*, *identifier*, *escape sequence*
+
+??? info "Concept map for this page"
+
+    ```mermaid
+    flowchart LR
+      c_comment["comment"]
+      c_identifier["identifier"]
+      c_escape_sequence["escape sequence"]
+      c_local_variable["local variable"]
+      c_named_type["named type"]
+      c_declaration["declaration"]
+      c_binding["binding"]
+      c_decoded_value["decoded value"]
+      c_keyword["keyword"]
+      c_use["use"]
+      c_identifier --> c_local_variable
+      c_identifier --> c_named_type
+      c_identifier --> c_declaration
+      c_identifier --> c_binding
+      c_declaration --> c_binding
+      c_escape_sequence --> c_decoded_value
+      c_identifier --> c_keyword
+      c_declaration --> c_use
+      c_identifier --> c_use
+    ```

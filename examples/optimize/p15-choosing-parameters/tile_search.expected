@@ -1,0 +1,14 @@
+misses; rows bk, columns bj = 2 4 8 16 32 64
+bk=2  223860 111944  55986  44786  42270  39782
+bk=4  121482  60750  30384  23984  22402  21792
+bk=8   69224  34612  17306  13306  12411  15845
+bk=16  54752  27376  13688   9688  10020  30077
+bk=32  49656  24828  12414   8414  13150  51236
+bk=64  78376  39188  19594  15594  48304  52475
+grid search              36 tried  bk=32 bj=16 misses=8414
+orthogonal line search   11 tried  bk=8  bj=32 misses=12411
+random, seed 1            7 tried  bk=16 bj=16 misses=9688
+random, seed 2            7 tried  bk=32 bj=32 misses=13150
+random, seed 3            7 tried  bk=4  bj=64 misses=21792
+model                     0 tried  bk=16 bj=16 (predicted, not scored)
+model + local search      8 tried  bk=32 bj=16 misses=8414

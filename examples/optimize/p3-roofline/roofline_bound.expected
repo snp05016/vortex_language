@@ -1,0 +1,7 @@
+ridge point = 1.173 flops/byte
+t =  1  intensity  0.250  bound  3.746 GFlop/s  memory-bound
+t =  2  intensity  0.499  bound  7.485 GFlop/s  memory-bound
+t =  4  intensity  0.996  bound 14.942 GFlop/s  memory-bound
+t =  8  intensity  1.984  bound 17.600 GFlop/s  compute-bound
+t = 16  intensity  3.938  bound 17.600 GFlop/s  compute-bound
+t = 32  intensity  7.758  bound 17.600 GFlop/s  compute-bound

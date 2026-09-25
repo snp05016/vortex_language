@@ -1,0 +1,5 @@
+block 0: scores  0.0 -1.0  m  0.0  scale 0.0000  l 1.3679  acc (2.1036, 3.4715)
+block 1: scores  1.0  1.0  m  1.0  scale 0.3679  l 2.5032  acc (12.7739, 15.2771)
+tiled output (5.1030, 6.1030)
+naive output (5.1030, 6.1030)
+scores held at once: naive 4, tiled 2

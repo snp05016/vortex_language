@@ -1,0 +1,4 @@
+follows = [
+  "https://doi.org/10.1145/36206.36194",
+  "https://en.cppreference.com/w/cpp/language/operator_arithmetic",
+]

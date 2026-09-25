@@ -1,0 +1,8 @@
+# Apple's @PAGE/@PAGEOFF operators are Darwin-only assembler syntax; Linux's
+# GNU as spells the same idea differently, so this file is checked only on
+# the platform it was written for.
+platforms = ["macos-arm64"]
+follows = [
+  "https://github.com/below/HelloSilicon",
+  "https://github.com/apple-oss-distributions/xnu/blob/main/EXTERNAL_HEADERS/mach-o/arm64/reloc.h",
+]

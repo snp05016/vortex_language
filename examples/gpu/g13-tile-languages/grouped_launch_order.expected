@@ -1,0 +1,11 @@
+program id -> (tile row, tile col), group of 3:
+ 0->(0,0)  1->(1,0)  2->(2,0)  3->(0,1)  4->(1,1)  5->(2,1) 
+ 6->(0,2)  7->(1,2)  8->(2,2)  9->(0,3) 10->(1,3) 11->(2,3) 
+
+tiles of A and B loaded by the first 9 programs:
+  group 1:  90
+  group 2:  63
+  group 3:  54
+  group 4:  63
+  group 9:  90
+every order covers all 81 tiles once

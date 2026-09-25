@@ -1,0 +1,15 @@
+Running pass: check
+Running analysis: sorted
+Running analysis: sum
+  sorted=true sum=10
+Running pass: add_one
+Invalidating analysis: sum
+Running pass: check
+Running analysis: sum
+  sorted=true sum=14
+Running pass: reverse
+Invalidating analysis: sorted
+Running pass: check
+Running analysis: sorted
+  sorted=false sum=14
+4 analysis runs for 6 queries

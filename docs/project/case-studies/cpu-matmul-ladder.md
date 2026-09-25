@@ -12,9 +12,11 @@ the same number of threads, when every step is produced by a Vortex pass from
 the unchanged source of
 [stage 10](../../compiler/guide/stage-10-matrix-multiplication.md)?
 
-Each step is a **rung**: the previous rung plus one transformation. The whole
-sequence, from the naive triple loop to the fastest version, is the
-**ladder**. A rung is **strict** when it obeys Vortex's default
+Each step is a [rung](../../optimize/ladder.md#the-kernel-that-never-changes):
+the previous rung plus one transformation. The whole sequence, from the naive
+triple loop to the fastest version, is the
+[ladder](../../optimize/ladder.md#the-kernel-that-never-changes). A rung is
+**strict** when it obeys Vortex's default
 floating-point rule, which forbids any transformation that changes a result
 the specification fixes
 ([types and values, 4.4](../../specification/types-and-values.md#44-floating-point-values)).
@@ -61,15 +63,15 @@ Chapter ids refer to the [optimization book](../../optimize/index.md).
 | Rung | Transformation | Keeps the bits? | Taught in |
 | --- | --- | --- | --- |
 | 0 | None: the v0.1 triple loop, with its bounds and overflow checks | Baseline | [Stage 10](../../compiler/guide/stage-10-matrix-multiplication.md) |
-| 1 | Scalar cleanup: constant folding, dead-code removal, redundant address arithmetic removed, checks deleted only where a range proof exists | Yes | O5 to O8 |
+| 1 | Scalar cleanup: constant folding, dead-code removal, redundant address arithmetic removed, checks deleted only where a range proof exists | Yes | [O5](../../optimize/o5-constants-and-dead-code.md) to [O8](../../optimize/o8-loops.md) |
 | 2 | Loop interchange from i-j-k to i-k-j, so the inner loop walks `B` and `C` along rows | Yes | [P7](../../optimize/p7-loop-transformations.md) |
-| 3 | Vectorization along `j` with NEON | Yes, if no multiply-add is fused | P10 |
-| 4 | Cache tiling, with tile sizes derived from the machine's cache sizes | Yes, if `C` is accumulated in place and the `k` tiles run in order | P8 |
-| 5 | Packing blocks of `A` and panels of `B` into contiguous buffers | Yes: packing only copies | P12 |
-| 6 | Register-blocked micro-kernel: unroll-and-jam, accumulators held in registers | Yes, if the accumulators start from the loaded `C` tile | P12 |
-| 7 | Fused multiply-add | No: allowed only when the program opts in | P11 |
-| 8 | Multithreading over blocks of `i` or `j` | Yes, as long as `k` is never split across threads | P13 |
-| 9 | Block sizes chosen by a model or by search | Yes, if the search space holds only bit-preserving variants | P15 and [A9](cost-model-autotuner.md) |
+| 3 | Vectorization along `j` with NEON | Yes, if no multiply-add is fused | [P10](../../optimize/p10-vectorization.md) |
+| 4 | Cache tiling, with tile sizes derived from the machine's cache sizes | Yes, if `C` is accumulated in place and the `k` tiles run in order | [P8](../../optimize/p8-cache-blocking.md) |
+| 5 | Packing blocks of `A` and panels of `B` into contiguous buffers | Yes: packing only copies | [P12](../../optimize/p12-fast-gemm.md) |
+| 6 | Register-blocked micro-kernel: unroll-and-jam, accumulators held in registers | Yes, if the accumulators start from the loaded `C` tile | [P12](../../optimize/p12-fast-gemm.md) |
+| 7 | Fused multiply-add | No: allowed only when the program opts in | [P11](../../optimize/p11-floating-point.md) |
+| 8 | Multithreading over blocks of `i` or `j` | Yes, as long as `k` is never split across threads | [P13](../../optimize/p13-multithreading.md) |
+| 9 | Block sizes chosen by a model or by search | Yes, if the search space holds only bit-preserving variants | [P15](../../optimize/p15-choosing-parameters.md) and [A9](cost-model-autotuner.md) |
 | Stretch | SME outer-product instructions, on chips that have them | Depends on the mode used | The [back-end book](../../backend/index.md); Remke and Breuer show SME matrix kernels[^hellosme] |
 
 The "Keeps the bits?" column follows from one observation. For each element
@@ -97,7 +99,8 @@ Around the rungs, the work includes:
   the SDK on 2026-09-23);
 - ceiling microbenchmarks for peak arithmetic with separate multiplies and
   adds, peak arithmetic with fused multiply-adds, and memory bandwidth, built
-  as [P1](../../optimize/p1-measure-first.md) and P3 describe.
+  as [P1](../../optimize/p1-measure-first.md) and
+  [P3](../../optimize/p3-roofline.md) describe.
 
 This study leaves out:
 
@@ -128,12 +131,14 @@ This section says what is specific to the ladder.
   every rung except 8, and all performance cores for rung 8. BLAS computes
   `C = α·A·B + β·C`;[^boehm] the baseline sets α and β so that it does
   exactly the work the Vortex program does.
-- **Each rung with the machine's ceilings.** The **roofline model** bounds a
-  kernel's speed by the smaller of two limits: the processor's peak
-  arithmetic rate, and the memory bandwidth multiplied by the kernel's
-  **operational intensity**, the number of floating-point operations it
-  performs per byte it moves to and from memory.[^roofline] Every rung
-  becomes a point on that chart, and a rung that helps moves its point up.
+- **Each rung with the machine's ceilings.** The
+  [roofline model](../measuring.md#the-roofline-as-context) bounds a kernel's
+  speed by the smaller of two limits: the processor's peak arithmetic rate,
+  and the memory bandwidth multiplied by the kernel's
+  [operational intensity](../measuring.md#the-roofline-as-context), as the
+  [measuring page](../measuring.md#the-roofline-as-context) defines it.[^roofline]
+  Every rung becomes a point on that chart, and a rung that helps moves its
+  point up.
 
 Two arithmetic ceilings matter here, not one. Vortex's default rule forbids
 fusing a multiply and an add, so the honest ceiling for every strict rung is
@@ -221,8 +226,10 @@ Target, written before the first run: ___
 | Ridge point | Strict peak divided by bandwidth | 1 |  | FLOP/byte |  |
 | Ridge point | Strict peak divided by bandwidth | All performance cores |  | FLOP/byte |  |
 
-The **ridge point** is the operational intensity at which a kernel stops
-being limited by memory and starts being limited by arithmetic.[^roofline]
+The [ridge point](../measuring.md#the-roofline-as-context) is the operational
+intensity at which a kernel stops being limited by memory and starts being
+limited by arithmetic, as the [measuring page](../measuring.md#the-roofline-as-context)
+defines it.[^roofline]
 
 ### Shapes
 

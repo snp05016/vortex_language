@@ -1,0 +1,10 @@
+module {
+  func.func @add_then_peek(%arg0: tensor<8xf32> {bufferization.access = "read"}, %arg1: index, %arg2: f32) -> (tensor<8xf32>, f32) attributes {"C_0[DEF: bbArg 0]"} {
+    %extracted = tensor.extract %arg0[%arg1] {__inplace_operands_attr__ = ["true", "none"]} : tensor<8xf32>
+    %0 = arith.addf %extracted, %arg2 : f32
+    %inserted = tensor.insert %0 into %arg0[%arg1] {"C_0[CONFL-WRITE: 1]", __inplace_operands_attr__ = ["none", "false", "none"]} : tensor<8xf32>
+    %extracted_0 = tensor.extract %arg0[%arg1] {"C_0[READ: 0]", __inplace_operands_attr__ = ["true", "none"]} : tensor<8xf32>
+    return {__inplace_operands_attr__ = ["true", "none"]} %inserted, %extracted_0 : tensor<8xf32>, f32
+  }
+}
+

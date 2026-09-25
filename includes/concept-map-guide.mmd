@@ -147,9 +147,6 @@ flowchart LR
     c_saturating["saturating"]
     c_undefined_behavior["undefined behavior"]
     c_proven_safe["proven safe"]
-    c_ieee_754["IEEE 754"]
-    c_nan["NaN"]
-    c_infinity["infinity"]
     c_boundary_case["boundary case"]
   end
   subgraph p_compiler__guide__stage_10_matrix_multiplication["10. Matrix multiplication"]
@@ -205,6 +202,7 @@ flowchart LR
     c_parameter["parameter"]
     c_scope["scope"]
     c_compile_time["compile time"]
+    c_ieee_754["IEEE 754"]
     c_run_time["run time"]
     c_runtime_check["runtime check"]
     c_runtime_error["runtime error"]
@@ -391,8 +389,6 @@ flowchart LR
   c_dynamic_rule --> c_undefined_behavior
   c_well_formed --> c_undefined_behavior
   c_runtime_check --> c_proven_safe
-  c_ieee_754 --> c_nan
-  c_ieee_754 --> c_infinity
   c_test_case --> c_boundary_case
   c_array --> c_matrix
   c_rank --> c_matrix

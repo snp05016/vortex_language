@@ -1,0 +1,6 @@
+flags = ["--convert-gpu-to-nvvm=use-bare-ptr-memref-call-conv=1", "--canonicalize"]
+follows = [
+  "https://mlir.llvm.org/docs/Dialects/GPU/#memory-attribution",
+  "https://mlir.llvm.org/docs/Dialects/NVVMDialect/",
+  "https://llvm.org/docs/NVPTXUsage.html#address-spaces",
+]

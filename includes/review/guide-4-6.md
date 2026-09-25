@@ -30,9 +30,9 @@
 
     Introduced in [4. Names and scopes](stage-4-names-and-scopes.md). Specification: [3. Programs and declarations](../../specification/declarations.md#37-name-resolution).
 
-??? question "In v0.1, what does it usually take for two types to be compatible?"
+??? question "In v0.1, what does it take for two types to be compatible?"
 
-    Being the same type, because v0.1 has almost no automatic conversions.
+    Being the same type, because v0.1 has no automatic conversions.
 
     Introduced in [5. Types and language rules](stage-5-types-and-rules.md).
 

@@ -1,0 +1,6 @@
+flags = ["--canonicalize"]
+follows = [
+  "https://mlir.llvm.org/docs/Canonicalization/",
+  "https://mlir.llvm.org/docs/PatternRewriter/",
+  "https://github.com/llvm/llvm-project/blob/release/18.x/mlir/lib/Dialect/Arith/IR/ArithCanonicalization.td",
+]

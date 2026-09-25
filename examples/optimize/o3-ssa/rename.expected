@@ -1,0 +1,23 @@
+visit A:  count [0]  total [0]
+visit B:  count [0, 1]  total [0, 1]
+visit C:  count [0, 1, 2]  total [0, 1]
+visit D:  count [0, 1, 2]  total [0, 1]
+visit E:  count [0, 1, 2]  total [0, 1, 2]
+visit F:  count [0, 1, 3]  total [0, 1]
+A:
+    count0 = 0
+    total0 = 0
+B:
+    count1 = phi(A: count0, C: count2, E: count2)
+    total1 = phi(A: total0, C: total1, E: total2)
+    if count1 < 10
+C:
+    count2 = count1 + 1
+    if count2 % 2 == 0
+D:
+    if total1 > 10
+E:
+    total2 = total1 + count2
+F:
+    count3 = phi(B: count1, D: count2)
+    print total1

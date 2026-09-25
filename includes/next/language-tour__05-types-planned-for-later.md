@@ -8,3 +8,21 @@
     - [Build v0.1: 6. The first machine code](../compiler/guide/stage-6-first-machine-code.md): *tensor*
     - [Build v0.1: 10. Matrix multiplication](../compiler/guide/stage-10-matrix-multiplication.md): *slice*, *tensor*
     - [Build v0.1: 11. Release](../compiler/guide/stage-11-release.md): *slice*, *tensor*
+
+??? info "Concept map for this page"
+
+    ```mermaid
+    flowchart LR
+      c_slice["slice"]
+      c_vector["vector"]
+      c_tensor["tensor"]
+      c_array["array"]
+      c_dimension["dimension"]
+      c_reference["reference"]
+      c_array --> c_slice
+      c_reference --> c_slice
+      c_array --> c_vector
+      c_array --> c_tensor
+      c_dimension --> c_tensor
+      c_array --> c_dimension
+    ```

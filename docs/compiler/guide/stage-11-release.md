@@ -72,6 +72,16 @@ at once. Figure 1 shows where it sits among the other stages.
 <figcaption>Figure 1. All twelve stages of this guide, matching roadmap milestones 0 to 11. The dot is the compiler growing from an empty workbench to a release. Stage 11, highlighted, adds nothing to the line; it checks the whole of it.</figcaption>
 </figure>
 
+--8<-- "includes/remember/compiler__guide__stage-11-release.md"
+
+!!! goals "In this stage"
+
+    - Rerun every earlier milestone's tests together, from a clean checkout, and treat any failure as a regression.
+    - Pair every specification rule with a valid and an invalid test, and check each rejection's category and source span.
+    - Compile every documented example according to its label, including rejecting programs labeled planned.
+    - Document the compiler command, its supported features and its known limitations.
+    - Apply the name v0.1.0 only after every other item in the gate passes.
+
 ## What this stage is for
 
 The roadmap lists six items for
@@ -174,6 +184,13 @@ Each kind appeared in its own stage. At release, they all run together.
 Figure 2 shows how the suite has grown: each kind starts at the milestone that
 introduced it and then never stops running.
 
+Every one of those kinds, however different its input, comes down to the same
+comparison: run something, and check its output against what was expected.
+Here is that comparison at its smallest, on a table of toy cases instead of
+compiler runs:
+
+--8<-- "includes/examples/build-v0.1/stage-11-release/expected_output.cpp.md"
+
 <figure class="vx-figure">
 <svg viewBox="0 0 760 340" role="img" aria-labelledby="s11-grid-title s11-grid-desc">
 <title id="s11-grid-title">A grid of test kinds against milestones</title>
@@ -215,6 +232,14 @@ If that rule was followed, the release gate holds no surprises: the suite has
 been running in full all along. If it was not, this is where the surprises
 come out.
 
+??? check "Milestone 3 introduced the parser tests. If a change made while working on milestone 9 breaks one of them, and the working rule above was followed, when is that break caught?"
+
+    Back at milestone 9, not at the release gate. The parser tests have been
+    running at every milestone since milestone 3, so a break shows up the
+    moment it happens. The release gate reruns the same staircase from a
+    clean start; it finds new problems only when an earlier milestone skipped
+    the rule.
+
 ## Valid and invalid pairs
 
 The single most useful habit in a compiler test suite is to write tests in
@@ -250,12 +275,30 @@ accepted, the rule is enforced in exactly the right place. If only the first
 test existed, a compiler that rejected every assignment would pass it. The
 pair is what makes the test mean something.
 
+??? check "To pair the rejected program above, someone writes an accepted twin that declares `let value = 10;` and never assigns to it. Does this pair catch a compiler that rejects every assignment?"
+
+    No. The twin contains no assignment, so that compiler accepts it and
+    passes both tests. The accepted program has to keep the assignment and
+    change only `mut`, so that the one difference between the two is the
+    property the rule is about.
+
+The same pairing works on any rule, not only Vortex's own. Here is a small
+checker with two ways to reject a string, reporting which one fired so that a
+pair can prove each rejection is about its own rule and not the other:
+
+--8<-- "includes/examples/build-v0.1/stage-11-release/valid_invalid_pair.cpp.md"
+
 At release, every rule in the specification should have its pair, and the
 test runner should check the category and the span of every rejection, not
 only that the compiler failed. [I3](../../decisions/implementation.md#i3)
 suggests comparing the exit status and, for every error in order, its
 category and the line and column where its primary span starts, never the
-message text.
+message text. The words "in order" matter: two diagnostics in the wrong
+order are as wrong as a missing one. A small
+in-order matcher, in the spirit of LLVM's FileCheck, shows why position in
+the sequence is part of the check:
+
+--8<-- "includes/examples/build-v0.1/stage-11-release/filecheck_lines.cpp.md"
 
 ## Compiling every example in the documentation
 
@@ -283,6 +326,13 @@ The tour's kernel example, for instance, uses a `kernel` keyword, slices and a
 `.len()` method, and says plainly that the v0.1 parser should not accept it.
 A test that confirms the rejection is as much a part of the release as a test
 that confirms matrix multiplication works.
+
+??? check "A test suite compiles every documented example labeled valid or with an error result, and every one behaves as its label says. The parser also accepts the tour's kernel example. Does the release gate pass?"
+
+    No. The kernel example is labeled `planned`, so the compiler must reject
+    it; accepting it is a conformance failure, because the compiler now takes
+    syntax that v0.1 does not define. The suite missed it because it never
+    tested the `planned` row of the table.
 
 Two practical questions come with this item.
 
@@ -347,6 +397,13 @@ has not yet built. The same category reports a program that runs out of stack
 ([record 46](../../decisions/diagnostics.md#d46)). The diagnostics chapter
 adds that this category "must not be used to disguise a crash or silently
 ignore source". A clear limitation is fine. A hidden one is a bug.
+
+??? check "A compiler supports arrays of up to four dimensions. Given a fifth dimension, it silently computes with only the first four and returns an answer. The release notes list the four-dimension limit. Does this satisfy the conformance chapter?"
+
+    No. Documenting the limit is not enough on its own: the compiler must also
+    report an implementation-limit error when a program exceeds it, not
+    compute a wrong answer and stay quiet. A written-down limitation still has
+    to be enforced at the moment it is hit.
 
 Earlier drafts of the specification left several questions open, such as
 zero-length arrays, empty structs, the cast table and the forms of `print`.
@@ -427,7 +484,10 @@ limitations explicitly as expected failures, so that the suite is either green
 or has something new to say. [I9](../../decisions/implementation.md#i9)
 suggests a mark in the test's own expected file that names the stage that will
 make it pass, such as `xfail: stage 8`, and a failed run when a marked test
-starts passing.
+starts passing. That last case needs its own name, because it is neither a
+plain pass nor a plain failure:
+
+--8<-- "includes/examples/build-v0.1/stage-11-release/xfail_runner.cpp.md"
 
 **Forgetting the planned examples.** Accepting future syntax by accident is a
 conformance failure, and it is easy to do when the parser is written
@@ -442,6 +502,22 @@ commit message does not count. Put it where a user of the compiler will look.
 
 **Naming the release early.** Once a version name is public, it is hard to
 take back. Apply it after the gate, not as a goal to hit by a date.
+
+## Key ideas
+
+!!! recap "Questions you can now answer"
+
+    - **What does the release gate add that is new to the compiler?** Nothing. It reruns every earlier milestone's tests together, from a clean checkout, and the results decide whether the release may be named.
+    - **Why does a rejected-program test need a nearby accepted program too?** Without one, a checker that rejects everything would still pass; the accepted case proves the rule fires exactly where it should and nowhere else.
+    - **How does a documented example tell a checker what it must do?** Its first line is a label naming its kind and result, such as `// items: type error`, which fixes both how to complete the block and what the compiler must do with it.
+    - **Why must a compiler reject examples labeled planned?** The conformance chapter says a compiler must not accept planned syntax as though it were v0.1, so accepting it is a conformance failure.
+    - **What makes a checkout "clean"?** A fresh copy of the project with none of the build folders, caches or hand-installed tools that accumulate on one machine over time.
+    - **What must an implementation-limit report never be used for?** To disguise a crash or silently ignore source; a limitation has to be reported at the moment it is hit, in addition to being documented.
+    - **Why does the version name come last?** It is a promise that everything before it is already true; naming the release before the gate passes breaks that promise.
+
+## Where this comes back
+
+--8<-- "includes/next/compiler__guide__stage-11-release.md"
 
 ## How others teach this stage
 

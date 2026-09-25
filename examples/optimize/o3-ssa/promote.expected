@@ -1,0 +1,28 @@
+; ModuleID = 'promote.ll'
+source_filename = "promote.ll"
+
+declare void @update(ptr)
+
+define i32 @sum_below(i32 %n) {
+entry:
+  %seen = alloca i32, align 4
+  store i32 0, ptr %seen, align 4
+  call void @update(ptr %seen)
+  br label %test
+
+test:                                             ; preds = %body, %entry
+  %total.0 = phi i32 [ 0, %entry ], [ %t.new, %body ]
+  %i.0 = phi i32 [ 0, %entry ], [ %i.new, %body ]
+  %more = icmp slt i32 %i.0, %n
+  br i1 %more, label %body, label %done
+
+body:                                             ; preds = %test
+  %t.new = add i32 %total.0, %i.0
+  %i.new = add i32 %i.0, 1
+  br label %test
+
+done:                                             ; preds = %test
+  %extra = load i32, ptr %seen, align 4
+  %answer = add i32 %total.0, %extra
+  ret i32 %answer
+}

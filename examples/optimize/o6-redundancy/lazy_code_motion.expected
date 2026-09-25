@@ -1,0 +1,21 @@
+diamond
+  node  statement   down-safe earliest delay latest isolated
+     0  start           .        x       .     .       x
+     1  a = input       .        x       .     .       x
+     2  c ?             x        x       x     .       x
+     3  x = a + b       x        .       x     x       .
+     4  -               x        .       .     .       .
+     5  -               x        .       x     x       .
+     6  y = a + b       x        .       .     .       x
+     7  end             .        .       .     .       x
+  earliest placement inserts h = a + b at: 2
+  lazy placement inserts h = a + b at: 3 5
+  and replaces a + b by h at: 3 6
+while loop
+  earliest placement inserts h = a + b at: 4
+  lazy placement inserts h = a + b at: none
+  and replaces a + b by h at: none
+rotated loop
+  earliest placement inserts h = a + b at: 3
+  lazy placement inserts h = a + b at: 3
+  and replaces a + b by h at: 4

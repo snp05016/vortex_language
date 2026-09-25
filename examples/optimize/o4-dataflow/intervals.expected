@@ -1,0 +1,8 @@
+bound  widening              rounds  at H         in the body  at the exit
+  100  none                     102  [0, 100]     [0, 99]      [100, 100]
+  100  to infinity                3  [0, +inf]    [0, 99]      [100, +inf]
+  100  to program constants       4  [0, 100]     [0, 99]      [100, 100]
+ 1000  none                    1002  [0, 1000]    [0, 999]     [1000, 1000]
+ 1000  to infinity                3  [0, +inf]    [0, 999]     [1000, +inf]
+ 1000  to program constants       4  [0, 1000]    [0, 999]     [1000, 1000]
+every body interval lies inside [0, N - 1], so the check always passes: yes

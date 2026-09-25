@@ -1,0 +1,6 @@
+0x8b020020  op1=0101  data processing, register      add x0, x1, x2
+0x91000400  op1=1000  data processing, immediate     add x0, x0, #1
+0xbc617800  op1=1110  loads and stores               ldr s0, [x0, x1, lsl #2]
+0x1e212800  op1=1111  scalar floating point and SIMD fadd s0, s0, s1
+0x54000043  op1=1010  branches, exceptions, system   b.lo #8
+0xd65f03c0  op1=1011  branches, exceptions, system   ret

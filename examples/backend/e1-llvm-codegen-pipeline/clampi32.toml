@@ -1,0 +1,9 @@
+# The chapter follows this function through llc -O0 (GlobalISel) and -O2
+# (SelectionDAG), stopping after irtranslator, legalizer, regbankselect,
+# instruction-select and finalize-isel, then before greedy and after
+# virtregrewriter.
+follows = [
+  "https://llvm.org/docs/CodeGenerator.html",
+  "https://llvm.org/docs/MIRLangRef.html",
+  "https://llvm.org/docs/GlobalISel/Pipeline.html",
+]

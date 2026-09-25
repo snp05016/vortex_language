@@ -1,0 +1,7 @@
+write     read        GCD    strong SIV brute force
+x[i]      x[i - 1]    maybe  d = 1      yes
+x[3i + 6] x[3i]       maybe  d = 2      yes
+x[2i]     x[2i + 1]   none   none       no
+x[i + 20] x[i]        maybe  none       no
+x[2i]     x[4i + 1]   none   n/a        no
+x[2i]     x[i + 20]   maybe  n/a        no

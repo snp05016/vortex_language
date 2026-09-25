@@ -1,4 +1,4 @@
-# Native AArch64 back end
+# A6. Native AArch64 back end
 
 <p class="page-intro">This case study will test whether Vortex can turn its own IR into good AArch64 machine code without LLVM, and compare the result with LLVM's back end on the same kernels. It covers instruction selection, register allocation checked by an independent checker, and instruction scheduling. Nothing has been built yet, so every result table below is empty.</p>
 
@@ -155,7 +155,8 @@ reload after a spill. The checker must reject every one.
 The checker must also be independent. It walks the allocated code and tracks
 which value each register and stack slot holds, instead of reusing the
 allocator's own liveness results. This is the approach of the checker built
-for Cranelift's register allocator.[^fallin]
+for Cranelift's register allocator,[^fallin] and [E4](../../backend/e4-testing-backends.md)
+teaches the same idea for back ends generally.
 
 ### What counts as success
 
