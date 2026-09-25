@@ -1,4 +1,4 @@
-platforms = ["macos-arm64", "linux-arm64"]
+platforms = ["macos-arm64"]  # clang pragmas; the sums depend on clang's reduction order
 follows = [
   "https://llvm.org/docs/Vectorizers.html#reductions",
   "https://clang.llvm.org/docs/LanguageExtensions.html#extensions-to-specify-floating-point-flags",

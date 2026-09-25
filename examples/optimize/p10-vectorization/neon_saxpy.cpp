@@ -20,8 +20,10 @@
 constexpr int N = 16;  // a multiple of 4, so no scalar remainder is needed
 
 void saxpy_scalar(float a, const float* x, float* y) {
+#if defined(__clang__)
 #pragma clang fp contract(off)  // round a*x[i], then round the sum
 #pragma clang loop vectorize(disable)
+#endif
     for (int i = 0; i < N; ++i) y[i] = a * x[i] + y[i];
 }
 

@@ -33,8 +33,10 @@ int main() {
         std::perror("mmap(MAP_JIT)");
         return 1;
     }
-    std::printf("per-thread switch supported: %d\n",
-                pthread_jit_write_protect_supported_np());
+    // pthread_jit_write_protect_supported_np() says whether the switch below
+    // exists. It returned 0 on a GitHub Actions macOS runner, a virtual
+    // machine, and 1 on the machine the chapter used; the program prints 12
+    // on both, so its value is not part of the output.
 
     pthread_jit_write_protect_np(0);  // this thread: writable, not executable
     std::memcpy(mem, code, sizeof code);

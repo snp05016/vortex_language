@@ -30,7 +30,7 @@ int main() {
   scopes.push_back({{"theme", "dark"}, {"font_size", "12"}}); // outer section
   scopes.push_back({{"font_size", "14"}});                    // inner section
 
-  for (const std::string &key : {"font_size", "theme", "margin"}) {
+  for (const char *key : {"font_size", "theme", "margin"}) {
     if (auto value = lookup(scopes, key)) {
       std::println("{}: {} (from the nearest section that sets it)", key,
                     *value);

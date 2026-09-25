@@ -66,7 +66,11 @@ void search(int b) {
   for (Phi &p : phis[b]) p.target = define(p.var, pushed);
   for (std::string &s : code[b]) s = rename(s, pushed);
   std::print("visit {}:", name[b]);
-  for (const auto &[v, versions] : stacks) std::print("  {} {}", v, versions);
+  for (const auto &[v, versions] : stacks) {
+    std::print("  {} [", v);
+    for (std::size_t i = 0; i < versions.size(); ++i) std::print("{}{}", i ? ", " : "", versions[i]);
+    std::print("]");
+  }
   std::println("");
   for (int s : succ[b]) {
     const auto j = std::ranges::find(pred[s], b) - pred[s].begin();

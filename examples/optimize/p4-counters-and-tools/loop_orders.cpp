@@ -8,8 +8,8 @@
 // one loop order per run:
 //
 //   perf stat -e '{cycles,instructions}' ./loop_orders ikj        (Linux)
-//   xcrun xctrace record --template 'CPU Counters' \
-//       --launch -- ./loop_orders ikj                              (macOS)
+//   xcrun xctrace record --template 'CPU Counters' --launch -- ./loop_orders ikj
+//                                                                  (macOS)
 #include <cstdio>
 #include <cstring>
 #include <vector>

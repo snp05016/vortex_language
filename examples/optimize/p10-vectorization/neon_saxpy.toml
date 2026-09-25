@@ -1,3 +1,4 @@
+flags = ["-ffp-contract=off"]  # GCC has no fp pragma; clang uses the one in the code
 platforms = ["macos-arm64", "linux-arm64"]
 follows = [
   "https://developer.arm.com/documentation/102467/0201/Example---matrix-multiplication",

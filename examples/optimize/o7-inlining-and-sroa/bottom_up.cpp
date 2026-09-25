@@ -77,7 +77,7 @@ int main() {
                     continue;
                 }
                 caller.size += callee.size;
-                caller.calls.insert(caller.calls.end(), callee.calls.begin(), callee.calls.end());
+                for (int c : callee.calls) caller.calls.push_back(c);
                 std::printf("  inline %s into %s: %s grows to %d\n", callee.name.c_str(),
                             caller.name.c_str(), caller.name.c_str(), caller.size);
             }
