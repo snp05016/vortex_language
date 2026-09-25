@@ -4,3 +4,7 @@
 
     - [Reference: Language philosophy](../philosophy.md): *kernel*
     - [Build v0.1: 11. Release](../compiler/guide/stage-11-release.md): *kernel*
+    - [A. The machine: G1. Throughput machines](../gpu/g1-throughput-machines.md): *kernel*
+    - [A. The machine: G2. The SIMT execution model](../gpu/g2-simt.md): *kernel*
+    - [B. Performance: G4. Memory performance: coalescing and bank conflicts](../gpu/g4-memory-performance.md): *kernel*
+    - [B. Performance: G5. Occupancy and latency hiding](../gpu/g5-occupancy.md): *kernel*

@@ -234,6 +234,104 @@ flowchart LR
     c_tree_walk_interpreter["tree-walk interpreter"]
     c_vertical_slice["vertical slice"]
   end
+  subgraph book_other["Other pages"]
+    c_load_store_architecture["load/store architecture"]
+    c_register_memory_architecture["register-memory architecture"]
+    c_addressing_mode["addressing mode"]
+    c_fused_multiply_add["fused multiply-add"]
+    c_caller_saved_register["caller-saved register"]
+    c_callee_saved_register["callee-saved register"]
+    c_frame_record["frame record"]
+    c_macro_expansion["macro expansion"]
+    c_differential_testing["differential testing"]
+    c_relocation["relocation"]
+    c_instruction_selection["instruction selection"]
+    c_live_range["live range"]
+    c_interference_graph["interference graph"]
+    c_register_allocation["register allocation"]
+    c_linear_scan["linear scan"]
+    c_graph_coloring["graph coloring"]
+    c_spilling["spilling"]
+    c_rematerialization["rematerialization"]
+    c_instruction_scheduling["instruction scheduling"]
+    c_peephole_optimization["peephole optimization"]
+    c_debug_information["debug information"]
+    c_jit_compilation["JIT compilation"]
+    c_tablegen["TableGen"]
+    c_optimizer_contract["optimizer's contract"]
+    c_optimization_remark["optimization remark"]
+    c_dominator_tree["dominator tree"]
+    c_dominance_frontier["dominance frontier"]
+    c_natural_loop["natural loop"]
+    c_mem2reg["mem2reg"]
+    c_dataflow_analysis["dataflow analysis"]
+    c_dead_code_elimination["dead-code elimination"]
+    c_value_numbering["value numbering"]
+    c_inlining["inlining"]
+    c_sroa["SROA"]
+    c_induction_variable["induction variable"]
+    c_loop_simplify_form["loop simplify form"]
+    c_alias_analysis["alias analysis"]
+    c_memory_ssa["MemorySSA"]
+    c_poison_value["poison value"]
+    c_confidence_interval["confidence interval"]
+    c_cache_line["cache line"]
+    c_roofline_model["roofline model"]
+    c_latency_and_throughput["latency and throughput"]
+    c_loop_carried_dependence["loop-carried dependence"]
+    c_tiling["tiling"]
+    c_unroll_and_jam["unroll-and-jam"]
+    c_vectorization["vectorization"]
+    c_throughput_optimized_design["throughput-optimized design"]
+    c_littles_law["Little's law"]
+    c_warp["warp"]
+    c_simt["SIMT"]
+    c_divergence["divergence"]
+    c_shared_memory["shared memory"]
+    c_register_spilling["register spilling"]
+    c_address_space["address space"]
+    c_coalescing["coalescing"]
+    c_bank_conflict["bank conflict"]
+    c_thread_mapping["thread mapping"]
+    c_occupancy["occupancy"]
+    c_barrier["barrier"]
+    c_atomic_operation["atomic operation"]
+    c_convergent_operation["convergent operation"]
+    c_single_source["single source"]
+    c_virtual_instruction_set["virtual instruction set"]
+    c_structured_control_flow["structured control flow"]
+    c_uniformity["uniformity"]
+    c_tile["tile"]
+    c_matrix_unit["matrix unit"]
+    c_kernel_fusion["kernel fusion"]
+    c_tile_program["tile program"]
+    c_speed_of_light_report["speed of light report"]
+    c_systolic_array["systolic array"]
+    c_dialect["dialect"]
+    c_progressive_lowering["progressive lowering"]
+    c_operation["operation"]
+    c_region["region"]
+    c_generic_form["generic form"]
+    c_attribute["attribute"]
+    c_block_argument["block argument"]
+    c_isolated_from_above["isolated from above"]
+    c_memref["memref"]
+    c_verifier["verifier"]
+    c_pass_manager["pass manager"]
+    c_rewrite_pattern["rewrite pattern"]
+    c_canonicalization["canonicalization"]
+    c_dialect_conversion["dialect conversion"]
+    c_type_converter["type converter"]
+    c_structured_op["structured operation"]
+    c_tensor_value["tensor value"]
+    c_destination_passing_style["destination-passing style"]
+    c_iteration_space["iteration space"]
+    c_affine_dialect["affine dialect"]
+    c_bufferization["bufferization"]
+    c_virtual_vector["virtual vector"]
+    c_transform_dialect["transform dialect"]
+    c_operator_fusion["operator fusion"]
+  end
   c_type --> c_primitive_type
   c_type --> c_type_annotation
   c_identifier --> c_local_variable
@@ -516,3 +614,149 @@ flowchart LR
   c_abstract_syntax_tree --> c_tree_walk_interpreter
   c_node --> c_tree_walk_interpreter
   c_compiler --> c_vertical_slice
+  c_register --> c_load_store_architecture
+  c_instruction --> c_load_store_architecture
+  c_load_store_architecture --> c_register_memory_architecture
+  c_register --> c_addressing_mode
+  c_load_store_architecture --> c_addressing_mode
+  c_ieee_754 --> c_fused_multiply_add
+  c_calling_convention --> c_caller_saved_register
+  c_register --> c_caller_saved_register
+  c_caller_saved_register --> c_callee_saved_register
+  c_stack_frame --> c_frame_record
+  c_calling_convention --> c_frame_record
+  c_intermediate_representation --> c_macro_expansion
+  c_instruction --> c_macro_expansion
+  c_test --> c_differential_testing
+  c_object_file --> c_relocation
+  c_linker --> c_relocation
+  c_intermediate_representation --> c_instruction_selection
+  c_macro_expansion --> c_instruction_selection
+  c_control_flow_graph --> c_live_range
+  c_live_range --> c_interference_graph
+  c_register --> c_register_allocation
+  c_live_range --> c_register_allocation
+  c_register_allocation --> c_linear_scan
+  c_live_range --> c_linear_scan
+  c_register_allocation --> c_graph_coloring
+  c_interference_graph --> c_graph_coloring
+  c_register_allocation --> c_spilling
+  c_live_range --> c_spilling
+  c_spilling --> c_rematerialization
+  c_basic_block --> c_instruction_scheduling
+  c_instruction_selection --> c_peephole_optimization
+  c_source_span --> c_debug_information
+  c_stack_frame --> c_debug_information
+  c_object_file --> c_jit_compilation
+  c_linker --> c_jit_compilation
+  c_instruction_selection --> c_tablegen
+  c_calling_convention --> c_tablegen
+  c_runtime_error --> c_optimizer_contract
+  c_undefined_behavior --> c_optimizer_contract
+  c_optimizer_contract --> c_optimization_remark
+  c_pass --> c_optimization_remark
+  c_control_flow_graph --> c_dominator_tree
+  c_basic_block --> c_dominator_tree
+  c_dominator_tree --> c_dominance_frontier
+  c_static_single_assignment --> c_dominance_frontier
+  c_phi --> c_dominance_frontier
+  c_back_edge --> c_natural_loop
+  c_dominator_tree --> c_natural_loop
+  c_static_single_assignment --> c_mem2reg
+  c_register --> c_mem2reg
+  c_control_flow_graph --> c_dataflow_analysis
+  c_dominator_tree --> c_dataflow_analysis
+  c_dataflow_analysis --> c_dead_code_elimination
+  c_static_single_assignment --> c_dead_code_elimination
+  c_static_single_assignment --> c_value_numbering
+  c_dominator_tree --> c_value_numbering
+  c_function_call --> c_inlining
+  c_dead_code_elimination --> c_inlining
+  c_mem2reg --> c_sroa
+  c_aggregate --> c_sroa
+  c_natural_loop --> c_induction_variable
+  c_static_single_assignment --> c_induction_variable
+  c_natural_loop --> c_loop_simplify_form
+  c_reference --> c_alias_analysis
+  c_borrow --> c_alias_analysis
+  c_static_single_assignment --> c_memory_ssa
+  c_alias_analysis --> c_memory_ssa
+  c_optimizer_contract --> c_poison_value
+  c_undefined_behavior --> c_poison_value
+  c_memory --> c_cache_line
+  c_address --> c_cache_line
+  c_cache_line --> c_roofline_model
+  c_register --> c_latency_and_throughput
+  c_natural_loop --> c_loop_carried_dependence
+  c_induction_variable --> c_loop_carried_dependence
+  c_loop_carried_dependence --> c_tiling
+  c_cache_line --> c_tiling
+  c_loop_carried_dependence --> c_unroll_and_jam
+  c_latency_and_throughput --> c_unroll_and_jam
+  c_loop_carried_dependence --> c_vectorization
+  c_latency_and_throughput --> c_vectorization
+  c_throughput_optimized_design --> c_warp
+  c_warp --> c_simt
+  c_warp --> c_divergence
+  c_simt --> c_divergence
+  c_warp --> c_shared_memory
+  c_shared_memory --> c_address_space
+  c_warp --> c_coalescing
+  c_shared_memory --> c_bank_conflict
+  c_coalescing --> c_thread_mapping
+  c_warp --> c_occupancy
+  c_register_spilling --> c_occupancy
+  c_shared_memory --> c_barrier
+  c_divergence --> c_convergent_operation
+  c_barrier --> c_convergent_operation
+  c_divergence --> c_structured_control_flow
+  c_divergence --> c_uniformity
+  c_shared_memory --> c_tile
+  c_coalescing --> c_tile
+  c_tile --> c_matrix_unit
+  c_warp --> c_matrix_unit
+  c_tile --> c_kernel_fusion
+  c_shared_memory --> c_kernel_fusion
+  c_tile --> c_tile_program
+  c_thread_mapping --> c_tile_program
+  c_coalescing --> c_speed_of_light_report
+  c_occupancy --> c_speed_of_light_report
+  c_matrix_unit --> c_systolic_array
+  c_dialect --> c_progressive_lowering
+  c_lowering --> c_progressive_lowering
+  c_dialect --> c_operation
+  c_operation --> c_region
+  c_operation --> c_generic_form
+  c_operation --> c_attribute
+  c_region --> c_block_argument
+  c_phi --> c_block_argument
+  c_basic_block --> c_block_argument
+  c_region --> c_isolated_from_above
+  c_array --> c_memref
+  c_reference --> c_memref
+  c_operation --> c_verifier
+  c_pass --> c_pass_manager
+  c_operation --> c_pass_manager
+  c_operation --> c_rewrite_pattern
+  c_rewrite_pattern --> c_canonicalization
+  c_pass --> c_canonicalization
+  c_dialect --> c_dialect_conversion
+  c_pass --> c_dialect_conversion
+  c_dialect_conversion --> c_type_converter
+  c_memref --> c_type_converter
+  c_operation --> c_structured_op
+  c_region --> c_structured_op
+  c_memref --> c_tensor_value
+  c_array --> c_tensor_value
+  c_tensor_value --> c_destination_passing_style
+  c_structured_op --> c_destination_passing_style
+  c_structured_op --> c_iteration_space
+  c_iteration_space --> c_affine_dialect
+  c_tensor_value --> c_bufferization
+  c_memref --> c_bufferization
+  c_destination_passing_style --> c_bufferization
+  c_operation --> c_virtual_vector
+  c_memref --> c_virtual_vector
+  c_rewrite_pattern --> c_transform_dialect
+  c_static_single_assignment --> c_transform_dialect
+  c_structured_op --> c_operator_fusion

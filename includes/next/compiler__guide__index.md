@@ -5,6 +5,6 @@
     - [0. The workbench](stage-0-workbench.md): *compiler*, *source code*
     - [1. Source text and error messages](stage-1-source-and-diagnostics.md): *compiler*
     - [4. Names and scopes](stage-4-names-and-scopes.md): *compiler*
-    - [5. Types and language rules](stage-5-types-and-rules.md): *compiler*
     - [6. The first machine code](stage-6-first-machine-code.md): *compiler*, *source code*, *machine code*
     - [8. Data in memory](stage-8-data-in-memory.md): *machine code*, *code generator*
+    - [C. Software stack: G9. GPU compilers inside LLVM](../../gpu/g9-gpu-compilers-in-llvm.md): *machine code*, *code generator*

@@ -4,4 +4,4 @@
 --8<-- "examples/backend/b3-object-files/relocations.s"
 ```
 
-<p class="vx-example-links">Follows: <a href="https://developer.apple.com/documentation/xcode/writing-arm64-code-for-apple-platforms">developer.apple.com/documentation/xcode/writing-arm64-code-for-apple-platforms</a>.</p>
+<p class="vx-example-links">Follows: <a href="https://github.com/below/HelloSilicon">github.com/below/HelloSilicon</a>, <a href="https://github.com/apple-oss-distributions/xnu/blob/main/EXTERNAL_HEADERS/mach-o/arm64/reloc.h">github.com/apple-oss-distributions/xnu/blob/main/EXTERNAL_HEADERS/mach-o/arm64/reloc.h</a>.</p>

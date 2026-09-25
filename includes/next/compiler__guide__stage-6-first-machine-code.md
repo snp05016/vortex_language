@@ -5,6 +5,6 @@
     - [7. Functions and control flow](stage-7-functions-and-control-flow.md): *intermediate representation*, *lowering*, *front end*, *back end* and 4 more
     - [8. Data in memory](stage-8-data-in-memory.md): *intermediate representation*, *front end*, *target*, *instruction* and 2 more
     - [9. Runtime safety](stage-9-runtime-safety.md): *intermediate representation*, *front end*, *instruction*, *executable* and 1 more
-    - [11. Release](stage-11-release.md): *lowering*, *front end*, *executable*, *pass*
-    - [Project: Implementation roadmap](../../roadmap.md): *front end*, *object file*, *executable*, *pass*
-    - [Compiler internals: Architecture](../architecture.md): *lowering*, *target*, *executable*, *pass*
+    - [B. A first native back end: B1. The simplest back end that works](../../backend/b1-simplest-backend.md): *intermediate representation*, *instruction*, *assembly language*, *runtime library* and 1 more
+    - [B. A first native back end: B4. Linking and loading](../../backend/b4-linking-and-loading.md): *object file*, *linker*, *executable*, *runtime library* and 1 more
+    - [C. Software stack: G9. GPU compilers inside LLVM](../../gpu/g9-gpu-compilers-in-llvm.md): *intermediate representation*, *lowering*, *back end*, *target* and 5 more

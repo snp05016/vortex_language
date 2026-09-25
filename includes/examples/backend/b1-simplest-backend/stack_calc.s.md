@@ -4,4 +4,4 @@
 --8<-- "examples/backend/b1-simplest-backend/stack_calc.s"
 ```
 
-<p class="vx-example-links">Follows: <a href="https://developer.apple.com/library/archive/documentation/DeveloperTools/Reference/Assembler/040-Assembler_Directives/asm_directives.html">developer.apple.com/library/archive/documentation/DeveloperTools/Reference/Assembler/040-Assembler_Directives/asm_directives.html</a>, <a href="https://github.com/ARM-software/abi-aa/blob/main/aapcs64/aapcs64.rst">github.com/ARM-software/abi-aa/blob/main/aapcs64/aapcs64.rst</a>.</p>
+<p class="vx-example-links">Follows: <a href="https://developer.apple.com/documentation/xcode/writing-arm64-code-for-apple-platforms">developer.apple.com/documentation/xcode/writing-arm64-code-for-apple-platforms</a>, <a href="https://developer.apple.com/library/archive/documentation/DeveloperTools/Reference/Assembler/040-Assembler_Directives/asm_directives.html">developer.apple.com/library/archive/documentation/DeveloperTools/Reference/Assembler/040-Assembler_Directives/asm_directives.html</a>.</p>

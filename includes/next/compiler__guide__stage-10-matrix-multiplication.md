@@ -3,4 +3,8 @@
 !!! next "You will use this again in"
 
     - [11. Release](stage-11-release.md): *matrix*, *matrix multiplication*, *known answer*
-    - [Project: Implementation roadmap](../../roadmap.md): *matrix*, *rectangular matrix*, *matrix multiplication*
+    - [B. Performance: G4. Memory performance: coalescing and bank conflicts](../../gpu/g4-memory-performance.md): *matrix*, *row, column*, *naive*
+    - [D. Matmul and friends: G10. The GPU matmul ladder](../../gpu/g10-matmul-ladder.md): *matrix*, *row, column*, *matrix multiplication*, *dot product* and 1 more
+    - [D. Matmul and friends: G11. Matrix units](../../gpu/g11-matrix-units.md): *matrix*, *matrix multiplication*, *dot product*, *inner dimension* and 2 more
+    - [D. Matmul and friends: G12. Fusion case study: FlashAttention](../../gpu/g12-flashattention.md): *matrix*, *dot product*, *tolerance*
+    - [E. Measurement and beyond: G15. Beyond GPUs: systolic arrays and accelerators](../../gpu/g15-systolic-arrays.md): *matrix*, *matrix multiplication*, *dot product*, *loop nest*

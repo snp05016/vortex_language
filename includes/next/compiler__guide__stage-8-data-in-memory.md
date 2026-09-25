@@ -2,7 +2,9 @@
 
 !!! next "You will use this again in"
 
-    - [9. Runtime safety](stage-9-runtime-safety.md): *size*
     - [10. Matrix multiplication](stage-10-matrix-multiplication.md): *size*, *layout*
     - [11. Release](stage-11-release.md): *memory*, *layout*
-    - [Compiler internals: AST learning guide](../ast-guide.md): *address*
+    - [A. The machine: A1. The machine model](../../backend/a1-machine-model.md): *memory*, *address*
+    - [A. The machine: A5. Stack frames](../../backend/a5-stack-frames.md): *alignment*, *application binary interface*
+    - [B. Performance: G4. Memory performance: coalescing and bank conflicts](../../gpu/g4-memory-performance.md): *address*, *alignment*, *padding*, *layout* and 3 more
+    - [D. Matmul and friends: G13. Tile languages](../../gpu/g13-tile-languages.md): *padding*, *layout*, *column-major order*

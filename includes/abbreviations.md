@@ -2,50 +2,145 @@
 
 *[ABI]: application binary interface: The low-level agreement about how values are laid out and passed between functions in machine code.
 *[abstract syntax tree]: A tree that keeps only the meaningful parts of a program and drops punctuation.
+*[add recurrence]: A loop counter written as a closed formula, a start value plus a step each trip.
+*[address space]: A tag on a pointer saying which memory it names, from global to one thread's private storage.
+*[addressing mode]: A form an instruction's memory operand can take, such as base plus scaled index.
+*[affine dialect]: MLIR's loop dialect restricted to bounds and subscripts built from dims, symbols and constants.
+*[affine function]: MLIR's loop dialect restricted to bounds and subscripts built from dims, symbols and constants.
+*[alias analysis]: Deciding whether two memory accesses can touch the same bytes.
 *[application binary interface]: The low-level agreement about how values are laid out and passed between functions in machine code.
 *[AST]: abstract syntax tree: A tree that keeps only the meaningful parts of a program and drops punctuation.
+*[atomic operation]: A read-modify-write on one address applied as one indivisible step, so no update is lost.
 *[back edge]: An edge that leads back to an earlier block, which is what makes a loop.
+*[bank conflict]: Several lanes of a warp wanting different words from the same shared-memory bank at once.
 *[basic block]: A straight run of instructions entered only at the top and left only at the bottom.
+*[block argument]: A value a block receives when control enters it, MLIR's replacement for a phi.
+*[cache line]: The fixed-size, aligned chunk of memory a cache moves in one transfer.
+*[callee-saved register]: A register a callee must restore before returning if it uses it.
+*[caller-saved register]: A register a callee may overwrite; the caller must save it first if it needs the value after the call.
 *[calling convention]: The agreement between caller and callee about where arguments and the return value go.
+*[canonical loop form]: LLVM's normalized loop shape, one preheader, one back edge, dedicated exits.
 *[CFG]: control-flow graph: A function drawn as basic blocks joined by arrows that show where execution can go next.
 *[column-major order]: Storing a two-dimensional array one whole column after another.
 *[concrete syntax tree]: A tree with a node for every grammar rule the parser used, including punctuation.
+*[confidence interval]: A range likely to contain the true median of a noisy, repeated measurement.
 *[control-flow graph]: A function drawn as basic blocks joined by arrows that show where execution can go next.
 *[control-flow path]: One possible route through a function body, following one choice at every if, loop and return.
+*[convergent operation]: An operation, such as a barrier or shuffle, whose result depends on which threads run it together.
+*[dataflow analysis]: Computing a safe fact at every program point by iterating transfer functions.
+*[dead code]: Deleting code that runs but whose result nothing uses.
+*[dead-code elimination]: Deleting code that runs but whose result nothing uses.
+*[debug information]: Data emitted alongside code that maps addresses back to source lines and variable locations.
 *[decoded value]: The value a literal actually stands for, with escape sequences turned into real characters.
+*[destination-passing style]: An operation takes, for each tensor result, an operand giving that result's starting shape and value.
+*[dialect conversion]: A pass that rewrites operations until none disagrees with a target description of what is legal.
+*[differential testing]: Comparing two implementations on the same inputs; a disagreement proves one has a bug.
+*[distance vector]: A dependence between accesses in different iterations of a loop.
+*[dominance frontier]: Where a block's dominance ends, so two versions of a value can meet and need a phi.
+*[dominator tree]: A tree in which each block's parent is the nearest block every path to it must pass.
 *[dot product]: Multiplying two equal-length lists position by position and adding the results.
 *[empty compiler]: A compiler whose driver runs and exits properly but does not translate anything yet.
 *[end-of-file token]: A token with no spelling that marks the end of the input.
 *[expected failure]: A test known to fail and marked that way on purpose, usually because it covers a known limitation.
+*[FMA]: fused multiply-add: A single instruction that multiplies two values and adds a third with one rounding, not two.
+*[frame record]: The saved frame pointer and return address pair that lets a debugger walk the call stack.
+*[fused multiply-add]: A single instruction that multiplies two values and adds a third with one rounding, not two.
+*[generic form]: The syntax every MLIR operation has, printing all of its parts literally in a fixed order.
+*[global value numbering]: Finding computations that always produce the same value, not just the same text.
+*[graph coloring]: Register allocation by coloring an interference graph so no two joined values share a color.
+*[GVN]: value numbering: Finding computations that always produce the same value, not just the same text.
 *[IEEE 754]: The international standard for floating-point arithmetic, which f32 and f64 follow.
+*[immediate dominator]: A tree in which each block's parent is the nearest block every path to it must pass.
+*[induction variable]: A loop counter written as a closed formula, a start value plus a step each trip.
 *[inner dimension]: The size that must match to multiply two matrices, the columns of A and the rows of B.
+*[instruction scheduling]: Reordering independent instructions in a block to run faster without changing what they compute.
+*[instruction selection]: Choosing which machine instructions compute an intermediate representation, and at what cost.
+*[interference graph]: A graph joining values that cannot share a register because their live ranges overlap.
 *[intermediate representation]: The program written inside the compiler in a form that is no longer source text but not yet machine code.
 *[IR]: intermediate representation: The program written inside the compiler in a form that is no longer source text but not yet machine code.
+*[isolated from above]: An operation property meaning nothing inside it may use a value defined outside it.
+*[iterated dominance frontier]: Where a block's dominance ends, so two versions of a value can meet and need a phi.
+*[iteration space]: Every point a loop nest or structured operation touches, seen as one object.
+*[JIT]: JIT compilation: Generating and running machine code in memory at run time, instead of ahead of time.
+*[JIT compilation]: Generating and running machine code in memory at run time, instead of ahead of time.
 *[join point]: A block that two or more paths lead into, such as the code after an if and else.
+*[kernel fusion]: Combining several operations into one pass so an intermediate result is never written to memory.
+*[latency and throughput]: How long one instruction takes versus how often independent ones can start.
+*[linear scan]: A register allocation algorithm that walks live intervals in order instead of building a graph.
+*[Little's law]: Parallelism needed for full throughput equals a resource's latency times its throughput.
+*[live interval]: The span of a program from where a value is defined to its last use.
+*[live range]: The span of a program from where a value is defined to its last use.
+*[load/store architecture]: An ISA where only load and store instructions touch memory; arithmetic works on registers only.
+*[local data share]: A small, fast on-chip scratchpad that every thread of one block can read and write.
 *[longest match]: When several tokens could start at the same place, the lexer takes the longest valid one.
+*[loop header]: The blocks of a loop, found from a back edge whose target dominates its source.
+*[loop simplify form]: LLVM's normalized loop shape, one preheader, one back edge, dedicated exits.
+*[loop-carried dependence]: A dependence between accesses in different iterations of a loop.
+*[macro expansion]: Instruction selection by one fixed template per IR operation, chosen without looking at neighbors.
+*[matrix unit]: Hardware that computes a whole small tile's multiply-accumulate, D = A times B plus C, in one instruction.
 *[maximal munch]: When several tokens could start at the same place, the lexer takes the longest valid one.
+*[median and interval]: A range likely to contain the true median of a noisy, repeated measurement.
+*[mem2reg]: LLVM's pass that promotes a stack slot to SSA values, placing phis where needed.
+*[MemorySSA]: SSA form for memory, one MemoryDef, MemoryUse or MemoryPhi per relevant access.
+*[monotone framework]: Computing a safe fact at every program point by iterating transfer functions.
 *[NaN]: Not a number; a special floating-point value produced by operations such as 0.0 / 0.0.
+*[natural loop]: The blocks of a loop, found from a back edge whose target dominates its source.
 *[negative test]: A test that passes only if the compiler rejects a bad program for the right reason at the right place.
 *[object file]: Machine code that is not yet a complete program and may refer to code elsewhere, such as print.
+*[observable behavior]: What every optimization must preserve, a program's observable behavior, and what it may change.
+*[operational intensity]: A performance bound, the smaller of peak compute and peak bandwidth times intensity.
+*[operator fusion]: Combining several operators into one kernel so a result is used without a trip to memory first.
+*[optimization remark]: A compiler message reporting one optimization decision, passed, missed or analysis.
+*[optimizer's contract]: What every optimization must preserve, a program's observable behavior, and what it may change.
 *[parse tree]: A tree with a node for every grammar rule the parser used, including punctuation.
+*[pass manager]: The infrastructure that runs a list of passes over the operation it is anchored on.
+*[peephole optimization]: Repeatedly replacing a small matching window of instructions with a cheaper equivalent.
+*[poison value]: A value marking a broken side condition, such as overflow, that hides the failure.
 *[Pratt parsing]: A well-known technique for parsing expressions with many precedence levels, named after Vaughan Pratt.
 *[primary span]: The one stretch of source a diagnostic is about, where its marker points.
+*[progressive lowering]: Moving from a high-level dialect to a low-level one through many small, separately checked passes.
+*[reciprocal throughput]: How long one instruction takes versus how often independent ones can start.
 *[recursive descent]: A hand-written parser in which each grammar rule becomes one piece that calls the pieces for its sub-rules.
+*[register allocation]: Assigning a fixed number of registers to values whose live ranges overlap, spilling what does not fit.
+*[register spilling]: Writing a live value out to slow device memory because a thread has more values than registers.
+*[register-memory architecture]: An ISA where some instructions read or write an operand directly in memory, not just registers.
 *[release gate]: The list of checks that must all pass before a release may be named.
+*[rewrite pattern]: Compiler code that matches one shape of IR at a root operation and replaces it.
+*[roofline bound]: A performance bound, the smaller of peak compute and peak bandwidth times intensity.
+*[roofline model]: A performance bound, the smaller of peak compute and peak bandwidth times intensity.
 *[row-major order]: Storing a two-dimensional array one whole row after another.
 *[semantic analysis]: Static checks that need context beyond the grammar, such as mutability, loop-only statements and main.
+*[shared memory]: A small, fast on-chip scratchpad that every thread of one block can read and write.
 *[short-circuit evaluation]: Evaluating the right side of && or || only when the left side has not already decided the answer.
+*[SIMT]: Single instruction, multiple threads - one instruction run together by threads that may still branch.
+*[single source]: A model where one compiler reads a kernel and the code that launches it from one file.
 *[source manager]: The part of the compiler that holds the source text and turns positions into locations, reading no syntax.
 *[source span]: The start and length of the source text a token, node or diagnostic came from.
+*[speed of light report]: A profiler's two throughput percentages, compute and memory, each against that pipeline's peak.
+*[SROA]: Splitting a struct or small array into separate values that can each become SSA.
 *[SSA]: static single assignment form: A way of writing a program in which every variable is assigned exactly once.
 *[stack frame]: One call's entry on the call stack, holding its parameters, local variables and where to return to.
 *[static single assignment]: A way of writing a program in which every variable is assigned exactly once.
 *[static single assignment form]: A way of writing a program in which every variable is assigned exactly once.
+*[structured control flow]: A rule that every branch and loop nest in a region naming where control reconverges.
+*[structured operation]: An operation that states its iteration space, its indexing maps and which steps are independent.
 *[symbol table]: The compiler's record of which names are declared in which scopes and what each refers to.
 *[synchronization point]: A token, such as ; or }, where the parser can safely start again after an error.
+*[systolic array]: A grid of simple identical cells that pass data to neighbours, so memory is read once per cell.
+*[tensor core]: Hardware that computes a whole small tile's multiply-accumulate, D = A times B plus C, in one instruction.
+*[tensor value]: An immutable MLIR value with a shape and element type, unlike a memref, which is a memory reference.
+*[thread mapping]: The compiler's choice of which loop variable runs across a warp's lanes.
+*[threadgroup memory]: A small, fast on-chip scratchpad that every thread of one block can read and write.
+*[throughput-optimized design]: A design that spends transistors on running many threads at once rather than making one fast.
+*[tile program]: A function run once per output tile, whose compiler picks the thread mapping, not its programmer.
 *[token stream]: The whole sequence of tokens for a file, in order, ending with an end-of-file token.
+*[transform dialect]: A second MLIR module whose operations match payload operations and transform them by handle.
 *[tree-walk interpreter]: A program that runs code by visiting the nodes of its syntax tree one by one, without machine code.
+*[type converter]: The object a conversion pass uses to map each source type to a target type.
 *[undefined behavior]: A situation where the rules say nothing about what happens next.
 *[UTF-8]: The most common text encoding; plain English letters take one byte, other characters two to four.
 *[valid and invalid pair]: Two nearly identical test programs, one accepted and one rejected, showing a rule is enforced exactly.
+*[value numbering]: Finding computations that always produce the same value, not just the same text.
 *[vertical slice]: A thin piece of work through every stage at once, such as compiling one tiny program to an executable.
+*[virtual instruction set]: A documented ISA-shaped format no chip decodes directly; a further step reaches the real one.
+*[virtual vector]: A machine-agnostic SSA-valued vector type, such as vector<2x2xf32>, naming no memory.

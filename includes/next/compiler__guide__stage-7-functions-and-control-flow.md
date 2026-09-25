@@ -3,7 +3,8 @@
 !!! next "You will use this again in"
 
     - [8. Data in memory](stage-8-data-in-memory.md): *caller*, *callee*
-    - [9. Runtime safety](stage-9-runtime-safety.md): *edge*
-    - [Project: Implementation roadmap](../../roadmap.md): *return value*
-    - [Compiler internals: Parser design](../parser-design.md): *callee*
-    - [Compiler internals: AST learning guide](../ast-guide.md): *caller*
+    - [A. The machine: A4. Calling conventions and ABIs](../../backend/a4-calling-conventions.md): *caller*, *callee*, *return value*, *stack frame* and 1 more
+    - [A. The machine: A5. Stack frames](../../backend/a5-stack-frames.md): *caller*, *callee*, *call stack*, *stack frame*
+    - [C. The classical pipeline: C2. Liveness](../../backend/c2-liveness.md): *basic block*, *control-flow graph*, *lifetime*
+    - [C. The classical pipeline: C5. Spilling, splitting and rematerialization](../../backend/c5-spilling.md): *stack frame*, *lifetime*
+    - [C. Software stack: G9. GPU compilers inside LLVM](../../gpu/g9-gpu-compilers-in-llvm.md): *calling convention*, *basic block*, *control-flow graph*, *branch* and 1 more

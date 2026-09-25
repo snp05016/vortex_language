@@ -3,4 +3,8 @@
 !!! next "You will use this again in"
 
     - [11. Release](stage-11-release.md): *NaN*
+    - [A. The machine: A3. Floats and vectors in registers](../../backend/a3-floats-and-vectors.md): *IEEE 754*
+    - [C. The classical pipeline: C7. Peephole optimization](../../backend/c7-peephole.md): *undefined behavior*
+    - [B. Performance: G4. Memory performance: coalescing and bank conflicts](../../gpu/g4-memory-performance.md): *undefined behavior*, *IEEE 754*
+    - [D. Matmul and friends: G13. Tile languages](../../gpu/g13-tile-languages.md): *undefined behavior*, *IEEE 754*
     - [Project: Implementation roadmap](../../roadmap.md): *integer overflow*, *boundary case*
