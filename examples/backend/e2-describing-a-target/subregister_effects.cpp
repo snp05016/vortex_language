@@ -1,72 +1,71 @@
-// A toy register file, standing in for TableGen's SubRegIndex mechanism:
-// every named "register" below is really the same 32 bits of storage, seen
-// through a different bit range. A backend needs to know, for any pair of
-// them, whether writing one leaves the other alone, fully replaces it, or
-// only partly disturbs it. A real target states this once, as data, in its
-// register description; every later pass (liveness, register allocation,
-// the assembly printer) reads the same table instead of re-deriving it.
-// Follows: LLVM TableGen Backends, "Target-Independent Code Generator"
-// section. https://llvm.org/docs/TableGen/BackEnds.html
+// A toy register file described the way a target description describes one:
+// each register lists its subregisters, and nothing else. From that tree
+// alone the program derives register units (the leaves, which share no
+// storage) and then answers, for a write to one register, what happens to
+// every other register: untouched, fully redefined, or only partly changed.
+// It assumes each register is exactly the sum of its subregisters (LLVM's
+// CoveredBySubRegs); a register with bits of its own needs more than units.
+// Follows: LLVM 18.1.8 Target.td (class Register, field SubRegs) and
+// MCRegisterInfo::regsOverlap, which compares registers by shared units.
 
 #include <array>
+#include <cstdint>
 #include <iostream>
 #include <string_view>
 
-struct RegisterView {
+struct Reg {
     std::string_view name;
-    unsigned lo;  // first bit this view covers, inclusive
-    unsigned hi;  // last bit, exclusive
+    std::array<int, 2> subregs;  // indexes into kRegs, -1 for none
 };
 
-// One 32-bit root register R, described only through the ranges its named
-// views cover. RL_HI and RL_LO are non-overlapping halves of RL, the way a
-// TableGen SubRegIndex composes: RL_LO is a subregister of RL, which is
-// itself a subregister of R.
-constexpr std::array<RegisterView, 5> kViews = {{
-    {"R", 0, 32},
-    {"RH", 16, 32},
-    {"RL", 0, 16},
-    {"RL_HI", 8, 16},
-    {"RL_LO", 0, 8},
+// One 32-bit register R with halves RH and RL; RL splits into two bytes.
+constexpr std::array<Reg, 5> kRegs = {{
+    {"R", {1, 2}},
+    {"RH", {-1, -1}},
+    {"RL", {3, 4}},
+    {"RL_HI", {-1, -1}},
+    {"RL_LO", {-1, -1}},
 }};
 
-enum class Effect { Unaffected, FullyDefined, PartlyDefined };
-
-constexpr Effect classify(const RegisterView& written, const RegisterView& other) {
-    if (written.hi <= other.lo || other.hi <= written.lo) {
-        return Effect::Unaffected;
-    }
-    if (written.lo <= other.lo && other.hi <= written.hi) {
-        return Effect::FullyDefined;
-    }
-    return Effect::PartlyDefined;
+// A register with no subregisters is one unit of storage. Every other
+// register is the union of its subregisters' units.
+std::uint32_t units(int r, int& next_unit, std::array<std::uint32_t, 5>& memo) {
+    if (memo[r] != 0) return memo[r];
+    std::uint32_t mask = 0;
+    for (int s : kRegs[r].subregs)
+        if (s >= 0) mask |= units(s, next_unit, memo);
+    if (mask == 0) mask = 1u << next_unit++;
+    return memo[r] = mask;
 }
 
-std::string_view describe(Effect effect) {
-    switch (effect) {
-        case Effect::Unaffected:
-            return "unaffected";
-        case Effect::FullyDefined:
-            return "fully defined";
-        case Effect::PartlyDefined:
-            return "partly defined";
-    }
-    return "?";
-}
-
-void report(const RegisterView& written) {
-    std::cout << "writing " << written.name << " (bits " << written.lo << ".."
-              << written.hi << ")\n";
-    for (const auto& view : kViews) {
-        if (view.name == written.name) {
-            continue;
-        }
-        std::cout << "  " << view.name << ": " << describe(classify(written, view))
-                  << '\n';
-    }
+std::string_view effect(std::uint32_t written, std::uint32_t other) {
+    if ((written & other) == 0) return "untouched";
+    if ((written & other) == other) return "fully redefined";
+    return "partly changed";  // shares a unit, keeps a unit it had
 }
 
 int main() {
-    report(kViews[4]);  // RL_LO
-    report(kViews[1]);  // RH
+    std::array<std::uint32_t, 5> memo{};
+    int next_unit = 0;
+    for (int r = 0; r < 5; ++r) units(r, next_unit, memo);
+
+    std::cout << "units: " << next_unit << '\n';
+    for (int r = 0; r < 5; ++r) {
+        std::cout << "  " << kRegs[r].name << " = {";
+        std::string_view sep = "";
+        for (int u = 0; u < next_unit; ++u)
+            if (memo[r] & (1u << u)) {
+                std::cout << sep << 'u' << u;
+                sep = ", ";
+            }
+        std::cout << "}\n";
+    }
+
+    for (int w : {4, 2}) {  // write RL_LO, then RL
+        std::cout << "write " << kRegs[w].name << '\n';
+        for (int r = 0; r < 5; ++r)
+            if (r != w)
+                std::cout << "  " << kRegs[r].name << ": "
+                          << effect(memo[w], memo[r]) << '\n';
+    }
 }

@@ -1,4 +1,0 @@
-row-major fragment round-trips: true
-column-major fragment round-trips: true
-cell (row 3, col 5): row-major lane 14 slot 1, column-major lane 21 slot 1
-same cell, different lane: true

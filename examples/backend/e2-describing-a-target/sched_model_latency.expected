@@ -1,12 +1,12 @@
-generic model
-  load: start 0, finish 4
-  mul: start 4, finish 7
-  add: start 7, finish 8
-  store: start 8, finish 9
-  total: 9 cycles
-fast-multiply model
-  load: start 0, finish 4
-  mul: start 4, finish 5
-  add: start 5, finish 6
-  store: start 6, finish 7
-  total: 7 cycles
+model A
+  ldr x1, [x0]: start 0, ready 4
+  mul x2, x1, x1: start 4, ready 7
+  add x3, x2, #1: start 7, ready 8
+  str x3, [x0, #8]: start 8, ready 9
+  block: 9 cycles
+model B
+  ldr x1, [x0]: start 0, ready 4
+  mul x2, x1, x1: start 4, ready 5
+  add x3, x2, #1: start 5, ready 6
+  str x3, [x0, #8]: start 6, ready 7
+  block: 7 cycles

@@ -1,16 +1,16 @@
-; Four independent, isomorphic scalar additions, straight-line code with no
-; loop: r[k] = a[k] + b[k] for k = 0 to 3. The loop vectorizer has nothing to
-; widen here, since there is no loop; the SLP (superword-level parallelism)
-; vectorizer looks instead for a group of scalar operations that all do the
-; same thing to values that sit next to each other in memory, and packs them
-; into one vector operation.
+; Four independent, isomorphic scalar additions in straight-line code, with
+; no loop: r[k] = a[k] + b[k] for k = 0 to 3. The loop vectorizer has nothing
+; to widen here. The SLP (superword-level parallelism) vectorizer looks for
+; statements that apply the same operations in the same order, starting from
+; loads and stores to adjacent addresses, and packs them into one vector
+; operation.
 ;
 ; Run: opt -S -passes=slp-vectorizer slp_pack.ll
 ;
 ; Follows: Larsen and Amarasinghe, "Exploiting Superword Level Parallelism
-; with Multimedia Instruction Sets" (the idea of packing isomorphic
-; statements); LLVM, "Auto-Vectorization in LLVM", section on the SLP
-; vectorizer. The function is original.
+; with Multimedia Instruction Sets", sections 2.1 and 3 (isomorphic
+; statements, adjacent memory references as seeds); LLVM, "Auto-Vectorization
+; in LLVM", section "The SLP Vectorizer". The function is original.
 
 target triple = "arm64-apple-macosx"
 

@@ -1,17 +1,17 @@
 ; ModuleID = 'addrspaces.ll'
 source_filename = "addrspaces.ll"
+target datalayout = "p3:32:32"
 
-; Function Attrs: convergent
-declare void @barrier() #0
-
-define i32 @stage_and_combine(ptr addrspace(1) %g, ptr addrspace(3) %s) {
-entry:
-  %gv = load i32, ptr addrspace(1) %g, align 4
-  store i32 %gv, ptr addrspace(3) %s, align 4
-  call void @barrier()
-  %sv = load i32, ptr addrspace(3) %s, align 4
-  %sum = add i32 %gv, %sv
-  ret i32 %sum
+define i64 @gap(ptr addrspace(1) %g, ptr addrspace(3) %s) {
+  %gi = ptrtoint ptr addrspace(1) %g to i64
+  %1 = ptrtoint ptr addrspace(3) %s to i32
+  %si = zext i32 %1 to i64
+  %d = sub i64 %gi, %si
+  ret i64 %d
 }
 
-attributes #0 = { convergent }
+define ptr addrspace(3) @element(ptr addrspace(3) %s, i64 %i) {
+  %1 = trunc i64 %i to i32
+  %p = getelementptr inbounds float, ptr addrspace(3) %s, i32 %1
+  ret ptr addrspace(3) %p
+}

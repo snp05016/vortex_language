@@ -10,7 +10,7 @@
 
         Attainable GFlop/s is at most the smaller of a machine's peak flops and its peak bandwidth times the kernel's operational intensity. Left of the ridge point the bound is set by bandwidth; right of it, by compute.
 
-        Introduced in [P3. The roofline model](../optimize/p3-roofline.md#the-roofline-two-ceilings-and-the-ridge-point).
+        Introduced in [P3. The roofline model](../optimize/p3-roofline.md#the-roofline-two-lines-and-a-ridge).
 
     ??? question "Why is the naive matmul kernel's flop count fixed at 524,288 for any schedule that computes the same sums, while its byte count is not?"
 

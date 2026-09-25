@@ -7,13 +7,13 @@
 ; "epilogue" loop that covers the one element the vector loop could not: a
 ; direct copy of the original loop, resumed with the index the vector loop
 ; reached. Both write to the same array in increasing index order, so the
-; epilogue's checks and stores start exactly where the vector loop's stopped.
+; epilogue's loads and stores start exactly where the vector loop's stopped.
 ;
 ; Run: opt -S -passes=loop-vectorize -force-vector-width=4 -force-vector-interleave=1 scalar_epilogue.ll
 ;
-; Follows: LLVM, "Auto-Vectorization in LLVM", section "Loops with unknown
-; trip count" (the general shape of a vector loop plus a scalar remainder);
-; the function itself is original.
+; Follows: LLVM, "Auto-Vectorization in LLVM", sections "Loops with unknown
+; trip count" and "Epilogue Vectorization" (a vector loop plus a scalar
+; remainder loop); the function itself is original.
 
 define void @axpy17(ptr noalias %y, ptr noalias readonly %x, float %a) {
 entry:

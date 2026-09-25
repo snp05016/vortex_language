@@ -1,627 +1,740 @@
 # G11. Matrix units
 
-<p class="page-intro">A matrix unit is a piece of a GPU core that multiplies and accumulates one small, fixed-size tile of numbers in a single instruction, issued cooperatively by a whole warp. This chapter explains what that instruction actually does, what it deliberately does not tell the programmer, and why a compiler that wants to use it has to treat precision as a decision rather than a detail.</p>
+<p class="page-intro">A matrix unit multiplies and accumulates a whole small tile of numbers in one instruction, issued together by a group of threads. This chapter follows that instruction from NVIDIA's first tensor cores to today's asynchronous forms and to Apple's and AMD's equivalents, counts what it takes to keep one fed, and shows why, for a Vortex compiler, using one is a decision about the program's numbers, not only about its speed.</p>
 
-<p class="vx-meta" markdown="1">Level: Advanced · Reading time: about 30 minutes · Builds on: [G10. The GPU matmul ladder](g10-matmul-ladder.md)</p>
+<p class="vx-meta" markdown="1">Level: Advanced · Reading time: about 45 minutes · Builds on: [G10. The GPU matmul ladder](g10-matmul-ladder.md), [G4. Memory performance: coalescing and bank conflicts](g4-memory-performance.md)</p>
 
 ???+ remember "Before you start, remember"
 
-    ??? question "What is a warp, and how does one instruction serve all of its lanes?"
+    ??? question "What is a warp, and how many threads does one NVIDIA warp or one Apple SIMD-group hold?"
 
-        A warp is a group of threads, 32 on current NVIDIA GPUs, that execute one instruction together; each thread is a **lane**. One load instruction carries one address per lane, and the memory system serves the whole group's addresses at once.
+        A fixed-size group of threads that the GPU issues one instruction to at a time; each thread is one of the warp's lanes. It is 32 threads wide on NVIDIA GPUs and on Apple GPUs, where it is called a SIMD-group.
 
-        Introduced in [G4. Memory performance: coalescing and bank conflicts](g4-memory-performance.md).
+        Introduced in [G2. The SIMT execution model](g2-simt.md).
 
-    ??? question "What limits how fast a GPU finishes independent operations, once enough of them are in flight?"
+    ??? question "Why does giving each thread a t × t tile of outputs raise a matmul's arithmetic intensity?"
 
-        Its peak issue rate: how many instructions the hardware can issue per cycle. That is a fact about the chip, not about how much work is queued up waiting for it.
+        Each value a thread reads is used t times, once for every output in its row or column of the tile, so the operations per byte read grow with t: t / 4 FLOPs per byte for `f32`.
 
-        Introduced in [G1. Throughput machines](g1-throughput-machines.md).
+        Introduced in [G10. The GPU matmul ladder](g10-matmul-ladder.md).
 
-    ??? question "In what order are the elements of a `[f32; 64, 64]` array stored?"
+    ??? question "What is shared memory, and when may a thread read a value that another thread stored there?"
 
-        Row after row, the last index varying fastest, with a size and layout fixed by the array's type.
+        A small on-chip scratchpad shared by the threads of one block. A thread may read another thread's value only after both have passed a barrier that orders the store before the load.
+
+        Introduced in [G3. The GPU memory hierarchy](g3-memory-hierarchy.md).
+
+    ??? question "How are the elements of a `[f32; 64, 64]` array laid out?"
+
+        Row after row, the last index varying fastest. The shape is part of the type, so a compiler knows every dimension when it compiles the program.
 
         Introduced in [Arrays and shapes, decision 43](../decisions/arrays.md#d43).
 
-    ??? question "May a Vortex compiler reorder, fuse or reduce the precision of a floating-point operation on its own?"
+    ??? question "May a Vortex compiler fuse, reorder or narrow the floating-point operations in `sum += a[row, k] * b[k, column]`?"
 
-        No. Each `f32` or `f64` operation is one IEEE 754 operation, rounded once, to nearest even, and a conforming implementation must not contract, reassociate, widen or flush it, unless a later, explicit mode allows it.
+        No. Each `f32` operation is one IEEE 754 operation, rounded to nearest even, in the order written; contraction, reassociation, wider or narrower evaluation and flushing subnormals are all forbidden unless a later, explicit mode allows them.
 
         Introduced in [Numbers, literals and casts, decision 56](../decisions/numbers.md#d56).
 
 !!! goals "In this chapter"
 
-    - Explain why a matrix unit executes one small, fixed-size tile per instruction instead of one scalar multiply-add.
-    - Describe what a fragment's API actually promises, and what it deliberately leaves unspecified.
-    - Trace one line of instructions from CUDA's tensor-core intrinsics down through PTX to the newer asynchronous and warpgroup forms, and name Apple's and AMD's equivalents.
-    - Recognize why a matrix unit's reduced-precision inputs change a program's answer, and why that makes them an opt-in for Vortex rather than a free optimization.
-    - Judge what a compiler has to decide before it can target a matrix unit at all, separately from how it eventually does.
+    - Compute how many matrix-unit instructions a matrix product needs, and chain them along the reduction dimension by hand.
+    - Explain what a fragment is, what the WMMA contract promises about it, and what PTX's `mma` promises instead.
+    - Count the operand loads a warp tile of fragments needs, and relate that count to the register tiling of [G10](g10-matmul-ladder.md).
+    - Trace how NVIDIA's instructions moved tile loading away from the lanes, from `wmma` through `cp.async` and TMA to `wgmma` and `tcgen05`, and name Apple's and AMD's equivalents.
+    - Decide, from vendor documentation, whether a given matrix-unit instruction preserves [decision 56](../decisions/numbers.md#d56), and explain why the answer makes matrix units an explicit opt-in for Vortex.
 
 ## One instruction, one tile
 
-Take two tiny matrices, 2 rows and 2 columns each:
+Take three tiny matrices, 2 rows by 2 columns each:
 
 ```text
 A = | 2  0 |        B = | 1  3 |        C = | 1  1 |
     | 1  1 |            | 2  0 |            | 0  1 |
 ```
 
-Computing `D = A * B + C` by hand means four dot products, one per cell of
-`D`, each a pair of multiplies and an add, plus the matching cell of `C`:
-eight multiplies, six adds, sixteen scalar instructions on an ordinary core.
-`D[0, 0]` alone is `2 * 1 + 0 * 2 + 1 = 3`.
+Computing `D = A × B + C` by hand takes one dot product per cell of `D`. `D[0, 0]` is `2 × 1 + 0 × 2 + 1 = 3`; the other cells give `D = [[3, 7], [3, 4]]`. That is 8 multiplications and 8 additions, sixteen scalar instructions on an ordinary core, or eight if the core fuses each multiply with its add.
 
-A **matrix unit** is a piece of hardware that computes the whole of `D = A *
-B + C` for one small, fixed tile shape in a single instruction. Not two
-matrices of whatever size the programmer wrote: exactly the shape the
-instruction supports, no more and no fewer rows or columns, the same way a
-scalar `fma` instruction always takes exactly three numbers. NVIDIA's WMMA
-API, introduced with Volta in CUDA 9, exposes tiles as small as 16 rows by 16
-columns by 16 of reduction depth;[^tensor-cores-blog] Apple's SIMD-group
-matrix functions work over 8 by 8 tiles.[^msl-spec] The instruction does not
-loop and it does not vary its shape at runtime. Whatever matrix the program
-actually wants, a compiler has to break it into tiles of that one fixed
-shape and issue one matrix-unit instruction per tile, chaining tiles along
-the reduction dimension by feeding each instruction's output tile in as the
-next one's `C`.
+A **matrix unit** is hardware that computes all of `D = A × B + C` for one small tile of fixed shape in a single instruction. The shape is part of the instruction, the way three operands are part of a scalar `fma`: a program that wants a bigger product must cut it into tiles of exactly that shape. NVIDIA calls its matrix units **tensor cores**. On the Volta V100, each tensor core multiplied 4 × 4 matrices of 16-bit floats and added the result into 4 × 4 accumulators of 16-bit or 32-bit floats, 64 fused multiply-adds per clock; eight of them per streaming multiprocessor made 1,024 floating-point operations per clock, according to NVIDIA's 2017 introduction.[^n14]
 
-That chaining is the whole idea, and it scales the same way scalar
-tiling does: an `N` by `N` by `N` matrix multiply, tiled into `T` by `T` by
-`T` pieces along every axis, takes `(N / T)^3` matrix-unit instructions, and
-every one of them stands in for `T^3` scalar multiply-adds. The total
-arithmetic is unchanged. What shrinks is the number of instructions the
-hardware has to fetch, decode and issue to get through it, at the tile size
-its unit was built for.
+The same post describes how software sees that hardware. The threads of a warp use several tensor cores at once to perform a larger 16 × 16 × 16 operation, and CUDA 9 exposed it as the **WMMA** API (warp matrix multiply-accumulate), whose example code notes that 16 × 16 × 16 was the only shape it supported.[^n14] Here the shape is written m × n × k: `D` is m × n, and k is the **reduction depth**, the length of the dot products the instruction sums.
+
+A bigger product becomes a loop of these instructions. Split each operand into tiles; each output tile of `D` is a sum over k of tile products, and the instruction's `C` input lets that sum be built one step at a time: each result is fed back in as the next instruction's `C`. Figure 1 shows a 4 × 4 × 4 product built from 2 × 2 × 2 tiles.
+
+<figure class="vx-figure">
+<svg viewBox="0 0 760 310" role="img" aria-label="A 4 by 4 product built from 2 by 2 tile instructions chained along k" aria-describedby="g11-f1-desc">
+<title id="g11-f1-title">A 4 by 4 product built from 2 by 2 tile instructions chained along k</title>
+<desc id="g11-f1-desc">Three 4 by 4 matrices, A, B and D, each drawn as a 2 by 2 grid of 2 by 2 tiles. The top row of tiles of A (A00 and A01), the left column of tiles of B (B00 and B10) and the top-left tile of D (D00) are highlighted. Below, a chain of four boxes: C00 enters the first tile instruction, mma of A00 and B00; its result enters the second, mma of A01 and B10; the result is D00. Each output tile of D needs two instructions, and the four output tiles need eight.</desc>
+<defs><marker id="g11-f1-h" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path class="vx-arrowhead" d="M0 0 L10 5 L0 10 z"/></marker></defs>
+<text class="vx-text" x="20" y="24">D = A × B + C, tile shape 2 × 2 × 2, matrices 4 × 4</text>
+<rect class="vx-box-accent" x="40" y="50" width="52" height="52"/>
+<text class="vx-mono" x="66" y="81" text-anchor="middle">A<tspan baseline-shift="sub" font-size="10">00</tspan></text>
+<rect class="vx-box-accent" x="96" y="50" width="52" height="52"/>
+<text class="vx-mono" x="122" y="81" text-anchor="middle">A<tspan baseline-shift="sub" font-size="10">01</tspan></text>
+<rect class="vx-box" x="40" y="106" width="52" height="52"/>
+<text class="vx-mono" x="66" y="137" text-anchor="middle">A<tspan baseline-shift="sub" font-size="10">10</tspan></text>
+<rect class="vx-box" x="96" y="106" width="52" height="52"/>
+<text class="vx-mono" x="122" y="137" text-anchor="middle">A<tspan baseline-shift="sub" font-size="10">11</tspan></text>
+<text class="vx-text-muted" x="94" y="180" text-anchor="middle">A</text>
+<text class="vx-text" x="176" y="110" text-anchor="middle">×</text>
+<rect class="vx-box-accent" x="210" y="50" width="52" height="52"/>
+<text class="vx-mono" x="236" y="81" text-anchor="middle">B<tspan baseline-shift="sub" font-size="10">00</tspan></text>
+<rect class="vx-box" x="266" y="50" width="52" height="52"/>
+<text class="vx-mono" x="292" y="81" text-anchor="middle">B<tspan baseline-shift="sub" font-size="10">01</tspan></text>
+<rect class="vx-box-accent" x="210" y="106" width="52" height="52"/>
+<text class="vx-mono" x="236" y="137" text-anchor="middle">B<tspan baseline-shift="sub" font-size="10">10</tspan></text>
+<rect class="vx-box" x="266" y="106" width="52" height="52"/>
+<text class="vx-mono" x="292" y="137" text-anchor="middle">B<tspan baseline-shift="sub" font-size="10">11</tspan></text>
+<text class="vx-text-muted" x="264" y="180" text-anchor="middle">B</text>
+<text class="vx-text" x="346" y="110" text-anchor="middle">+ C  →</text>
+<rect class="vx-box-accent" x="400" y="50" width="52" height="52"/>
+<text class="vx-mono" x="426" y="81" text-anchor="middle">D<tspan baseline-shift="sub" font-size="10">00</tspan></text>
+<rect class="vx-box" x="456" y="50" width="52" height="52"/>
+<text class="vx-mono" x="482" y="81" text-anchor="middle">D<tspan baseline-shift="sub" font-size="10">01</tspan></text>
+<rect class="vx-box" x="400" y="106" width="52" height="52"/>
+<text class="vx-mono" x="426" y="137" text-anchor="middle">D<tspan baseline-shift="sub" font-size="10">10</tspan></text>
+<rect class="vx-box" x="456" y="106" width="52" height="52"/>
+<text class="vx-mono" x="482" y="137" text-anchor="middle">D<tspan baseline-shift="sub" font-size="10">11</tspan></text>
+<text class="vx-text-muted" x="454" y="180" text-anchor="middle">D</text>
+<text class="vx-mono" x="530" y="80" font-size="11">D00 = A00·B00 + A01·B10 + C00</text>
+<text class="vx-text-muted" x="530" y="104">2 instructions per output tile</text>
+<text class="vx-text-muted" x="530" y="124">4 output tiles → 8 instructions</text>
+<text class="vx-text-muted" x="530" y="144">each: 2 × 2 × 2 = 8 multiply-adds</text>
+<g class="vx-seq" style="--vx-i: 0; --vx-n: 4"><rect class="vx-box" x="40" y="230" width="90" height="44"/><text class="vx-mono" x="85.0" y="257" text-anchor="middle">C00</text></g>
+<g class="vx-seq" style="--vx-i: 1; --vx-n: 4"><rect class="vx-box-strong" x="180" y="230" width="150" height="44"/><text class="vx-mono" x="255.0" y="257" text-anchor="middle">mma(A00, B00, ·)</text></g>
+<g class="vx-seq" style="--vx-i: 2; --vx-n: 4"><rect class="vx-box-strong" x="400" y="230" width="150" height="44"/><text class="vx-mono" x="475.0" y="257" text-anchor="middle">mma(A01, B10, ·)</text></g>
+<g class="vx-seq" style="--vx-i: 3; --vx-n: 4"><rect class="vx-box-accent" x="620" y="230" width="90" height="44"/><text class="vx-mono" x="665.0" y="257" text-anchor="middle">D00</text></g>
+<line class="vx-line" x1="130" y1="252" x2="176" y2="252" marker-end="url(#g11-f1-h)"/>
+<line class="vx-line" x1="330" y1="252" x2="396" y2="252" marker-end="url(#g11-f1-h)"/>
+<line class="vx-line" x1="550" y1="252" x2="616" y2="252" marker-end="url(#g11-f1-h)"/>
+<text class="vx-text-muted" x="40" y="218">the chain for D00: each result is the next instruction's C</text>
+</svg>
+<figcaption>Figure 1. A 4 × 4 × 4 product from 2 × 2 × 2 tile instructions. Output tile D<sub>00</sub> needs the top row of tiles of A and the left column of tiles of B: two instructions, chained so that the first result is the second instruction's C. Four output tiles make eight instructions of eight multiply-adds, the same 64 multiply-adds as the scalar loop.</figcaption>
+</figure>
+
+In general, an M × N × K product on an m × n × k tile shape that divides it exactly takes (M / m) × (N / n) × (K / k) instructions, each standing for m × n × k multiply-adds. The total arithmetic does not change. What shrinks is the number of instructions the hardware must fetch, decode and issue to get through it. The first example models the instruction on integer tiles, builds the 4 × 4 × 4 product of Figure 1 and checks it against the triple loop, then counts instructions for three real tile shapes.
 
 --8<-- "includes/examples/gpu/g11-matrix-units/tile_ops.cpp.md"
 
-At `T = 16`, a 64 by 64 by 64 multiply that would be 262,144 scalar
-multiply-adds becomes 64 tile instructions; each one still accounts for
-exactly 4,096 of them, so the two counts the program prints always agree.
-Growing `T` shrinks the instruction count further, at the cost of a bigger
-fixed tile the rest of the program has to fit its data into. That trade,
-picking or discovering the tile shape a target's matrix unit actually
-supports, is the compiler decision this chapter is building toward; nothing
-here says how to make it.
+For the stage 10 kernel's 64 × 64 × 64 product, a 16 × 16 × 16 shape needs 64 instructions of 4,096 multiply-adds, and an 8 × 8 × 8 shape needs 512 of 512. The shape a target offers is a fact about the target, and the products a program wants rarely come in multiples of it; what to do with the leftover rows and columns is the boundary problem [G13](g13-tile-languages.md) takes up.
 
-??? check "A matrix unit's tile is 16 x 16 x 16, and a matmul is 128 x 128 x 128. How many tile instructions does it take, and how many scalar multiply-adds does each one stand in for?"
+??? check "A matmul is 128 × 64 × 32 and the unit's tile shape is 16 × 8 × 16. How many instructions does it take, and how long is each output tile's chain?"
 
-    `(128 / 16)^3 = 512` tile instructions, each covering `16^3 = 4,096`
-    scalar multiply-adds; `512 * 4,096 = 2,097,152`, which is `128^3`, so the
-    total work checks out exactly as it did for the 64 by 64 by 64 case above.
+    (128 / 16) × (64 / 8) × (32 / 16) = 8 × 8 × 2 = 128 instructions, each of 16 × 8 × 16 = 2,048 multiply-adds, which together make 128 × 64 × 32 = 262,144. Each of the 64 output tiles is a chain of K / k = 2 instructions.
 
-## A warp computes the tile together, but no lane sees the whole thing
+## A tile shared by a warp: the fragment
 
-A matrix unit's instruction is not private to one thread. On NVIDIA GPUs it
-is a **warp-level** instruction: all 32 lanes of a warp issue it together,
-and together they hold the tile's data, each lane owning a small, fixed
-piece of it. Apple's equivalent is scoped to a **SIMD-group**, the same idea
-under Metal's name for a warp.[^msl-spec] That piece is called a
-**fragment**: an opaque handle to the lane's share of a tile, produced by a
-load function and consumed by a store function, with no member a program can
-read or assign directly.
+A matrix-unit instruction does not belong to one thread. On NVIDIA GPUs every lane of the warp must execute it, and the CUDA Programming Guide warns that it may appear in conditional code only when the condition is the same for the whole warp; otherwise execution is likely to hang.[^wmma] The 16 × 16 operands live in the lanes' registers, spread across all 32 of them. Each lane's share is called a **fragment**: in CUDA, an object that holds one lane's section of a matrix, filled by a load function, consumed by the multiply-accumulate function and written back by a store function.[^wmma]
 
-The fragment's API is deliberately quiet about one thing: which lane holds
-which element of the tile. The Metal Shading Language specification states
-that the mapping from a SIMD-group matrix's elements to the SIMD-group's
-lanes is unspecified,[^msl-spec] and CUDA's warp matrix functions document
-only the load and store operations, never a layout a kernel is allowed to
-depend on.[^wmma] The only promise either API makes is: load a tile into a
-fragment, do only fragment operations with it, then store it, and the tile
-that comes out is the tile that went in.
+The WMMA API says nothing about which lane holds which element. The Programming Guide states that the mapping of matrix elements into a fragment is unspecified and may change in future architectures, so a program reads individual results only after storing the fragment to memory.[^wmma] PTX, NVIDIA's virtual instruction set, says the same of its `wmma` instructions, and adds a consequence: because the layout depends on the target architecture, a fragment produced in a function compiled for one architecture may not work as an operand in a function compiled for another, even when the two link together.[^ptx-wmma]
 
-That promise is checkable without touching real hardware. Build two
-different maps from an 8 by 8 tile's 64 cells onto 32 lanes with 2 slots
-each, one that walks the tile row by row and one that walks it column by
-column, and confirm each is a bijection: nothing collides, nothing is
-dropped, and reading every `(lane, slot)` back reproduces the tile.
+That silence is deliberate. It is what lets one CUDA program run on GPUs whose tensor cores want their operands arranged differently. The price is that a program can do little with a fragment besides load it, multiply it and store it. The guide allows direct element access only for an operation applied uniformly to every element, such as scaling a whole tile, where the layout cannot matter.[^wmma]
 
---8<-- "includes/examples/gpu/g11-matrix-units/fragment_mapping.cpp.md"
+Apple and MLIR made the same choice. The Metal Shading Language defines `simdgroup_float8x8` and its half and bfloat relatives as 8 × 8 matrices whose operations run cooperatively across a SIMD-group, and states that the mapping of their elements to threads is unspecified.[^msl] MLIR's `gpu` dialect gives the idea a type, `!gpu.mma_matrix`, whose layout its documentation calls opaque.[^mlir-gpu] We return to that type when a compiler has to name the operation.
 
-Both mappings pass. They also disagree with each other about almost every
-cell, including the one this chapter picked to print.
+??? check "A kernel loads a WMMA accumulator fragment, adds a bias that differs from column to column, and stores it. The code reads the fragment's elements directly and assumes lane 0 holds the first row. Is that a bug, even if the kernel passes its tests on today's GPU?"
+
+    Yes. The bias differs by column, so the operation is not uniform across elements, and it depends on which lane holds which column, which WMMA leaves unspecified and free to change between architectures. The portable version stores the fragment, adds the bias from memory, and reloads it, or uses an instruction whose layout is documented.
+
+## When the layout is the contract: mma and ldmatrix
+
+One level down, PTX offers a second way in. Its `mma` instruction computes the same `D = A × B + C`, collectively by the whole warp, but the distribution of matrix elements across the lanes must be done explicitly before the instruction runs.[^ptx-wmma] For every shape and type, PTX gives a formula from a lane and a register index to a row and a column. For the 32-bit accumulator of `mma.m16n8k16`, a 16 × 8 tile available from compute capability 8.0, the lanes form eight groups of four: `group = lane >> 2` and `t = lane % 4`. Registers `c0` and `c1` hold row `group`, and `c2` and `c3` hold row `group + 8`; within each row, the lane holds columns `2t` and `2t + 1`.[^ptx-mma-layout][^ptx-mma]
+
+Work it by hand for lane 5 before looking at Figure 2: group 1, t = 1, so rows 1 and 9, columns 2 and 3. The second example applies the formula to all 32 lanes, prints the owner of every element, and checks that each of the 128 elements has exactly one owner.
+
+--8<-- "includes/examples/gpu/g11-matrix-units/mma_layout.cpp.md"
 
 <figure class="vx-figure">
-<svg viewBox="0 0 620 310" role="img" aria-label="Two different, equally legal lane mappings for the same 8 by 8 fragment" aria-describedby="g11-f1-desc">
-<title id="g11-f1-title">Two different, equally legal lane mappings for the same 8 by 8 fragment</title>
-<desc id="g11-f1-desc">Two 8 by 8 grids of cells, each cell holding a lane number from 0 to 31 with each lane owning two cells. In the left grid, layout A, lanes run in contiguous pairs along each row: row 0 holds lanes 0, 0, 1, 1, 2, 2, 3, 3. In the right grid, layout B, lanes run in contiguous pairs down each column instead: column 0 holds lanes 0, 0, 1, 1, 2, 2, 3, 3 read downward. The cell at row 3, column 5 is highlighted in both grids: layout A gives it to lane 14, layout B gives it to lane 21. Both are legal fragments of the same tile; they disagree about which lane holds this cell and almost every other one.</desc>
-<text class="vx-text" x="20" y="24">Same 8 x 8 tile, two fragment layouts (fragment_mapping.cpp)</text>
-<text class="vx-text-muted" x="40" y="52">layout A: row-major</text>
-<text class="vx-text-muted" x="368" y="52">layout B: column-major</text>
-<rect class="vx-box" x="40" y="70" width="26" height="26"/>
-<rect class="vx-box" x="66" y="70" width="26" height="26"/>
-<rect class="vx-box" x="92" y="70" width="26" height="26"/>
-<rect class="vx-box" x="118" y="70" width="26" height="26"/>
-<rect class="vx-box" x="144" y="70" width="26" height="26"/>
-<rect class="vx-box" x="170" y="70" width="26" height="26"/>
-<rect class="vx-box" x="196" y="70" width="26" height="26"/>
-<rect class="vx-box" x="222" y="70" width="26" height="26"/>
-<rect class="vx-box" x="40" y="96" width="26" height="26"/>
-<rect class="vx-box" x="66" y="96" width="26" height="26"/>
-<rect class="vx-box" x="92" y="96" width="26" height="26"/>
-<rect class="vx-box" x="118" y="96" width="26" height="26"/>
-<rect class="vx-box" x="144" y="96" width="26" height="26"/>
-<rect class="vx-box" x="170" y="96" width="26" height="26"/>
-<rect class="vx-box" x="196" y="96" width="26" height="26"/>
-<rect class="vx-box" x="222" y="96" width="26" height="26"/>
-<rect class="vx-box" x="40" y="122" width="26" height="26"/>
-<rect class="vx-box" x="66" y="122" width="26" height="26"/>
-<rect class="vx-box" x="92" y="122" width="26" height="26"/>
-<rect class="vx-box" x="118" y="122" width="26" height="26"/>
-<rect class="vx-box" x="144" y="122" width="26" height="26"/>
-<rect class="vx-box" x="170" y="122" width="26" height="26"/>
-<rect class="vx-box" x="196" y="122" width="26" height="26"/>
-<rect class="vx-box" x="222" y="122" width="26" height="26"/>
-<rect class="vx-box" x="40" y="148" width="26" height="26"/>
-<rect class="vx-box" x="66" y="148" width="26" height="26"/>
-<rect class="vx-box" x="92" y="148" width="26" height="26"/>
-<rect class="vx-box" x="118" y="148" width="26" height="26"/>
-<rect class="vx-box" x="144" y="148" width="26" height="26"/>
-<rect class="vx-box-accent" x="170" y="148" width="26" height="26"/>
-<rect class="vx-box" x="196" y="148" width="26" height="26"/>
-<rect class="vx-box" x="222" y="148" width="26" height="26"/>
-<rect class="vx-box" x="40" y="174" width="26" height="26"/>
-<rect class="vx-box" x="66" y="174" width="26" height="26"/>
-<rect class="vx-box" x="92" y="174" width="26" height="26"/>
-<rect class="vx-box" x="118" y="174" width="26" height="26"/>
-<rect class="vx-box" x="144" y="174" width="26" height="26"/>
-<rect class="vx-box" x="170" y="174" width="26" height="26"/>
-<rect class="vx-box" x="196" y="174" width="26" height="26"/>
-<rect class="vx-box" x="222" y="174" width="26" height="26"/>
-<rect class="vx-box" x="40" y="200" width="26" height="26"/>
-<rect class="vx-box" x="66" y="200" width="26" height="26"/>
-<rect class="vx-box" x="92" y="200" width="26" height="26"/>
-<rect class="vx-box" x="118" y="200" width="26" height="26"/>
-<rect class="vx-box" x="144" y="200" width="26" height="26"/>
-<rect class="vx-box" x="170" y="200" width="26" height="26"/>
-<rect class="vx-box" x="196" y="200" width="26" height="26"/>
-<rect class="vx-box" x="222" y="200" width="26" height="26"/>
-<rect class="vx-box" x="40" y="226" width="26" height="26"/>
-<rect class="vx-box" x="66" y="226" width="26" height="26"/>
-<rect class="vx-box" x="92" y="226" width="26" height="26"/>
-<rect class="vx-box" x="118" y="226" width="26" height="26"/>
-<rect class="vx-box" x="144" y="226" width="26" height="26"/>
-<rect class="vx-box" x="170" y="226" width="26" height="26"/>
-<rect class="vx-box" x="196" y="226" width="26" height="26"/>
-<rect class="vx-box" x="222" y="226" width="26" height="26"/>
-<rect class="vx-box" x="40" y="252" width="26" height="26"/>
-<rect class="vx-box" x="66" y="252" width="26" height="26"/>
-<rect class="vx-box" x="92" y="252" width="26" height="26"/>
-<rect class="vx-box" x="118" y="252" width="26" height="26"/>
-<rect class="vx-box" x="144" y="252" width="26" height="26"/>
-<rect class="vx-box" x="170" y="252" width="26" height="26"/>
-<rect class="vx-box" x="196" y="252" width="26" height="26"/>
-<rect class="vx-box" x="222" y="252" width="26" height="26"/>
-<text class="vx-mono" x="53" y="87" text-anchor="middle" font-size="10">0</text>
-<text class="vx-mono" x="79" y="87" text-anchor="middle" font-size="10">0</text>
-<text class="vx-mono" x="105" y="87" text-anchor="middle" font-size="10">1</text>
-<text class="vx-mono" x="131" y="87" text-anchor="middle" font-size="10">1</text>
-<text class="vx-mono" x="157" y="87" text-anchor="middle" font-size="10">2</text>
-<text class="vx-mono" x="183" y="87" text-anchor="middle" font-size="10">2</text>
-<text class="vx-mono" x="209" y="87" text-anchor="middle" font-size="10">3</text>
-<text class="vx-mono" x="235" y="87" text-anchor="middle" font-size="10">3</text>
-<text class="vx-mono" x="53" y="113" text-anchor="middle" font-size="10">4</text>
-<text class="vx-mono" x="79" y="113" text-anchor="middle" font-size="10">4</text>
-<text class="vx-mono" x="105" y="113" text-anchor="middle" font-size="10">5</text>
-<text class="vx-mono" x="131" y="113" text-anchor="middle" font-size="10">5</text>
-<text class="vx-mono" x="157" y="113" text-anchor="middle" font-size="10">6</text>
-<text class="vx-mono" x="183" y="113" text-anchor="middle" font-size="10">6</text>
-<text class="vx-mono" x="209" y="113" text-anchor="middle" font-size="10">7</text>
-<text class="vx-mono" x="235" y="113" text-anchor="middle" font-size="10">7</text>
-<text class="vx-mono" x="53" y="139" text-anchor="middle" font-size="10">8</text>
-<text class="vx-mono" x="79" y="139" text-anchor="middle" font-size="10">8</text>
-<text class="vx-mono" x="105" y="139" text-anchor="middle" font-size="10">9</text>
-<text class="vx-mono" x="131" y="139" text-anchor="middle" font-size="10">9</text>
-<text class="vx-mono" x="157" y="139" text-anchor="middle" font-size="10">10</text>
-<text class="vx-mono" x="183" y="139" text-anchor="middle" font-size="10">10</text>
-<text class="vx-mono" x="209" y="139" text-anchor="middle" font-size="10">11</text>
-<text class="vx-mono" x="235" y="139" text-anchor="middle" font-size="10">11</text>
-<text class="vx-mono" x="53" y="165" text-anchor="middle" font-size="10">12</text>
-<text class="vx-mono" x="79" y="165" text-anchor="middle" font-size="10">12</text>
-<text class="vx-mono" x="105" y="165" text-anchor="middle" font-size="10">13</text>
-<text class="vx-mono" x="131" y="165" text-anchor="middle" font-size="10">13</text>
-<text class="vx-mono" x="157" y="165" text-anchor="middle" font-size="10">14</text>
-<text class="vx-mono" x="183" y="165" text-anchor="middle" font-size="10">14</text>
-<text class="vx-mono" x="209" y="165" text-anchor="middle" font-size="10">15</text>
-<text class="vx-mono" x="235" y="165" text-anchor="middle" font-size="10">15</text>
-<text class="vx-mono" x="53" y="191" text-anchor="middle" font-size="10">16</text>
-<text class="vx-mono" x="79" y="191" text-anchor="middle" font-size="10">16</text>
-<text class="vx-mono" x="105" y="191" text-anchor="middle" font-size="10">17</text>
-<text class="vx-mono" x="131" y="191" text-anchor="middle" font-size="10">17</text>
-<text class="vx-mono" x="157" y="191" text-anchor="middle" font-size="10">18</text>
-<text class="vx-mono" x="183" y="191" text-anchor="middle" font-size="10">18</text>
-<text class="vx-mono" x="209" y="191" text-anchor="middle" font-size="10">19</text>
-<text class="vx-mono" x="235" y="191" text-anchor="middle" font-size="10">19</text>
-<text class="vx-mono" x="53" y="217" text-anchor="middle" font-size="10">20</text>
-<text class="vx-mono" x="79" y="217" text-anchor="middle" font-size="10">20</text>
-<text class="vx-mono" x="105" y="217" text-anchor="middle" font-size="10">21</text>
-<text class="vx-mono" x="131" y="217" text-anchor="middle" font-size="10">21</text>
-<text class="vx-mono" x="157" y="217" text-anchor="middle" font-size="10">22</text>
-<text class="vx-mono" x="183" y="217" text-anchor="middle" font-size="10">22</text>
-<text class="vx-mono" x="209" y="217" text-anchor="middle" font-size="10">23</text>
-<text class="vx-mono" x="235" y="217" text-anchor="middle" font-size="10">23</text>
-<text class="vx-mono" x="53" y="243" text-anchor="middle" font-size="10">24</text>
-<text class="vx-mono" x="79" y="243" text-anchor="middle" font-size="10">24</text>
-<text class="vx-mono" x="105" y="243" text-anchor="middle" font-size="10">25</text>
-<text class="vx-mono" x="131" y="243" text-anchor="middle" font-size="10">25</text>
-<text class="vx-mono" x="157" y="243" text-anchor="middle" font-size="10">26</text>
-<text class="vx-mono" x="183" y="243" text-anchor="middle" font-size="10">26</text>
-<text class="vx-mono" x="209" y="243" text-anchor="middle" font-size="10">27</text>
-<text class="vx-mono" x="235" y="243" text-anchor="middle" font-size="10">27</text>
-<text class="vx-mono" x="53" y="269" text-anchor="middle" font-size="10">28</text>
-<text class="vx-mono" x="79" y="269" text-anchor="middle" font-size="10">28</text>
-<text class="vx-mono" x="105" y="269" text-anchor="middle" font-size="10">29</text>
-<text class="vx-mono" x="131" y="269" text-anchor="middle" font-size="10">29</text>
-<text class="vx-mono" x="157" y="269" text-anchor="middle" font-size="10">30</text>
-<text class="vx-mono" x="183" y="269" text-anchor="middle" font-size="10">30</text>
-<text class="vx-mono" x="209" y="269" text-anchor="middle" font-size="10">31</text>
-<text class="vx-mono" x="235" y="269" text-anchor="middle" font-size="10">31</text>
-<rect class="vx-box" x="368" y="70" width="26" height="26"/>
-<rect class="vx-box" x="394" y="70" width="26" height="26"/>
-<rect class="vx-box" x="420" y="70" width="26" height="26"/>
-<rect class="vx-box" x="446" y="70" width="26" height="26"/>
-<rect class="vx-box" x="472" y="70" width="26" height="26"/>
-<rect class="vx-box" x="498" y="70" width="26" height="26"/>
-<rect class="vx-box" x="524" y="70" width="26" height="26"/>
-<rect class="vx-box" x="550" y="70" width="26" height="26"/>
-<rect class="vx-box" x="368" y="96" width="26" height="26"/>
-<rect class="vx-box" x="394" y="96" width="26" height="26"/>
-<rect class="vx-box" x="420" y="96" width="26" height="26"/>
-<rect class="vx-box" x="446" y="96" width="26" height="26"/>
-<rect class="vx-box" x="472" y="96" width="26" height="26"/>
-<rect class="vx-box" x="498" y="96" width="26" height="26"/>
-<rect class="vx-box" x="524" y="96" width="26" height="26"/>
-<rect class="vx-box" x="550" y="96" width="26" height="26"/>
-<rect class="vx-box" x="368" y="122" width="26" height="26"/>
-<rect class="vx-box" x="394" y="122" width="26" height="26"/>
-<rect class="vx-box" x="420" y="122" width="26" height="26"/>
-<rect class="vx-box" x="446" y="122" width="26" height="26"/>
-<rect class="vx-box" x="472" y="122" width="26" height="26"/>
-<rect class="vx-box" x="498" y="122" width="26" height="26"/>
-<rect class="vx-box" x="524" y="122" width="26" height="26"/>
-<rect class="vx-box" x="550" y="122" width="26" height="26"/>
-<rect class="vx-box" x="368" y="148" width="26" height="26"/>
-<rect class="vx-box" x="394" y="148" width="26" height="26"/>
-<rect class="vx-box" x="420" y="148" width="26" height="26"/>
-<rect class="vx-box" x="446" y="148" width="26" height="26"/>
-<rect class="vx-box" x="472" y="148" width="26" height="26"/>
-<rect class="vx-box-accent" x="498" y="148" width="26" height="26"/>
-<rect class="vx-box" x="524" y="148" width="26" height="26"/>
-<rect class="vx-box" x="550" y="148" width="26" height="26"/>
-<rect class="vx-box" x="368" y="174" width="26" height="26"/>
-<rect class="vx-box" x="394" y="174" width="26" height="26"/>
-<rect class="vx-box" x="420" y="174" width="26" height="26"/>
-<rect class="vx-box" x="446" y="174" width="26" height="26"/>
-<rect class="vx-box" x="472" y="174" width="26" height="26"/>
-<rect class="vx-box" x="498" y="174" width="26" height="26"/>
-<rect class="vx-box" x="524" y="174" width="26" height="26"/>
-<rect class="vx-box" x="550" y="174" width="26" height="26"/>
-<rect class="vx-box" x="368" y="200" width="26" height="26"/>
-<rect class="vx-box" x="394" y="200" width="26" height="26"/>
-<rect class="vx-box" x="420" y="200" width="26" height="26"/>
-<rect class="vx-box" x="446" y="200" width="26" height="26"/>
-<rect class="vx-box" x="472" y="200" width="26" height="26"/>
-<rect class="vx-box" x="498" y="200" width="26" height="26"/>
-<rect class="vx-box" x="524" y="200" width="26" height="26"/>
-<rect class="vx-box" x="550" y="200" width="26" height="26"/>
-<rect class="vx-box" x="368" y="226" width="26" height="26"/>
-<rect class="vx-box" x="394" y="226" width="26" height="26"/>
-<rect class="vx-box" x="420" y="226" width="26" height="26"/>
-<rect class="vx-box" x="446" y="226" width="26" height="26"/>
-<rect class="vx-box" x="472" y="226" width="26" height="26"/>
-<rect class="vx-box" x="498" y="226" width="26" height="26"/>
-<rect class="vx-box" x="524" y="226" width="26" height="26"/>
-<rect class="vx-box" x="550" y="226" width="26" height="26"/>
-<rect class="vx-box" x="368" y="252" width="26" height="26"/>
-<rect class="vx-box" x="394" y="252" width="26" height="26"/>
-<rect class="vx-box" x="420" y="252" width="26" height="26"/>
-<rect class="vx-box" x="446" y="252" width="26" height="26"/>
-<rect class="vx-box" x="472" y="252" width="26" height="26"/>
-<rect class="vx-box" x="498" y="252" width="26" height="26"/>
-<rect class="vx-box" x="524" y="252" width="26" height="26"/>
-<rect class="vx-box" x="550" y="252" width="26" height="26"/>
-<text class="vx-mono" x="381" y="87" text-anchor="middle" font-size="10">0</text>
-<text class="vx-mono" x="407" y="87" text-anchor="middle" font-size="10">4</text>
-<text class="vx-mono" x="433" y="87" text-anchor="middle" font-size="10">8</text>
-<text class="vx-mono" x="459" y="87" text-anchor="middle" font-size="10">12</text>
-<text class="vx-mono" x="485" y="87" text-anchor="middle" font-size="10">16</text>
-<text class="vx-mono" x="511" y="87" text-anchor="middle" font-size="10">20</text>
-<text class="vx-mono" x="537" y="87" text-anchor="middle" font-size="10">24</text>
-<text class="vx-mono" x="563" y="87" text-anchor="middle" font-size="10">28</text>
-<text class="vx-mono" x="381" y="113" text-anchor="middle" font-size="10">0</text>
-<text class="vx-mono" x="407" y="113" text-anchor="middle" font-size="10">4</text>
-<text class="vx-mono" x="433" y="113" text-anchor="middle" font-size="10">8</text>
-<text class="vx-mono" x="459" y="113" text-anchor="middle" font-size="10">12</text>
-<text class="vx-mono" x="485" y="113" text-anchor="middle" font-size="10">16</text>
-<text class="vx-mono" x="511" y="113" text-anchor="middle" font-size="10">20</text>
-<text class="vx-mono" x="537" y="113" text-anchor="middle" font-size="10">24</text>
-<text class="vx-mono" x="563" y="113" text-anchor="middle" font-size="10">28</text>
-<text class="vx-mono" x="381" y="139" text-anchor="middle" font-size="10">1</text>
-<text class="vx-mono" x="407" y="139" text-anchor="middle" font-size="10">5</text>
-<text class="vx-mono" x="433" y="139" text-anchor="middle" font-size="10">9</text>
-<text class="vx-mono" x="459" y="139" text-anchor="middle" font-size="10">13</text>
-<text class="vx-mono" x="485" y="139" text-anchor="middle" font-size="10">17</text>
-<text class="vx-mono" x="511" y="139" text-anchor="middle" font-size="10">21</text>
-<text class="vx-mono" x="537" y="139" text-anchor="middle" font-size="10">25</text>
-<text class="vx-mono" x="563" y="139" text-anchor="middle" font-size="10">29</text>
-<text class="vx-mono" x="381" y="165" text-anchor="middle" font-size="10">1</text>
-<text class="vx-mono" x="407" y="165" text-anchor="middle" font-size="10">5</text>
-<text class="vx-mono" x="433" y="165" text-anchor="middle" font-size="10">9</text>
-<text class="vx-mono" x="459" y="165" text-anchor="middle" font-size="10">13</text>
-<text class="vx-mono" x="485" y="165" text-anchor="middle" font-size="10">17</text>
-<text class="vx-mono" x="511" y="165" text-anchor="middle" font-size="10">21</text>
-<text class="vx-mono" x="537" y="165" text-anchor="middle" font-size="10">25</text>
-<text class="vx-mono" x="563" y="165" text-anchor="middle" font-size="10">29</text>
-<text class="vx-mono" x="381" y="191" text-anchor="middle" font-size="10">2</text>
-<text class="vx-mono" x="407" y="191" text-anchor="middle" font-size="10">6</text>
-<text class="vx-mono" x="433" y="191" text-anchor="middle" font-size="10">10</text>
-<text class="vx-mono" x="459" y="191" text-anchor="middle" font-size="10">14</text>
-<text class="vx-mono" x="485" y="191" text-anchor="middle" font-size="10">18</text>
-<text class="vx-mono" x="511" y="191" text-anchor="middle" font-size="10">22</text>
-<text class="vx-mono" x="537" y="191" text-anchor="middle" font-size="10">26</text>
-<text class="vx-mono" x="563" y="191" text-anchor="middle" font-size="10">30</text>
-<text class="vx-mono" x="381" y="217" text-anchor="middle" font-size="10">2</text>
-<text class="vx-mono" x="407" y="217" text-anchor="middle" font-size="10">6</text>
-<text class="vx-mono" x="433" y="217" text-anchor="middle" font-size="10">10</text>
-<text class="vx-mono" x="459" y="217" text-anchor="middle" font-size="10">14</text>
-<text class="vx-mono" x="485" y="217" text-anchor="middle" font-size="10">18</text>
-<text class="vx-mono" x="511" y="217" text-anchor="middle" font-size="10">22</text>
-<text class="vx-mono" x="537" y="217" text-anchor="middle" font-size="10">26</text>
-<text class="vx-mono" x="563" y="217" text-anchor="middle" font-size="10">30</text>
-<text class="vx-mono" x="381" y="243" text-anchor="middle" font-size="10">3</text>
-<text class="vx-mono" x="407" y="243" text-anchor="middle" font-size="10">7</text>
-<text class="vx-mono" x="433" y="243" text-anchor="middle" font-size="10">11</text>
-<text class="vx-mono" x="459" y="243" text-anchor="middle" font-size="10">15</text>
-<text class="vx-mono" x="485" y="243" text-anchor="middle" font-size="10">19</text>
-<text class="vx-mono" x="511" y="243" text-anchor="middle" font-size="10">23</text>
-<text class="vx-mono" x="537" y="243" text-anchor="middle" font-size="10">27</text>
-<text class="vx-mono" x="563" y="243" text-anchor="middle" font-size="10">31</text>
-<text class="vx-mono" x="381" y="269" text-anchor="middle" font-size="10">3</text>
-<text class="vx-mono" x="407" y="269" text-anchor="middle" font-size="10">7</text>
-<text class="vx-mono" x="433" y="269" text-anchor="middle" font-size="10">11</text>
-<text class="vx-mono" x="459" y="269" text-anchor="middle" font-size="10">15</text>
-<text class="vx-mono" x="485" y="269" text-anchor="middle" font-size="10">19</text>
-<text class="vx-mono" x="511" y="269" text-anchor="middle" font-size="10">23</text>
-<text class="vx-mono" x="537" y="269" text-anchor="middle" font-size="10">27</text>
-<text class="vx-mono" x="563" y="269" text-anchor="middle" font-size="10">31</text>
-<text class="vx-text-accent" x="40" y="292">row 3, col 5 &#8594; lane 14</text>
-<text class="vx-text-accent" x="368" y="292">row 3, col 5 &#8594; lane 21</text>
+<svg viewBox="0 0 700 430" role="img" aria-label="Which lane owns each element of the 16 by 8 f32 accumulator of mma.m16n8k16" aria-describedby="g11-f2-desc">
+<title id="g11-f2-title">Which lane owns each element of the 16 by 8 f32 accumulator of mma.m16n8k16</title>
+<desc id="g11-f2-desc">A grid of 16 rows and 8 columns. Each cell shows the number of the lane that holds that accumulator element. Row 0 reads 0, 0, 1, 1, 2, 2, 3, 3; row 1 reads 4, 4, 5, 5, 6, 6, 7, 7; and so on to row 7, which reads 28, 28, 29, 29, 30, 30, 31, 31. Rows 8 to 15 repeat rows 0 to 7. The four cells of lane 5 are highlighted: row 1, columns 2 and 3, and row 9, columns 2 and 3. Each lane owns two neighbouring elements in one row and the same two columns eight rows further down.</desc>
+<text class="vx-text" x="20" y="24">mma.m16n8k16, f32 accumulator: owner lane of each element (mma_layout.cpp)</text>
+<text class="vx-text-muted" x="85.0" y="66" text-anchor="middle">0</text>
+<text class="vx-text-muted" x="115.0" y="66" text-anchor="middle">1</text>
+<text class="vx-text-muted" x="145.0" y="66" text-anchor="middle">2</text>
+<text class="vx-text-muted" x="175.0" y="66" text-anchor="middle">3</text>
+<text class="vx-text-muted" x="205.0" y="66" text-anchor="middle">4</text>
+<text class="vx-text-muted" x="235.0" y="66" text-anchor="middle">5</text>
+<text class="vx-text-muted" x="265.0" y="66" text-anchor="middle">6</text>
+<text class="vx-text-muted" x="295.0" y="66" text-anchor="middle">7</text>
+<text class="vx-text-muted" x="190" y="46" text-anchor="middle">column</text>
+<text class="vx-text-muted" x="60" y="89" text-anchor="end">0</text>
+<rect class="vx-box" x="70" y="74" width="30" height="21"/>
+<text class="vx-mono" x="85.0" y="89" text-anchor="middle" font-size="11">0</text>
+<rect class="vx-box" x="100" y="74" width="30" height="21"/>
+<text class="vx-mono" x="115.0" y="89" text-anchor="middle" font-size="11">0</text>
+<rect class="vx-box" x="130" y="74" width="30" height="21"/>
+<text class="vx-mono" x="145.0" y="89" text-anchor="middle" font-size="11">1</text>
+<rect class="vx-box" x="160" y="74" width="30" height="21"/>
+<text class="vx-mono" x="175.0" y="89" text-anchor="middle" font-size="11">1</text>
+<rect class="vx-box" x="190" y="74" width="30" height="21"/>
+<text class="vx-mono" x="205.0" y="89" text-anchor="middle" font-size="11">2</text>
+<rect class="vx-box" x="220" y="74" width="30" height="21"/>
+<text class="vx-mono" x="235.0" y="89" text-anchor="middle" font-size="11">2</text>
+<rect class="vx-box" x="250" y="74" width="30" height="21"/>
+<text class="vx-mono" x="265.0" y="89" text-anchor="middle" font-size="11">3</text>
+<rect class="vx-box" x="280" y="74" width="30" height="21"/>
+<text class="vx-mono" x="295.0" y="89" text-anchor="middle" font-size="11">3</text>
+<text class="vx-text-muted" x="60" y="110" text-anchor="end">1</text>
+<rect class="vx-box" x="70" y="95" width="30" height="21"/>
+<text class="vx-mono" x="85.0" y="110" text-anchor="middle" font-size="11">4</text>
+<rect class="vx-box" x="100" y="95" width="30" height="21"/>
+<text class="vx-mono" x="115.0" y="110" text-anchor="middle" font-size="11">4</text>
+<rect class="vx-box-accent" x="130" y="95" width="30" height="21"/>
+<text class="vx-text-accent" x="145.0" y="110" text-anchor="middle" font-size="11">5</text>
+<rect class="vx-box-accent" x="160" y="95" width="30" height="21"/>
+<text class="vx-text-accent" x="175.0" y="110" text-anchor="middle" font-size="11">5</text>
+<rect class="vx-box" x="190" y="95" width="30" height="21"/>
+<text class="vx-mono" x="205.0" y="110" text-anchor="middle" font-size="11">6</text>
+<rect class="vx-box" x="220" y="95" width="30" height="21"/>
+<text class="vx-mono" x="235.0" y="110" text-anchor="middle" font-size="11">6</text>
+<rect class="vx-box" x="250" y="95" width="30" height="21"/>
+<text class="vx-mono" x="265.0" y="110" text-anchor="middle" font-size="11">7</text>
+<rect class="vx-box" x="280" y="95" width="30" height="21"/>
+<text class="vx-mono" x="295.0" y="110" text-anchor="middle" font-size="11">7</text>
+<text class="vx-text-muted" x="60" y="131" text-anchor="end">2</text>
+<rect class="vx-box" x="70" y="116" width="30" height="21"/>
+<text class="vx-mono" x="85.0" y="131" text-anchor="middle" font-size="11">8</text>
+<rect class="vx-box" x="100" y="116" width="30" height="21"/>
+<text class="vx-mono" x="115.0" y="131" text-anchor="middle" font-size="11">8</text>
+<rect class="vx-box" x="130" y="116" width="30" height="21"/>
+<text class="vx-mono" x="145.0" y="131" text-anchor="middle" font-size="11">9</text>
+<rect class="vx-box" x="160" y="116" width="30" height="21"/>
+<text class="vx-mono" x="175.0" y="131" text-anchor="middle" font-size="11">9</text>
+<rect class="vx-box" x="190" y="116" width="30" height="21"/>
+<text class="vx-mono" x="205.0" y="131" text-anchor="middle" font-size="11">10</text>
+<rect class="vx-box" x="220" y="116" width="30" height="21"/>
+<text class="vx-mono" x="235.0" y="131" text-anchor="middle" font-size="11">10</text>
+<rect class="vx-box" x="250" y="116" width="30" height="21"/>
+<text class="vx-mono" x="265.0" y="131" text-anchor="middle" font-size="11">11</text>
+<rect class="vx-box" x="280" y="116" width="30" height="21"/>
+<text class="vx-mono" x="295.0" y="131" text-anchor="middle" font-size="11">11</text>
+<text class="vx-text-muted" x="60" y="152" text-anchor="end">3</text>
+<rect class="vx-box" x="70" y="137" width="30" height="21"/>
+<text class="vx-mono" x="85.0" y="152" text-anchor="middle" font-size="11">12</text>
+<rect class="vx-box" x="100" y="137" width="30" height="21"/>
+<text class="vx-mono" x="115.0" y="152" text-anchor="middle" font-size="11">12</text>
+<rect class="vx-box" x="130" y="137" width="30" height="21"/>
+<text class="vx-mono" x="145.0" y="152" text-anchor="middle" font-size="11">13</text>
+<rect class="vx-box" x="160" y="137" width="30" height="21"/>
+<text class="vx-mono" x="175.0" y="152" text-anchor="middle" font-size="11">13</text>
+<rect class="vx-box" x="190" y="137" width="30" height="21"/>
+<text class="vx-mono" x="205.0" y="152" text-anchor="middle" font-size="11">14</text>
+<rect class="vx-box" x="220" y="137" width="30" height="21"/>
+<text class="vx-mono" x="235.0" y="152" text-anchor="middle" font-size="11">14</text>
+<rect class="vx-box" x="250" y="137" width="30" height="21"/>
+<text class="vx-mono" x="265.0" y="152" text-anchor="middle" font-size="11">15</text>
+<rect class="vx-box" x="280" y="137" width="30" height="21"/>
+<text class="vx-mono" x="295.0" y="152" text-anchor="middle" font-size="11">15</text>
+<text class="vx-text-muted" x="60" y="173" text-anchor="end">4</text>
+<rect class="vx-box" x="70" y="158" width="30" height="21"/>
+<text class="vx-mono" x="85.0" y="173" text-anchor="middle" font-size="11">16</text>
+<rect class="vx-box" x="100" y="158" width="30" height="21"/>
+<text class="vx-mono" x="115.0" y="173" text-anchor="middle" font-size="11">16</text>
+<rect class="vx-box" x="130" y="158" width="30" height="21"/>
+<text class="vx-mono" x="145.0" y="173" text-anchor="middle" font-size="11">17</text>
+<rect class="vx-box" x="160" y="158" width="30" height="21"/>
+<text class="vx-mono" x="175.0" y="173" text-anchor="middle" font-size="11">17</text>
+<rect class="vx-box" x="190" y="158" width="30" height="21"/>
+<text class="vx-mono" x="205.0" y="173" text-anchor="middle" font-size="11">18</text>
+<rect class="vx-box" x="220" y="158" width="30" height="21"/>
+<text class="vx-mono" x="235.0" y="173" text-anchor="middle" font-size="11">18</text>
+<rect class="vx-box" x="250" y="158" width="30" height="21"/>
+<text class="vx-mono" x="265.0" y="173" text-anchor="middle" font-size="11">19</text>
+<rect class="vx-box" x="280" y="158" width="30" height="21"/>
+<text class="vx-mono" x="295.0" y="173" text-anchor="middle" font-size="11">19</text>
+<text class="vx-text-muted" x="60" y="194" text-anchor="end">5</text>
+<rect class="vx-box" x="70" y="179" width="30" height="21"/>
+<text class="vx-mono" x="85.0" y="194" text-anchor="middle" font-size="11">20</text>
+<rect class="vx-box" x="100" y="179" width="30" height="21"/>
+<text class="vx-mono" x="115.0" y="194" text-anchor="middle" font-size="11">20</text>
+<rect class="vx-box" x="130" y="179" width="30" height="21"/>
+<text class="vx-mono" x="145.0" y="194" text-anchor="middle" font-size="11">21</text>
+<rect class="vx-box" x="160" y="179" width="30" height="21"/>
+<text class="vx-mono" x="175.0" y="194" text-anchor="middle" font-size="11">21</text>
+<rect class="vx-box" x="190" y="179" width="30" height="21"/>
+<text class="vx-mono" x="205.0" y="194" text-anchor="middle" font-size="11">22</text>
+<rect class="vx-box" x="220" y="179" width="30" height="21"/>
+<text class="vx-mono" x="235.0" y="194" text-anchor="middle" font-size="11">22</text>
+<rect class="vx-box" x="250" y="179" width="30" height="21"/>
+<text class="vx-mono" x="265.0" y="194" text-anchor="middle" font-size="11">23</text>
+<rect class="vx-box" x="280" y="179" width="30" height="21"/>
+<text class="vx-mono" x="295.0" y="194" text-anchor="middle" font-size="11">23</text>
+<text class="vx-text-muted" x="60" y="215" text-anchor="end">6</text>
+<rect class="vx-box" x="70" y="200" width="30" height="21"/>
+<text class="vx-mono" x="85.0" y="215" text-anchor="middle" font-size="11">24</text>
+<rect class="vx-box" x="100" y="200" width="30" height="21"/>
+<text class="vx-mono" x="115.0" y="215" text-anchor="middle" font-size="11">24</text>
+<rect class="vx-box" x="130" y="200" width="30" height="21"/>
+<text class="vx-mono" x="145.0" y="215" text-anchor="middle" font-size="11">25</text>
+<rect class="vx-box" x="160" y="200" width="30" height="21"/>
+<text class="vx-mono" x="175.0" y="215" text-anchor="middle" font-size="11">25</text>
+<rect class="vx-box" x="190" y="200" width="30" height="21"/>
+<text class="vx-mono" x="205.0" y="215" text-anchor="middle" font-size="11">26</text>
+<rect class="vx-box" x="220" y="200" width="30" height="21"/>
+<text class="vx-mono" x="235.0" y="215" text-anchor="middle" font-size="11">26</text>
+<rect class="vx-box" x="250" y="200" width="30" height="21"/>
+<text class="vx-mono" x="265.0" y="215" text-anchor="middle" font-size="11">27</text>
+<rect class="vx-box" x="280" y="200" width="30" height="21"/>
+<text class="vx-mono" x="295.0" y="215" text-anchor="middle" font-size="11">27</text>
+<text class="vx-text-muted" x="60" y="236" text-anchor="end">7</text>
+<rect class="vx-box" x="70" y="221" width="30" height="21"/>
+<text class="vx-mono" x="85.0" y="236" text-anchor="middle" font-size="11">28</text>
+<rect class="vx-box" x="100" y="221" width="30" height="21"/>
+<text class="vx-mono" x="115.0" y="236" text-anchor="middle" font-size="11">28</text>
+<rect class="vx-box" x="130" y="221" width="30" height="21"/>
+<text class="vx-mono" x="145.0" y="236" text-anchor="middle" font-size="11">29</text>
+<rect class="vx-box" x="160" y="221" width="30" height="21"/>
+<text class="vx-mono" x="175.0" y="236" text-anchor="middle" font-size="11">29</text>
+<rect class="vx-box" x="190" y="221" width="30" height="21"/>
+<text class="vx-mono" x="205.0" y="236" text-anchor="middle" font-size="11">30</text>
+<rect class="vx-box" x="220" y="221" width="30" height="21"/>
+<text class="vx-mono" x="235.0" y="236" text-anchor="middle" font-size="11">30</text>
+<rect class="vx-box" x="250" y="221" width="30" height="21"/>
+<text class="vx-mono" x="265.0" y="236" text-anchor="middle" font-size="11">31</text>
+<rect class="vx-box" x="280" y="221" width="30" height="21"/>
+<text class="vx-mono" x="295.0" y="236" text-anchor="middle" font-size="11">31</text>
+<text class="vx-text-muted" x="60" y="257" text-anchor="end">8</text>
+<rect class="vx-box" x="70" y="242" width="30" height="21"/>
+<text class="vx-mono" x="85.0" y="257" text-anchor="middle" font-size="11">0</text>
+<rect class="vx-box" x="100" y="242" width="30" height="21"/>
+<text class="vx-mono" x="115.0" y="257" text-anchor="middle" font-size="11">0</text>
+<rect class="vx-box" x="130" y="242" width="30" height="21"/>
+<text class="vx-mono" x="145.0" y="257" text-anchor="middle" font-size="11">1</text>
+<rect class="vx-box" x="160" y="242" width="30" height="21"/>
+<text class="vx-mono" x="175.0" y="257" text-anchor="middle" font-size="11">1</text>
+<rect class="vx-box" x="190" y="242" width="30" height="21"/>
+<text class="vx-mono" x="205.0" y="257" text-anchor="middle" font-size="11">2</text>
+<rect class="vx-box" x="220" y="242" width="30" height="21"/>
+<text class="vx-mono" x="235.0" y="257" text-anchor="middle" font-size="11">2</text>
+<rect class="vx-box" x="250" y="242" width="30" height="21"/>
+<text class="vx-mono" x="265.0" y="257" text-anchor="middle" font-size="11">3</text>
+<rect class="vx-box" x="280" y="242" width="30" height="21"/>
+<text class="vx-mono" x="295.0" y="257" text-anchor="middle" font-size="11">3</text>
+<text class="vx-text-muted" x="60" y="278" text-anchor="end">9</text>
+<rect class="vx-box" x="70" y="263" width="30" height="21"/>
+<text class="vx-mono" x="85.0" y="278" text-anchor="middle" font-size="11">4</text>
+<rect class="vx-box" x="100" y="263" width="30" height="21"/>
+<text class="vx-mono" x="115.0" y="278" text-anchor="middle" font-size="11">4</text>
+<rect class="vx-box-accent" x="130" y="263" width="30" height="21"/>
+<text class="vx-text-accent" x="145.0" y="278" text-anchor="middle" font-size="11">5</text>
+<rect class="vx-box-accent" x="160" y="263" width="30" height="21"/>
+<text class="vx-text-accent" x="175.0" y="278" text-anchor="middle" font-size="11">5</text>
+<rect class="vx-box" x="190" y="263" width="30" height="21"/>
+<text class="vx-mono" x="205.0" y="278" text-anchor="middle" font-size="11">6</text>
+<rect class="vx-box" x="220" y="263" width="30" height="21"/>
+<text class="vx-mono" x="235.0" y="278" text-anchor="middle" font-size="11">6</text>
+<rect class="vx-box" x="250" y="263" width="30" height="21"/>
+<text class="vx-mono" x="265.0" y="278" text-anchor="middle" font-size="11">7</text>
+<rect class="vx-box" x="280" y="263" width="30" height="21"/>
+<text class="vx-mono" x="295.0" y="278" text-anchor="middle" font-size="11">7</text>
+<text class="vx-text-muted" x="60" y="299" text-anchor="end">10</text>
+<rect class="vx-box" x="70" y="284" width="30" height="21"/>
+<text class="vx-mono" x="85.0" y="299" text-anchor="middle" font-size="11">8</text>
+<rect class="vx-box" x="100" y="284" width="30" height="21"/>
+<text class="vx-mono" x="115.0" y="299" text-anchor="middle" font-size="11">8</text>
+<rect class="vx-box" x="130" y="284" width="30" height="21"/>
+<text class="vx-mono" x="145.0" y="299" text-anchor="middle" font-size="11">9</text>
+<rect class="vx-box" x="160" y="284" width="30" height="21"/>
+<text class="vx-mono" x="175.0" y="299" text-anchor="middle" font-size="11">9</text>
+<rect class="vx-box" x="190" y="284" width="30" height="21"/>
+<text class="vx-mono" x="205.0" y="299" text-anchor="middle" font-size="11">10</text>
+<rect class="vx-box" x="220" y="284" width="30" height="21"/>
+<text class="vx-mono" x="235.0" y="299" text-anchor="middle" font-size="11">10</text>
+<rect class="vx-box" x="250" y="284" width="30" height="21"/>
+<text class="vx-mono" x="265.0" y="299" text-anchor="middle" font-size="11">11</text>
+<rect class="vx-box" x="280" y="284" width="30" height="21"/>
+<text class="vx-mono" x="295.0" y="299" text-anchor="middle" font-size="11">11</text>
+<text class="vx-text-muted" x="60" y="320" text-anchor="end">11</text>
+<rect class="vx-box" x="70" y="305" width="30" height="21"/>
+<text class="vx-mono" x="85.0" y="320" text-anchor="middle" font-size="11">12</text>
+<rect class="vx-box" x="100" y="305" width="30" height="21"/>
+<text class="vx-mono" x="115.0" y="320" text-anchor="middle" font-size="11">12</text>
+<rect class="vx-box" x="130" y="305" width="30" height="21"/>
+<text class="vx-mono" x="145.0" y="320" text-anchor="middle" font-size="11">13</text>
+<rect class="vx-box" x="160" y="305" width="30" height="21"/>
+<text class="vx-mono" x="175.0" y="320" text-anchor="middle" font-size="11">13</text>
+<rect class="vx-box" x="190" y="305" width="30" height="21"/>
+<text class="vx-mono" x="205.0" y="320" text-anchor="middle" font-size="11">14</text>
+<rect class="vx-box" x="220" y="305" width="30" height="21"/>
+<text class="vx-mono" x="235.0" y="320" text-anchor="middle" font-size="11">14</text>
+<rect class="vx-box" x="250" y="305" width="30" height="21"/>
+<text class="vx-mono" x="265.0" y="320" text-anchor="middle" font-size="11">15</text>
+<rect class="vx-box" x="280" y="305" width="30" height="21"/>
+<text class="vx-mono" x="295.0" y="320" text-anchor="middle" font-size="11">15</text>
+<text class="vx-text-muted" x="60" y="341" text-anchor="end">12</text>
+<rect class="vx-box" x="70" y="326" width="30" height="21"/>
+<text class="vx-mono" x="85.0" y="341" text-anchor="middle" font-size="11">16</text>
+<rect class="vx-box" x="100" y="326" width="30" height="21"/>
+<text class="vx-mono" x="115.0" y="341" text-anchor="middle" font-size="11">16</text>
+<rect class="vx-box" x="130" y="326" width="30" height="21"/>
+<text class="vx-mono" x="145.0" y="341" text-anchor="middle" font-size="11">17</text>
+<rect class="vx-box" x="160" y="326" width="30" height="21"/>
+<text class="vx-mono" x="175.0" y="341" text-anchor="middle" font-size="11">17</text>
+<rect class="vx-box" x="190" y="326" width="30" height="21"/>
+<text class="vx-mono" x="205.0" y="341" text-anchor="middle" font-size="11">18</text>
+<rect class="vx-box" x="220" y="326" width="30" height="21"/>
+<text class="vx-mono" x="235.0" y="341" text-anchor="middle" font-size="11">18</text>
+<rect class="vx-box" x="250" y="326" width="30" height="21"/>
+<text class="vx-mono" x="265.0" y="341" text-anchor="middle" font-size="11">19</text>
+<rect class="vx-box" x="280" y="326" width="30" height="21"/>
+<text class="vx-mono" x="295.0" y="341" text-anchor="middle" font-size="11">19</text>
+<text class="vx-text-muted" x="60" y="362" text-anchor="end">13</text>
+<rect class="vx-box" x="70" y="347" width="30" height="21"/>
+<text class="vx-mono" x="85.0" y="362" text-anchor="middle" font-size="11">20</text>
+<rect class="vx-box" x="100" y="347" width="30" height="21"/>
+<text class="vx-mono" x="115.0" y="362" text-anchor="middle" font-size="11">20</text>
+<rect class="vx-box" x="130" y="347" width="30" height="21"/>
+<text class="vx-mono" x="145.0" y="362" text-anchor="middle" font-size="11">21</text>
+<rect class="vx-box" x="160" y="347" width="30" height="21"/>
+<text class="vx-mono" x="175.0" y="362" text-anchor="middle" font-size="11">21</text>
+<rect class="vx-box" x="190" y="347" width="30" height="21"/>
+<text class="vx-mono" x="205.0" y="362" text-anchor="middle" font-size="11">22</text>
+<rect class="vx-box" x="220" y="347" width="30" height="21"/>
+<text class="vx-mono" x="235.0" y="362" text-anchor="middle" font-size="11">22</text>
+<rect class="vx-box" x="250" y="347" width="30" height="21"/>
+<text class="vx-mono" x="265.0" y="362" text-anchor="middle" font-size="11">23</text>
+<rect class="vx-box" x="280" y="347" width="30" height="21"/>
+<text class="vx-mono" x="295.0" y="362" text-anchor="middle" font-size="11">23</text>
+<text class="vx-text-muted" x="60" y="383" text-anchor="end">14</text>
+<rect class="vx-box" x="70" y="368" width="30" height="21"/>
+<text class="vx-mono" x="85.0" y="383" text-anchor="middle" font-size="11">24</text>
+<rect class="vx-box" x="100" y="368" width="30" height="21"/>
+<text class="vx-mono" x="115.0" y="383" text-anchor="middle" font-size="11">24</text>
+<rect class="vx-box" x="130" y="368" width="30" height="21"/>
+<text class="vx-mono" x="145.0" y="383" text-anchor="middle" font-size="11">25</text>
+<rect class="vx-box" x="160" y="368" width="30" height="21"/>
+<text class="vx-mono" x="175.0" y="383" text-anchor="middle" font-size="11">25</text>
+<rect class="vx-box" x="190" y="368" width="30" height="21"/>
+<text class="vx-mono" x="205.0" y="383" text-anchor="middle" font-size="11">26</text>
+<rect class="vx-box" x="220" y="368" width="30" height="21"/>
+<text class="vx-mono" x="235.0" y="383" text-anchor="middle" font-size="11">26</text>
+<rect class="vx-box" x="250" y="368" width="30" height="21"/>
+<text class="vx-mono" x="265.0" y="383" text-anchor="middle" font-size="11">27</text>
+<rect class="vx-box" x="280" y="368" width="30" height="21"/>
+<text class="vx-mono" x="295.0" y="383" text-anchor="middle" font-size="11">27</text>
+<text class="vx-text-muted" x="60" y="404" text-anchor="end">15</text>
+<rect class="vx-box" x="70" y="389" width="30" height="21"/>
+<text class="vx-mono" x="85.0" y="404" text-anchor="middle" font-size="11">28</text>
+<rect class="vx-box" x="100" y="389" width="30" height="21"/>
+<text class="vx-mono" x="115.0" y="404" text-anchor="middle" font-size="11">28</text>
+<rect class="vx-box" x="130" y="389" width="30" height="21"/>
+<text class="vx-mono" x="145.0" y="404" text-anchor="middle" font-size="11">29</text>
+<rect class="vx-box" x="160" y="389" width="30" height="21"/>
+<text class="vx-mono" x="175.0" y="404" text-anchor="middle" font-size="11">29</text>
+<rect class="vx-box" x="190" y="389" width="30" height="21"/>
+<text class="vx-mono" x="205.0" y="404" text-anchor="middle" font-size="11">30</text>
+<rect class="vx-box" x="220" y="389" width="30" height="21"/>
+<text class="vx-mono" x="235.0" y="404" text-anchor="middle" font-size="11">30</text>
+<rect class="vx-box" x="250" y="389" width="30" height="21"/>
+<text class="vx-mono" x="265.0" y="404" text-anchor="middle" font-size="11">31</text>
+<rect class="vx-box" x="280" y="389" width="30" height="21"/>
+<text class="vx-mono" x="295.0" y="404" text-anchor="middle" font-size="11">31</text>
+<text class="vx-text-muted" x="26" y="242" text-anchor="middle" transform="rotate(-90 26 242)">row</text>
+<text class="vx-text" x="360" y="108">The rule PTX gives, per lane:</text>
+<text class="vx-mono" x="360" y="132" font-size="12">group = lane >> 2</text>
+<text class="vx-mono" x="360" y="156" font-size="12">t     = lane % 4</text>
+<text class="vx-mono" x="360" y="180" font-size="12">c0, c1: row group,     cols 2t, 2t+1</text>
+<text class="vx-mono" x="360" y="204" font-size="12">c2, c3: row group + 8, cols 2t, 2t+1</text>
+<text class="vx-text-accent" x="360" y="252">lane 5: group 1, t = 1</text>
+<text class="vx-text-accent" x="360" y="276">rows 1 and 9, columns 2 and 3</text>
+<text class="vx-text-muted" x="360" y="324">128 elements, 32 lanes, 4 each.</text>
+<text class="vx-text-muted" x="360" y="348">WMMA promises no such map;</text>
+<text class="vx-text-muted" x="360" y="372">mma requires the program to follow it.</text>
 </svg>
-<figcaption>Layout A and layout B both satisfy the only rule a fragment promises: store it back and you get the tile you loaded. Which lane holds cell (3, 5), or any other cell, is not part of that promise.</figcaption>
+<figcaption>Figure 2. The documented layout of the <code>mma.m16n8k16</code> <code>f32</code> accumulator. Every lane holds four of the 128 elements: a pair of neighbouring columns in one row, and the same pair eight rows below. Lane 5's four elements are highlighted. WMMA fragments of the same size promise no map at all.</figcaption>
 </figure>
 
-??? check "Two GPUs implement WMMA's 16 x 16 x 16 fragment with different, undocumented lane mappings. Does a kernel that only calls the load and store functions on that fragment need to know which mapping is in use?"
+A documented layout is a promise a compiler can build on. Code that emits `mma` knows which output elements each lane holds, so it can apply a bias that varies by column, or a conversion before the store, directly in registers. It also knows exactly what each lane must hold before the instruction runs, and that is a second job: getting the operands into that shape.
 
-    No. The fragment's contract is defined entirely by what load-then-store
-    reproduces, not by which lane holds which element, so a kernel written
-    only against the load, store and multiply-accumulate functions runs
-    unchanged on either mapping. Only code that tried to read a lane's slots
-    directly, which the API does not offer, could possibly depend on it.
+For that job PTX has **ldmatrix**, available from compute capability 7.5: all 32 lanes together load one, two or four small matrices (8 × 8 in the basic shape) of 16-bit or narrower elements from shared memory into their registers, for use by `mma`.[^ptx-ldmatrix] Splitting the work this way separates two costs, moving bytes and doing arithmetic, which a kernel can then overlap.
 
-## From one intrinsic to a whole family of instructions
+CUTLASS, NVIDIA's template library for fast matrix products, builds its warp-level products on exactly these instructions, `mma.sync` or `wmma`, fed from shared memory into registers, and keeps two sets of fragments so that one is loaded while the other is used.[^cutlass]
 
-WMMA is a C++ template API; underneath it, the actual hardware instructions
-live one level down, in PTX, NVIDIA's virtual instruction set. PTX exposes
-`wmma` directly, and, for more control over which lanes hold which
-fragment elements, a pair of lower-level instructions: `mma`, the matrix
-multiply-accumulate itself, and `ldmatrix`, which loads a tile from shared
-memory straight into the layout `mma` expects.[^ptx] Splitting the two
-matters because loading a tile and multiplying it are different costs: one
-moves bytes, the other issues arithmetic, and a compiler or a hand-written
-kernel may want to overlap many loads with one multiply, or the reverse.
+??? check "Using the formula, which lane holds accumulator element (row 14, column 5) of `mma.m16n8k16`, and in which register?"
 
-The generations after Volta grew the same idea in two directions at once.
-One is asynchrony: `cp.async` copies data from global memory into shared
-memory without passing it through a register first, so a warp can start a
-copy and go on to other work instead of stalling on it, and
-`cp.async.bulk.tensor`, better known by its marketing name TMA (Tensor
-Memory Accelerator), moves a whole multi-dimensional tile in one
-instruction, computed by dedicated address-generation hardware rather than
-by the lanes that issued it.[^async-copies] The other is scale: Hopper's
-`wgmma.mma_async` is a **warpgroup**-level matrix multiply, issued
-cooperatively by four warps (128 threads) at once over a tile bigger than
-any single warp's `mma` could hold, and it is asynchronous in the same
-sense as `cp.async`: the warpgroup issues it and can keep working while it
-completes.[^hopper-tuning] PTX 9.4 also defines Blackwell's `tcgen05`
-family, a further step toward tiles owned by dedicated tensor memory rather
-than by the issuing threads' registers; this chapter does no more than name
-it.[^ptx]
+    Row 14 is at least 8, so it is `c2` or `c3` of group 14 − 8 = 6. Column 5 is `2t + 1` with t = 2, so the register is `c3` (the odd column) and the lane is 4 × 6 + 2 = 26. Row 14 of the printed grid confirms it: `26 26 27 27` puts lane 26 in columns 4 and 5.
 
-Every step in that line answers the same question the last one raised: once
-a matrix unit computes a tile in one instruction, the next bottleneck is
-getting tiles to it and from it fast enough to keep it fed, and each new
-instruction moves more data, or bigger tiles, with less of the issuing
-warp's own attention spent on the move.
+## Feeding the unit: reuse at the fragment level
 
-??? check "What problem do cp.async and TMA solve that wmma alone does not?"
+A matrix unit finishes a tile in one instruction, so the next question is the one [G10](g10-matmul-ladder.md) asked of every rung: can the data arrive fast enough? The answer uses the same reuse argument, one level up. Instead of each thread holding a tile of scalar accumulators, each warp holds a **warp tile** of fm × fn accumulator fragments. At each step of k it loads fm fragments of A and fn fragments of B, and every A fragment meets every B fragment once: fm × fn instructions from fm + fn loads.
 
-    They move a tile from global memory into shared memory without a
-    register round trip and without stalling the issuing warp on a
-    synchronous load first, so data movement for a later tile can overlap
-    with matrix-unit instructions still working on an earlier one.
+Work one case by hand, with Apple's 8 × 8 × 8 SIMD-group operation. With a 2 × 2 warp tile, one step of k loads 4 fragments of 64 elements, 256 elements, and issues 4 instructions of 512 multiply-adds, 2,048: eight multiply-adds per element loaded. A 1 × 1 warp tile gets four. In general the ratio is 8 × fm × fn / (fm + fn), and for a square warp tile of side f it is 4f, growing linearly with the tile side as the thread tile's intensity did in G10.
 
-## The same idea, three names
+The third example walks the loops of a 64 × 64 × 64 product for several warp tiles and counts loads and instructions directly.
 
-Apple's Metal Shading Language exposes matrix units as **SIMD-group matrix
-functions**, working over 8 by 8 tiles of types such as
-`simdgroup_float8x8`; the types have existed since Metal 2.3, and the
-hardware support behind them since Apple7, the GPU family in the M1 and
-later chips, including the M4 Pro this book is written on.[^msl-spec]
-Metal's feature-set tables list SIMD-scoped matrix multiply as an Apple7
-capability, distinct from the ordinary SIMD-group reductions and shuffles
-introduced earlier.[^metal-features] Metal 4 adds a further layer on top:
-dedicated tensor types and the Metal Performance Primitives library, whose
-`matmul2d` operation works at a coarser grain than a single SIMD-group
-instruction.[^msl-spec]
+--8<-- "includes/examples/gpu/g11-matrix-units/fragment_reuse.cpp.md"
 
-AMD's CDNA architecture, used in its data-center GPUs, has its own matrix
-cores, reached through **MFMA** (matrix fused multiply-accumulate)
-instructions built into the compute units.[^hip-hw] The vocabulary changes
-in every one of these three ecosystems: warp or SIMD-group, fragment or
-SIMD-group matrix, `mma` or MFMA, but the shape of the idea does not. One
-instruction, one small fixed tile, issued by a whole group of lanes that
-between them hold every element and individually see none of the layout.
+The last column is the cost. An 8 × 8 accumulator holds 64 values, two per lane on average across a 32-lane SIMD-group, so a 4 × 4 warp tile keeps 32 accumulator values in every lane's registers, before any operand fragments. [G5](g5-occupancy.md) explains what spending registers does to the number of warps a core can keep in flight. CUTLASS's guidance points the same way from the other side: choose a large warp-level tile to maximize reuse within the warp.[^cutlass] The best warp tile is the largest one the register budget allows, and the register budget belongs to the target.
 
-## Naming the instruction a compiler wants to emit
+## Moving tiles without the lanes
 
-None of the details above are things a Vortex compiler could pattern-match
-on a loop nest and simply do. Before a compiler can even ask whether a
-matmul should target a matrix unit, it needs an instruction in its own
-intermediate representation that means "multiply this tile by that tile and
-accumulate", so that a lowering pass has something to match against a real
-`wmma`, `mma`, SIMD-group or MFMA instruction later. MLIR's vector dialect
-already has one: `vector.contract`, which names two input vectors, an
-accumulator, and, through its indexing maps and iterator types, which axes
-are multiplied, which are kept, and which are reduced over.[^vector-dialect]
+Each later generation of NVIDIA's instructions attacks the same bottleneck: getting tiles to the unit without spending the lanes' instructions and registers on the move (Figure 3).
 
---8<-- "includes/examples/gpu/g11-matrix-units/tile_contract.mlir.md"
+<figure class="vx-figure">
+<svg viewBox="0 0 850 420" role="img" aria-label="How operand tiles reach NVIDIA's matrix unit in four instruction generations" aria-describedby="g11-f3-desc">
+<title id="g11-f3-title">How operand tiles reach NVIDIA's matrix unit in four instruction generations</title>
+<desc id="g11-f3-desc">Four rows, one per generation, across five columns: global memory, shared memory, registers, the matrix unit and tensor memory. Row 1, wmma from compute capability 7.0: wmma.load brings a tile from memory into the warp's registers, and wmma.mma, issued by one warp, reads them. Row 2, compute capability 8.0: cp.async copies from global to shared memory without passing through registers, ldmatrix loads shared memory into registers in the layout mma needs, and mma.sync is issued by one warp. Row 3, Hopper, compute capability 9.0: a TMA bulk tensor copy moves a whole tile from global to shared memory, and wgmma, issued by a warpgroup of four warps, reads B straight from shared memory and A from registers or shared memory, with the accumulator in registers. Row 4, sm_100a: tcgen05.mma is issued by a single thread and accumulates into a dedicated tensor memory. From row to row, fewer steps pass through the lanes' own registers.</desc>
+<defs><marker id="g11-f3-h" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path class="vx-arrowhead" d="M0 0 L10 5 L0 10 z"/></marker></defs>
+<text class="vx-text-muted" x="255" y="40" text-anchor="middle">global</text>
+<text class="vx-text-muted" x="385" y="40" text-anchor="middle">shared</text>
+<text class="vx-text-muted" x="515" y="40" text-anchor="middle">registers</text>
+<text class="vx-text-muted" x="645" y="40" text-anchor="middle">matrix unit</text>
+<text class="vx-text-muted" x="775" y="40" text-anchor="middle">tensor memory</text>
+<text class="vx-text" x="20" y="92">CC 7.0</text>
+<text class="vx-text-muted" x="20" y="110">wmma</text>
+<text class="vx-text-accent" x="20" y="128">issued by 1 warp</text>
+<rect class="vx-box" x="205" y="78" width="100" height="40"/>
+<text class="vx-mono" x="255" y="103" text-anchor="middle" font-size="12">tile</text>
+<rect class="vx-box" x="465" y="78" width="100" height="40"/>
+<text class="vx-mono" x="515" y="103" text-anchor="middle" font-size="12">fragments</text>
+<line class="vx-flow" x1="305" y1="98" x2="463" y2="98" marker-end="url(#g11-f3-h)"/>
+<text class="vx-text-muted" x="385.0" y="140" text-anchor="middle">wmma.load</text>
+<rect class="vx-box-accent" x="595" y="78" width="100" height="40"/>
+<text class="vx-mono" x="645" y="103" text-anchor="middle" font-size="12">D = A·B + D</text>
+<line class="vx-flow" x1="565" y1="98" x2="593" y2="98" marker-end="url(#g11-f3-h)"/>
+<text class="vx-text-muted" x="580.0" y="140" text-anchor="middle">wmma.mma</text>
+<text class="vx-text" x="20" y="176">CC 8.0</text>
+<text class="vx-text-muted" x="20" y="194">cp.async, ldmatrix, mma</text>
+<text class="vx-text-accent" x="20" y="212">issued by 1 warp</text>
+<rect class="vx-box" x="205" y="162" width="100" height="40"/>
+<text class="vx-mono" x="255" y="187" text-anchor="middle" font-size="12">tile</text>
+<rect class="vx-box" x="335" y="162" width="100" height="40"/>
+<text class="vx-mono" x="385" y="187" text-anchor="middle" font-size="12">tile</text>
+<line class="vx-flow" x1="305" y1="182" x2="333" y2="182" marker-end="url(#g11-f3-h)"/>
+<text class="vx-text-muted" x="320.0" y="224" text-anchor="middle">cp.async</text>
+<rect class="vx-box" x="465" y="162" width="100" height="40"/>
+<text class="vx-mono" x="515" y="187" text-anchor="middle" font-size="12">fragments</text>
+<line class="vx-flow" x1="435" y1="182" x2="463" y2="182" marker-end="url(#g11-f3-h)"/>
+<text class="vx-text-muted" x="450.0" y="224" text-anchor="middle">ldmatrix</text>
+<rect class="vx-box-accent" x="595" y="162" width="100" height="40"/>
+<text class="vx-mono" x="645" y="187" text-anchor="middle" font-size="12">D = A·B + D</text>
+<line class="vx-flow" x1="565" y1="182" x2="593" y2="182" marker-end="url(#g11-f3-h)"/>
+<text class="vx-text-muted" x="580.0" y="224" text-anchor="middle">mma.sync</text>
+<text class="vx-text" x="20" y="260">CC 9.0</text>
+<text class="vx-text-muted" x="20" y="278">TMA, wgmma</text>
+<text class="vx-text-accent" x="20" y="296">issued by 4 warps</text>
+<rect class="vx-box" x="205" y="246" width="100" height="40"/>
+<text class="vx-mono" x="255" y="271" text-anchor="middle" font-size="12">tile</text>
+<rect class="vx-box" x="335" y="246" width="100" height="40"/>
+<text class="vx-mono" x="385" y="271" text-anchor="middle" font-size="12">tile</text>
+<line class="vx-flow" x1="305" y1="266" x2="333" y2="266" marker-end="url(#g11-f3-h)"/>
+<text class="vx-text-muted" x="320.0" y="308" text-anchor="middle">TMA copy</text>
+<rect class="vx-box-accent" x="595" y="246" width="100" height="40"/>
+<text class="vx-mono" x="645" y="271" text-anchor="middle" font-size="12">D = A·B + D</text>
+<line class="vx-flow" x1="435" y1="266" x2="593" y2="266" marker-end="url(#g11-f3-h)"/>
+<text class="vx-text-muted" x="515.0" y="308" text-anchor="middle">wgmma (B from shared)</text>
+<text class="vx-text" x="20" y="344">sm_100a</text>
+<text class="vx-text-muted" x="20" y="362">tcgen05</text>
+<text class="vx-text-accent" x="20" y="380">issued by 1 thread</text>
+<rect class="vx-box" x="205" y="330" width="100" height="40"/>
+<text class="vx-mono" x="255" y="355" text-anchor="middle" font-size="12">tile</text>
+<rect class="vx-box" x="335" y="330" width="100" height="40"/>
+<text class="vx-mono" x="385" y="355" text-anchor="middle" font-size="12">tile</text>
+<line class="vx-flow" x1="305" y1="350" x2="333" y2="350" marker-end="url(#g11-f3-h)"/>
+<text class="vx-text-muted" x="320.0" y="392" text-anchor="middle">TMA copy</text>
+<rect class="vx-box-accent" x="595" y="330" width="100" height="40"/>
+<text class="vx-mono" x="645" y="355" text-anchor="middle" font-size="12">D = A·B + D</text>
+<line class="vx-flow" x1="435" y1="350" x2="593" y2="350" marker-end="url(#g11-f3-h)"/>
+<text class="vx-text-muted" x="515.0" y="392" text-anchor="middle">tcgen05.mma</text>
+<rect class="vx-box" x="725" y="330" width="100" height="40"/>
+<text class="vx-mono" x="775" y="355" text-anchor="middle" font-size="12">D</text>
+<line class="vx-flow" x1="695" y1="350" x2="723" y2="350" marker-end="url(#g11-f3-h)"/>
+<text class="vx-text-muted" x="710.0" y="392" text-anchor="middle">accumulator</text>
+</svg>
+<figcaption>Figure 3. How operand tiles reach NVIDIA's matrix unit. With <code>wmma</code>, the warp loads fragments into its registers and issues the multiply. From compute capability 8.0, <code>cp.async</code> copies global memory to shared memory without a register in between, and <code>ldmatrix</code> fills the fragments. From 9.0, one TMA copy moves a whole tile, and <code>wgmma</code> reads B straight from shared memory. On <code>sm_100a</code>, one thread issues <code>tcgen05.mma</code>, and the accumulator lives in a dedicated tensor memory.</figcaption>
+</figure>
 
-Applied to `4x4xf32` vectors here, the same operation applies just as well
-to whatever fixed tile shape a target's real matrix unit expects. What it
-buys a compiler is a single, explicit place, one operation, to decide
-whether a tile multiply becomes a loop of scalar multiply-adds or a call to
-a hardware matrix instruction, instead of that decision being smeared across
-however many individual arithmetic operations the tile's loop nest happened
-to contain.
+**Asynchronous copies** came first. PTX's `cp.async`, from compute capability 8.0, starts a copy of 4, 8 or 16 bytes from global to shared memory and returns control to the thread before the copy completes; the thread later waits on a group of copies or on a barrier object.[^ptx-cpasync] The Programming Guide, which calls the mechanism LDGSTS, notes that copying directly into shared memory also reduces register use, since the data no longer passes through a register on the way.[^pg-async] This is what makes the double buffering of G10's rung 10 cheap to issue: the next tile loads while the unit works on the current one.
 
-## Reduced precision is a decision, not a side effect
+The **Tensor Memory Accelerator** (TMA), from compute capability 9.0, copies a whole tile, of up to five dimensions, between global and shared memory. A **tensor map**, usually built on the host, describes the array's layout, and the hardware does the address arithmetic the lanes used to do, which the guide calls error-prone and repetitive.[^pg-async] PTX exposes it as `cp.async.bulk.tensor`.[^ptx-bulk] One instruction now describes a whole tile, where each `cp.async` moves at most 16 bytes for its thread.[^ptx-cpasync]
 
-Real matrix-unit hardware earns much of its throughput by accepting inputs
-narrower than the accumulator: WMMA's earliest tiles multiplied half or
-mixed-precision inputs into a full `f32` accumulator, and later formats such
-as TF32 trade some of a 32-bit input's mantissa for the same trick at wider
-range. Feeding a matrix unit means feeding it the input type, and
-therefore the input precision, it was built for.
+The unit grew as well. Hopper's `wgmma.mma_async` is issued by a **warpgroup**: four contiguous warps, 128 threads, the first of whose warp numbers is a multiple of four. Its B operand must be in shared memory, described by a matrix descriptor, and its A operand may be in registers or in shared memory, so B never passes through the lanes' registers at all. It is asynchronous: the warpgroup issues it, commits it to a group, and later waits for the group to finish. It requires the `sm_90a` target.[^ptx-wgmma]
 
-That collides directly with a rule this book has already cited twice.
-Decision 56 requires every `f32` or `f64` operation in Vortex to be exactly
-one IEEE 754 operation, rounded once, with no contraction, reassociation or
-loss of precision unless the program opts in explicitly. Converting an
-`f32` input down to a narrower type before a multiply, or accumulating in a
-different precision than the source values, is exactly the kind of change
-that rule exists to catch: it changes the rounding of every intermediate
-value, and on a matrix multiply summing many products, that can change the
-final digits of the answer. The [philosophy page](../philosophy.md#performance-philosophy)
-states the same limit from the optimizer's side: hardware-specific
-instructions are allowed only while preserving a computation's declared
-semantics. A matrix unit that takes narrower inputs does not preserve the
-declared semantics of an `f32` multiply. It computes something related, and
-computes it correctly by its own rules, but not the operation the program
-declared.
+The latest step in PTX 9.4 is the fifth-generation family, `tcgen05`. Its `tcgen05.mma` has single-thread semantics: one thread issuing it starts the whole matrix operation, unlike the warp-wide `mma.sync` and the warpgroup-wide `wgmma`. The accumulator lives in **tensor memory**, a dedicated on-chip memory that on `sm_100a` holds 128 rows by 512 columns of 32-bit cells per thread block.[^ptx-tcgen05] Down the rows of Figure 3, the issuing group goes from a warp to four warps to one thread, and fewer operands pass through the lanes' registers.
 
-None of this rules matrix units out. It means a Vortex compiler could only
-route the [stage 10 kernel](../compiler/guide/stage-10-matrix-multiplication.md),
-or any other `&mut`-output matmul, through a matrix unit's native precision
-under an explicit mode the programmer asked for, the same "opt-in" the
-safety philosophy already reserves for any numerical transformation that can
-change a program's observable results. Without that opt-in, a matrix unit
-is still usable, computing at the unit's own native width when that happens
-to equal the program's declared type, or not used at all for that kernel.
+## The same idea on Apple and AMD GPUs
 
-??? check "Why can't a Vortex compiler swap a strict f32 matmul for a tensor-core version taking narrower inputs, on its own?"
+On Apple GPUs the matrix unit's interface is the **SIMD-group matrix**. The Metal Shading Language has supported the types since Metal 2.3: 8 × 8 matrices of `half`, `float`, and, from Metal 3.1, `bfloat`, with functions to load, store and compute `d = a × b + c` across a SIMD-group.[^msl] Apple's feature tables list SIMD-scoped matrix multiply operations for the Apple7 GPU family and later, the family of the M1; the owner's M4 Pro belongs to Apple9.[^fst] The specification describes these functions, not the hardware behind them, so this chapter makes no claim about that hardware.
 
-    Because narrowing the inputs, or accumulating at a different width,
-    changes the rounding of every intermediate product and sum, which
-    [decision 56](../decisions/numbers.md#d56) forbids without an explicit
-    opt-in. A golden-output test written against the strict kernel would
-    legitimately stop matching:
-    the compiler would have silently changed what the program computes,
-    which the safety philosophy singles out as needing the programmer's
-    permission, not the compiler's initiative.
+Metal 4 adds a coarser layer. **Tensors** are multidimensional types with a layout of extents and strides, and a **cooperative tensor** is a tensor whose elements are split across the threads that share it, with a layout the specification calls device specific: a fragment under another name. The Metal Performance Primitives library provides `matmul2d`, a matrix product run by one thread, one SIMD-group or several, and the specification now suggests it in place of SIMD-group matrices.[^msl] One parameter of `matmul2d` matters for this chapter: `relaxed_precision`, false by default, which allows the operation to truncate the mantissa of `float` inputs before multiplying.[^msl] Apple made reduced precision an explicit request.
+
+AMD's data-center GPUs of the CDNA line, from the MI100 on, have **MFMA** units (matrix fused multiply-add) that process a tile per instruction and run alongside the ordinary vector units. An example instruction, `v_mfma_f32_16x16x4f16`, multiplies 16-bit inputs with an inner dimension of 4 into a 16 × 16 tile of 32-bit accumulators held in vector registers. AMD's documentation lists INT8, FP16, BF16 and FP32 among the supported types, and describes the units as small systolic arrays, the design [G15](g15-systolic-arrays.md) studies.[^amd]
+
+| | NVIDIA | Apple | AMD |
+| --- | --- | --- | --- |
+| Group that issues it | warp; warpgroup (`wgmma`); one thread (`tcgen05`) | SIMD-group; one thread to several SIMD-groups for `matmul2d` | not covered by the page cited |
+| Where operands live | lanes' registers; shared memory for `wgmma`'s B | SIMD-group matrices, cooperative tensors | vector registers named in the instruction |
+| Lane layout | unspecified for WMMA; a formula for PTX `mma` | unspecified; device specific for cooperative tensors | not covered by the page cited |
+| Example shape | 16 × 16 × 16 (WMMA), 16 × 8 × 16 (`mma`) | 8 × 8 × 8 | 16 × 16 × 4 (`v_mfma_f32_16x16x4f16`) |
+
+The vocabulary changes; the idea does not: one instruction, one small tile of fixed shape, operands held by a group of threads under a documented or opaque map.
+
+## Naming the tile operation in a compiler's IR
+
+A compiler cannot target any of these instructions until its IR has an operation that means "multiply this tile by that tile and accumulate". MLIR has them at several levels.
+
+The most general is `vector.contract` in the `vector` dialect, which names two operands and an accumulator and says, through indexing maps and iterator types, which dimensions are kept and which are summed.[^mlir-vector] It knows nothing about warps; [M8](../mlir/m8-vectorization.md) covers it. One level down, the `gpu` dialect models the WMMA contract directly: `gpu.subgroup_mma_load_matrix` produces a `!gpu.mma_matrix` value, a fragment typed with its shape, element type and role (`"AOp"`, `"BOp"` or `"COp"`), `gpu.subgroup_mma_compute` multiplies and accumulates, and `gpu.subgroup_mma_store_matrix` writes the result back.[^mlir-gpu] The fourth example is one warp computing a 16 × 16 output tile with two steps of k, chained as in Figure 1; `mlir-opt` 18 parses, verifies and prints it.
+
+--8<-- "includes/examples/gpu/g11-matrix-units/subgroup_mma.mlir.md"
+
+On the owner's machine (Apple M4 Pro, `mlir-opt` 18.1.8, checked 2026-09-24), wrapping the same operations in a `gpu.module` and running `convert-gpu-to-nvvm` turned them into `nvvm.wmma.load`, `nvvm.wmma.mma` and `nvvm.wmma.store`, with each lane's share of the `f32` accumulator as a structure of eight `f32` values: 256 elements over 32 lanes. The fragment's type stayed opaque right up to the point where a target made it concrete.
+
+MLIR also has operations at the explicit level. The `nvgpu` dialect has `nvgpu.ldmatrix`, `nvgpu.mma.sync` and `nvgpu.warpgroup.mma`, and the `amdgpu` dialect has `amdgpu.mfma` and `amdgpu.wmma`.[^mlir-nvgpu][^mlir-amdgpu] The layering mirrors the hardware's: a target-neutral contraction, a warp-level fragment whose layout is hidden, and target instructions whose layout is fixed. Choosing where Vortex enters that stack is a question for [M12](../mlir/m12-vortex-gpu-path.md).
+
+## Precision: what the unit computes is not what `f32` code says
+
+So far a matrix unit has looked like a faster way to do the same arithmetic. It is not the same arithmetic, by the vendors' own documents.
+
+**The input types are narrower.** The WMMA table lists `__half`, `__nv_bfloat16`, `precision::tf32`, 8-bit integers and `double` as multiplicand types, and no `float`.[^wmma-types] The Programming Guide's table of Tensor Core input types for every compute capability from 7.5 to 12.x has columns for FP64, TF32, BF16, FP16, FP8, FP6, FP4, INT8 and INT4, and none for FP32.[^cc-types] **TF32** is a format with `f32`'s exponent range and at least 10 bits of mantissa; **BF16** keeps the same range with 7 bits.[^ptx-formats][^wmma-types] An `f32` value has 23. A kernel written over `f32` arrays reaches NVIDIA's tensor cores only by rounding its inputs to one of the narrower formats first, and WMMA makes the program do that conversion itself.[^wmma-types]
+
+**The order and rounding of the sum are not specified.** For `f16`, `bf16`, `tf32` and 8-bit float inputs with 32-bit accumulators, PTX states that accumulation happens with at least single precision, and that the accumulation order, the rounding, and the handling of subnormal inputs are unspecified. For `f64`, each multiply and add is carried out with the precision of a fused multiply-add.[^ptx-mma] [Decision 56](../decisions/numbers.md#d56) requires each `f32` product and each sum to be rounded separately, in the program's order, and forbids wider evaluation: each of those statements permits something it forbids. Even `f64` on a tensor core is a contraction.
+
+<figure class="vx-figure">
+<svg viewBox="0 0 800 250" role="img" aria-label="The strict f32 dot product next to what an f32-in, f32-out matrix-unit instruction may do" aria-describedby="g11-f4-desc">
+<title id="g11-f4-title">The strict f32 dot product next to what a matrix-unit instruction may do</title>
+<desc id="g11-f4-desc">Two rows of four boxes. Top row, the strict path decision 56 requires: f32 inputs; each product rounded to f32; each sum rounded to f32; the sums taken in increasing k. Bottom row, a matrix-unit instruction with f32 data on both ends: inputs rounded to tf32 or bf16 first; products formed at the instruction's precision; accumulation at least f32; accumulation order, rounding and subnormal handling left unspecified by PTX. The first, second and fourth boxes of the bottom row are dashed, marking the steps that differ from the top row.</desc>
+<defs><marker id="g11-f4-h" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path class="vx-arrowhead" d="M0 0 L10 5 L0 10 z"/></marker></defs>
+<text class="vx-text" x="20" y="28">Vortex f32 kernel (decision 56)</text>
+<text class="vx-text" x="20" y="148">Matrix-unit instruction fed from f32 arrays</text>
+<rect class="vx-box" x="20" y="44" width="170" height="56"/>
+<text class="vx-text" x="105" y="68" text-anchor="middle" font-size="13">f32 inputs</text>
+<text class="vx-text-muted" x="105" y="88" text-anchor="middle">a[k], b[k]</text>
+<rect class="vx-box" x="216" y="44" width="170" height="56"/>
+<text class="vx-text" x="301" y="68" text-anchor="middle" font-size="13">product</text>
+<text class="vx-text-muted" x="301" y="88" text-anchor="middle">rounded to f32</text>
+<line class="vx-line" x1="192" y1="72" x2="212" y2="72" marker-end="url(#g11-f4-h)"/>
+<rect class="vx-box" x="412" y="44" width="170" height="56"/>
+<text class="vx-text" x="497" y="68" text-anchor="middle" font-size="13">sum</text>
+<text class="vx-text-muted" x="497" y="88" text-anchor="middle">rounded to f32</text>
+<line class="vx-line" x1="388" y1="72" x2="408" y2="72" marker-end="url(#g11-f4-h)"/>
+<rect class="vx-box" x="608" y="44" width="170" height="56"/>
+<text class="vx-text" x="693" y="68" text-anchor="middle" font-size="13">order</text>
+<text class="vx-text-muted" x="693" y="88" text-anchor="middle">k = 0, 1, 2, ...</text>
+<line class="vx-line" x1="584" y1="72" x2="604" y2="72" marker-end="url(#g11-f4-h)"/>
+<rect class="vx-box-bad" x="20" y="164" width="170" height="56"/>
+<text class="vx-text" x="105" y="188" text-anchor="middle" font-size="13">inputs narrowed</text>
+<text class="vx-text-muted" x="105" y="208" text-anchor="middle">to tf32 or bf16</text>
+<rect class="vx-box" x="216" y="164" width="170" height="56"/>
+<text class="vx-text" x="301" y="188" text-anchor="middle" font-size="13">product</text>
+<text class="vx-text-muted" x="301" y="208" text-anchor="middle">at the precision PTX sets</text>
+<line class="vx-line" x1="192" y1="192" x2="212" y2="192" marker-end="url(#g11-f4-h)"/>
+<rect class="vx-box" x="412" y="164" width="170" height="56"/>
+<text class="vx-text" x="497" y="188" text-anchor="middle" font-size="13">sum</text>
+<text class="vx-text-muted" x="497" y="208" text-anchor="middle">at least f32</text>
+<line class="vx-line" x1="388" y1="192" x2="408" y2="192" marker-end="url(#g11-f4-h)"/>
+<rect class="vx-box-bad" x="608" y="164" width="170" height="56"/>
+<text class="vx-text" x="693" y="188" text-anchor="middle" font-size="13">order, rounding</text>
+<text class="vx-text-muted" x="693" y="208" text-anchor="middle">unspecified</text>
+<line class="vx-line" x1="584" y1="192" x2="604" y2="192" marker-end="url(#g11-f4-h)"/>
+<text class="vx-text-muted" x="20" y="242">dashed: a step that can change the bits of the result</text>
+</svg>
+<figcaption>Figure 4. The dot product a Vortex <code>f32</code> kernel must compute, next to the one a tensor-core instruction computes from the same arrays, as PTX describes it. The dashed steps can change the result's bits; the product and sum steps may too, since PTX sets only lower bounds on their precision.</figcaption>
+</figure>
+
+The fifth example shows both effects on numbers small enough to check by hand. Sixteen products `a[k] × 1` with `a[k] = 1 + 2⁻¹²` sum to exactly 16.00390625 in strict `f32`. Rounded to 10 mantissa bits, the least PTX promises for TF32, `1 + 2⁻¹²` becomes 1, and the sum becomes 16. With `a[k] = 1 + 2⁻⁹`, TF32 keeps the value and BF16 loses it. The last line sums the same 16 values, 2²⁴, fourteen ones and −2²⁴, in two orders.
+
+--8<-- "includes/examples/gpu/g11-matrix-units/narrowed_inputs.cpp.md"
+
+Left to right, each 1 added to 2²⁴ is lost to rounding, since 2²⁴ + 1 is halfway between two `f32` values and rounds to the even one, 2²⁴, and the total is 0. The pairwise tree adds the ones to each other first and loses only one of them: 13. The exact answer is 14. Neither order is wrong by IEEE 754's rules; they are different computations, and a unit whose order is unspecified may perform either one, or another.
+
+This is where [G10](g10-matmul-ladder.md#what-the-ladder-never-changes) said the free ride ends. The [philosophy](../philosophy.md#performance-philosophy) allows hardware-specific instructions while preserving the computation's declared semantics, and its [safety section](../philosophy.md#safety-philosophy) asks that numerical transformations that can change observable results require an explicit language mode or programmer permission. So a Vortex compiler may not route a strict `f32` matmul through a tensor core on its own initiative, however much faster it would be.
+
+It may do so only under a mode the programmer asked for, and that mode needs a name, a documented meaning, and a way to test programs written under it: golden outputs, which decision 56 exists to keep reproducible, no longer hold bit for bit. Apple's `relaxed_precision` flag is one vendor's answer to the same design question.[^msl]
+
+??? check "AMD's documentation lists FP32 among MFMA's input types. Does that alone make an FP32 MFMA instruction a legal target for a strict Vortex `f32` matmul?"
+
+    No. Decision 56 is about more than the input type: it fixes the rounding of each product and each sum and the order of the sums. The source cited here lists FP32 as a supported type without saying how the instruction rounds or in what order it adds. Until a vendor document states that it matches IEEE 754 operation by operation, the answer is unknown, and an unknown must be treated as a change the programmer has to request.
+
+## Measuring it
+
+No matrix-unit timings are claimed here. The Mac this book is written on can run SIMD-group matrices, so collect your own:
+
+1. Write four Metal kernels for a 1024 × 1024 × 1024 product: the warp-tiled SIMT kernel from [G10](g10-matmul-ladder.md) in `float`; the same tiling with `simdgroup_float8x8`; the same with `simdgroup_half8x8`, whose multiply-accumulate takes `half` inputs and a `half` accumulator; and, if your OS has Metal 4, `matmul2d` with `relaxed_precision` false and true. Compile them from source text at run time, which works without the offline Metal toolchain (see [G4](g4-memory-performance.md#measuring-it)).
+2. Compute a reference product on the CPU with strict `f32` arithmetic in the order of the stage 10 kernel.
+3. For each kernel, count the outputs that match the reference bit for bit and record the largest absolute difference. Do this before timing anything.
+4. Time many runs and report the median and spread ([P1](../optimize/p1-measure-first.md)); convert to GFLOP/s as 2 × 1024³ divided by the median time.
+
+| Kernel | Median time | GFLOP/s | Outputs bit-identical to strict | Largest difference |
+| --- | --- | --- | --- | --- |
+| SIMT, `float` | | | | |
+| `simdgroup_float8x8` | | | | |
+| `simdgroup_half8x8` | | | | |
+| `matmul2d`, `relaxed_precision = false` | | | | |
+| `matmul2d`, `relaxed_precision = true` | | | | |
+
+Record the machine, the OS version and the date with the table. The row that matters most is the second: whether Apple's `float` path reproduces strict `f32` bit for bit is something the specification does not say, and only a measurement over many inputs can suggest an answer.
 
 ## For Vortex
 
 !!! vortex "Exercise"
 
-    **Build**, in your compiler, a tile-op opportunity report for a fixed-shape
-    matmul loop nest such as the stage 10 kernel's: given a candidate tile
-    shape (rows, columns, reduction depth) supplied as an input, not detected
-    from any real target, report, for that loop nest:
+    **Build** a matrix-unit feasibility report for matmul-shaped loop nests in your compiler's IR: the stage 10 kernel, and any nest your compiler already recognizes as `c[i, j] += a[i, k] * b[k, j]` over fixed-shape arrays ([decision 43](../decisions/arrays.md#d43)). The report states, for each candidate instruction, whether it fits, what it would cost to feed, and whether Vortex may use it.
 
-    1. Whether the array shapes the loop multiplies, taken from their
-       fixed-size array types ([decision 43](../decisions/arrays.md#d43)),
-       are exact multiples of the candidate tile shape in every dimension,
-       and if not, the remainder left over in each dimension.
-    2. If they are exact multiples, the number of tile instructions the loop
-       would issue and the number of scalar multiply-adds each one stands
-       for, using the identity this chapter's first example checks:
-       `(N / T)^3` instructions of `T^3` multiply-adds each, generalized to
-       the loop's actual, possibly unequal, row, column and reduction
-       counts.
-    3. Whether the kernel's element type matches a native input type you
-       record by hand from one vendor's documentation for the candidate tile
-       shape, and if it does not, mark the opportunity blocked pending an
-       explicit opt-in, rather than silently substituting a narrower type.
-    4. One remark per candidate, in the style the
-       [sixth principle](../philosophy.md#6-explain-performance-decisions)
-       asks for, such as `"16x16x16: exact fit, 4096 macs per instruction,
-       blocked: kernel is f32, unit wants tf32"`.
+    1. A target table with one row per instruction: vendor, name, shape m × n × k, A and B types, accumulator type, the group that issues it, and whether its lane layout is documented. Fill it by hand for WMMA 16 × 16 × 16 (`half` into `float`), WMMA 16 × 16 × 8 (`tf32` into `float`), `mma.m16n8k16` (`f16` into `f32`), `simdgroup_float8x8` and `v_mfma_f32_16x16x4f16`, and give every entry the source it came from.
+    2. Fit: for each row, whether M, N and K are multiples of m, n and k, and the remainder in each dimension when they are not.
+    3. Count: the number of instructions, and the multiply-adds each one stands for.
+    4. Feed: for a warp tile of fm × fn fragments given as input, the fragments loaded per step of k, the multiply-adds per element loaded, and the accumulator values per lane, rejecting warp tiles over a per-lane register budget that is also an input.
+    5. Precision: for each row, the list of ways the instruction departs from [decision 56](../decisions/numbers.md#d56) for the kernel's element type (narrowed inputs, unspecified accumulation order, unspecified rounding, fused multiply-add), each with its source, and a verdict: "allowed", "blocked: needs an explicit mode", or "unknown: the documentation does not say", with unknown treated as blocked.
+    6. One remark per candidate, as the [sixth principle](../philosophy.md#6-explain-performance-decisions) asks, such as "WMMA 16x16x16: fits, 64 instructions of 4096 multiply-adds, blocked: inputs narrowed from f32 to f16, accumulation order unspecified".
 
-    **Not yet:** choosing a tile shape automatically, emitting a real
-    matrix-unit instruction or intrinsic, allocating fragments across lanes,
-    or picking among CUDA, Metal and AMD targets: [M12](../mlir/m12-vortex-gpu-path.md)
-    leaves that choice open.
+    **Not yet:** emitting any matrix-unit instruction or intrinsic, the syntax or semantics of a relaxed-precision mode, choosing tile shapes or warp tiles automatically, shared-memory staging and asynchronous copies, and choosing a GPU target ([M12](../mlir/m12-vortex-gpu-path.md) weighs the paths).
 
-    **Proof that it works:** a golden test against the stage 10 kernel's own
-    shapes. At 64 x 64 x 64 with a 16 x 16 x 16 candidate, the report finds
-    an exact fit and states 64 instructions of 4,096 macs each, matching
-    `tile_ops.cpp`'s printed row for the same numbers. At a shape such as
-    70 x 70 x 70 with the same candidate, the report states a remainder of 6
-    in every dimension instead of rounding it away. A second, independent
-    reimplementation of the `(N / T)^3` count, checked against the report on
-    a few dozen shapes chosen by hand, never disagrees with it.
+    **Proof that it works:**
+
+    - Golden tests for the stage 10 kernel at `[f32; 64, 64]`: WMMA 16 × 16 × 16 fits with 64 instructions of 4,096 multiply-adds and is blocked; `mma.m16n8k16` fits with 128 of 2,048 and is blocked; `simdgroup_float8x8` fits with 512 of 512 and is unknown, so blocked.
+    - A 70 × 70 × 70 product reports a remainder of 6 in every dimension for the 16 × 16 × 16 and 8 × 8 × 8 shapes, and never rounds it away.
+    - Feed: with 8 × 8 × 8 fragments, a 2 × 2 warp tile reports 8 multiply-adds per element and 8 accumulator values per lane; 4 × 4 reports 16 and 32, and is rejected under a budget of 16.
+    - Every "blocked" and "unknown" verdict names at least one source; removing a source from the table turns an "allowed" into "unknown", never the reverse.
+    - A differential test: on a few hundred shapes and warp tiles, the report's counts match an independent brute-force counter like `fragment_reuse.cpp`.
 
 ## Key ideas
 
 !!! recap "Questions you can now answer"
 
-    - **What does a matrix unit compute in one instruction?** `D = A * B +
-      C` over one small, fixed-size tile, issued cooperatively by a whole
-      warp or SIMD-group.
-    - **What is a fragment, and what does its API actually promise?** A
-      lane's opaque share of a tile; the only promise is that storing it
-      back after loading it reproduces the tile, not which lane holds which
-      element.
-    - **Why did CUDA add cp.async and TMA on top of wmma?** To move a tile
-      from global memory into shared memory without a register round trip
-      or a synchronous stall, so movement for one tile can overlap with
-      matrix-unit compute on another.
-    - **What is Hopper's warpgroup MMA a scale-up of?** The same per-warp
-      tile instruction, issued cooperatively by four warps at once over a
-      bigger tile, and asynchronous in the same sense as `cp.async`.
-    - **What do Apple's SIMD-group matrices and AMD's MFMA correspond to?**
-      The same idea, one small fixed tile per instruction, under different
-      names: `simdgroup_float8x8` functions on Apple7 and later, MFMA matrix
-      cores on AMD's CDNA compute units.
-    - **Why can't a Vortex compiler swap in a matrix unit's reduced-precision
-      inputs by itself?** Reduced precision changes rounding and sometimes
-      range, which the language's strict floating-point rule reserves for
-      an explicit, programmer-requested mode.
+    - **What does a matrix unit compute in one instruction?** `D = A × B + C` on one small tile of fixed shape, issued together by a warp, a warpgroup, a SIMD-group or, for `tcgen05`, one thread.
+    - **How does a bigger product use it?** Cut into tiles; each output tile is a chain of instructions along k, each result feeding the next as `C`: (M / m)(N / n)(K / k) instructions in all.
+    - **What does a WMMA fragment promise?** Only that load, multiply-accumulate and store work together; which lane holds which element is unspecified and may change between architectures.
+    - **What does PTX's `mma` promise instead?** A formula from lane and register to row and column, which the program must follow and may rely on.
+    - **How do you keep a matrix unit fed?** Hold a warp tile of fm × fn accumulators so each loaded fragment is used several times: 8 × fm × fn / (fm + fn) multiply-adds per element for 8 × 8 × 8 fragments, paid for in registers.
+    - **What did `cp.async`, TMA, `wgmma` and `tcgen05` change?** Who moves the tiles and where operands live: copies that skip registers, whole-tile copies computed by hardware, operands read from shared memory, and accumulators in tensor memory.
+    - **Why is a matrix unit an opt-in for Vortex?** Vendors document narrowed inputs and an unspecified accumulation order and rounding, which decision 56 forbids unless the programmer asks.
 
 ## Where this comes back
 
 !!! next "You will use this again in"
 
-    - [G12. Fusion case study: FlashAttention](g12-flashattention.md): *warpgroup MMA*, *TMA overlap*
-    - [G13. Tile languages](g13-tile-languages.md): *tile shape*, *fragment*
-    - [G15. Beyond GPUs: systolic arrays and accelerators](g15-systolic-arrays.md): *fixed-shape hardware tile*
+    - [G12. Fusion case study: FlashAttention](g12-flashattention.md): *warp tile*, *asynchronous copy*, *tensor cores*
+    - [G13. Tile languages](g13-tile-languages.md): *tile shape*, *boundary tiles*, *fragment*
+    - [G14. Measuring GPU code](g14-measuring-gpu-code.md): *bit-identical outputs*, *GFLOP/s*
+    - [G15. Beyond GPUs: systolic arrays and accelerators](g15-systolic-arrays.md): *fixed-shape hardware tile*, *systolic array*
     - [M8. Vectorization in MLIR](../mlir/m8-vectorization.md): *`vector.contract`*
-    - [M10. MLIR for GPUs](../mlir/m10-mlir-for-gpus.md): *warp-level cooperative instructions*
-    - [M12. Designing Vortex's GPU path](../mlir/m12-vortex-gpu-path.md): *tile-op lowering*, *explicit precision opt-in*
+    - [M10. MLIR for GPUs](../mlir/m10-mlir-for-gpus.md): *`gpu` dialect*, *lowering to NVVM*
+    - [M12. Designing Vortex's GPU path](../mlir/m12-vortex-gpu-path.md): *target table*, *explicit precision mode*
 
 ## Sources and further reading
 
-Read the tensor-core blog post first for the concrete picture, then the WMMA
-and PTX references for the exact instructions, then the Metal specification
-for Apple's equivalents.
+Read NVIDIA's 2017 tensor-core post first for the picture, then the WMMA section of the Programming Guide and PTX's warp-level matrix chapter side by side, then the SIMD-group matrix and Metal Performance Primitives sections of the Metal Shading Language Specification.
 
-[^tensor-cores-blog]: Mark Appleyard and Michael Yokim, "Programming Tensor Cores in CUDA 9", NVIDIA Developer Blog, 2017. <https://developer.nvidia.com/blog/programming-tensor-cores-cuda-9/>
-[^wmma]: NVIDIA, "CUDA Programming Guide", v13.4, "Warp Matrix Functions". <https://docs.nvidia.com/cuda/cuda-programming-guide/05-appendices/cpp-language-extensions.html#warp-matrix-functions>
-[^ptx]: NVIDIA, "Parallel Thread Execution ISA", version 9.4. <https://docs.nvidia.com/cuda/parallel-thread-execution/index.html>
-[^async-copies]: NVIDIA, "CUDA Programming Guide", v13.4, "Asynchronous Data Copies". <https://docs.nvidia.com/cuda/cuda-programming-guide/04-special-topics/async-copies.html>
-[^hopper-tuning]: NVIDIA, "Hopper Tuning Guide". <https://docs.nvidia.com/cuda/hopper-tuning-guide/index.html>
-[^msl-spec]: Apple, "Metal Shading Language Specification", version 4.1, sections 2.4, 2.22 and 6.8, and section 7 (Metal Performance Primitives). <https://developer.apple.com/metal/Metal-Shading-Language-Specification.pdf>
-[^metal-features]: Apple, "Metal Feature Set Tables". <https://developer.apple.com/metal/Metal-Feature-Set-Tables.pdf>
-[^hip-hw]: AMD, "HIP Documentation", "Hardware Implementation". <https://rocm.docs.amd.com/projects/HIP/en/latest/understand/hardware_implementation.html>
-[^vector-dialect]: MLIR Project, "'vector' Dialect", `vector.contract`. <https://mlir.llvm.org/docs/Dialects/Vector/#vectorcontract-vectorcontractionop>
+[^n14]: Mark Appleyard and Michael Yokim, "Programming Tensor Cores in CUDA 9", NVIDIA Technical Blog, 17 October 2017: the sections on Volta's tensor cores and on the WMMA API. <https://developer.nvidia.com/blog/programming-tensor-cores-cuda-9/>
+[^wmma]: NVIDIA, "CUDA Programming Guide", v13.4.2, section 5.4.11, "Warp Matrix Functions", and 5.4.11.1, "Description". <https://docs.nvidia.com/cuda/cuda-programming-guide/05-appendices/cpp-language-extensions.html#warp-matrix-functions>
+[^wmma-types]: NVIDIA, "CUDA Programming Guide", v13.4.2, sections 5.4.11.2, "Alternate Floating Point", and 5.4.11.6, "Element Types and Matrix Sizes". <https://docs.nvidia.com/cuda/cuda-programming-guide/05-appendices/cpp-language-extensions.html#element-types-and-matrix-sizes>
+[^cc-types]: NVIDIA, "CUDA Programming Guide", v13.4.2, section 5.1.3, Table 33, "Input Data Types Supported by Tensor Core Acceleration per Compute Capability". <https://docs.nvidia.com/cuda/cuda-programming-guide/05-appendices/compute-capabilities.html#compute-capabilities-table-tensor-core-data-types-per-compute-capability>
+[^pg-async]: NVIDIA, "CUDA Programming Guide", v13.4.2, section 4.12, "Asynchronous Data Copies": 4.12.1, "Using LDGSTS", and 4.12.2, "Using the Tensor Memory Accelerator (TMA)". <https://docs.nvidia.com/cuda/cuda-programming-guide/04-special-topics/async-copies.html>
+[^ptx-formats]: NVIDIA, "Parallel Thread Execution ISA", version 9.4, section 5.2.3, "Alternate Floating-Point Data Formats". <https://docs.nvidia.com/cuda/parallel-thread-execution/index.html#alternate-floating-point-data-formats>
+[^ptx-wmma]: NVIDIA, "Parallel Thread Execution ISA", version 9.4, section 9.7.16, "Warp Level Matrix Multiply-Accumulate Instructions", and 9.7.16.4.1, "Matrix Fragments for WMMA". <https://docs.nvidia.com/cuda/parallel-thread-execution/index.html#warp-level-matrix-instructions>
+[^ptx-mma-layout]: NVIDIA, "Parallel Thread Execution ISA", version 9.4, section 9.7.16.5.8, "Matrix Fragments for mma.m16n8k16 with floating point type". <https://docs.nvidia.com/cuda/parallel-thread-execution/index.html#warp-level-matrix-fragment-mma-16816-float>
+[^ptx-mma]: NVIDIA, "Parallel Thread Execution ISA", version 9.4, section 9.7.16.5.14, "Multiply-and-Accumulate Instruction: mma": the "Precision and rounding" paragraphs and the target notes. <https://docs.nvidia.com/cuda/parallel-thread-execution/index.html#warp-level-matrix-instructions-mma>
+[^ptx-ldmatrix]: NVIDIA, "Parallel Thread Execution ISA", version 9.4, section 9.7.16.5.15, "Warp-level matrix load instruction: ldmatrix". <https://docs.nvidia.com/cuda/parallel-thread-execution/index.html#warp-level-matrix-instructions-ldmatrix>
+[^ptx-cpasync]: NVIDIA, "Parallel Thread Execution ISA", version 9.4, section 9.7.10.28.3.1, "cp.async". <https://docs.nvidia.com/cuda/parallel-thread-execution/index.html#data-movement-and-conversion-instructions-cp-async>
+[^ptx-bulk]: NVIDIA, "Parallel Thread Execution ISA", version 9.4, section 9.7.10.28.5.3, "cp.async.bulk.tensor". <https://docs.nvidia.com/cuda/parallel-thread-execution/index.html#data-movement-and-conversion-instructions-cp-async-bulk-tensor>
+[^ptx-wgmma]: NVIDIA, "Parallel Thread Execution ISA", version 9.4, section 9.7.17, "Asynchronous Warpgroup Level Matrix Multiply-Accumulate Instructions": 9.7.17.1, "Warpgroup", 9.7.17.5.1, "Register Fragments and Shared Memory Matrix Layouts", and the target notes of `wgmma.mma_async`. <https://docs.nvidia.com/cuda/parallel-thread-execution/index.html#asynchronous-warpgroup-level-matrix-instructions>
+[^ptx-tcgen05]: NVIDIA, "Parallel Thread Execution ISA", version 9.4, sections 9.7.18.1, "Tensor Memory", and 9.7.18.10.10.1, "tcgen05.mma". <https://docs.nvidia.com/cuda/parallel-thread-execution/index.html#tensor-memory>
+[^cutlass]: NVIDIA, "CUTLASS: Efficient GEMM in CUDA": the sections "Warp-level GEMM" and "Pipelining". <https://docs.nvidia.com/cutlass/latest/media/docs/cpp/efficient_gemm.html>
+[^msl]: Apple, "Metal Shading Language Specification", version 4.1, 2026: sections 2.4, "SIMD-group Matrix Data Types"; 2.22, "Tensor Types", with 2.22.3, "Cooperative Tensor Type"; 6.8, "SIMD-Group Matrix Functions"; 7.1, "Execution Scopes"; and 7.2.1, "Matrix Multiplication", Table 7.4. <https://developer.apple.com/metal/Metal-Shading-Language-Specification.pdf>
+[^fst]: Apple, "Metal Feature Set Tables": the GPU family table (M1-series in Apple7, M4-series in Apple9) and the row "SIMD-scoped matrix multiply operations". <https://developer.apple.com/metal/Metal-Feature-Set-Tables.pdf>
+[^amd]: AMD, "Hardware implementation", HIP documentation, section "Matrix fused multiply-add (MFMA)". <https://rocm.docs.amd.com/projects/HIP/en/latest/understand/hardware_implementation.html#matrix-fused-multiply-add-mfma>
+[^mlir-vector]: MLIR Project, "'vector' Dialect", `vector.contract`. <https://mlir.llvm.org/docs/Dialects/Vector/#vectorcontract-vectorcontractionop>
+[^mlir-gpu]: MLIR Project, "'gpu' Dialect", the `gpu.subgroup_mma_*` operations and the `MMAMatrix` type. <https://mlir.llvm.org/docs/Dialects/GPU/#gpusubgroup_mma_compute-gpusubgroupmmacomputeop>
+[^mlir-nvgpu]: MLIR Project, "'nvgpu' Dialect": `nvgpu.ldmatrix`, `nvgpu.mma.sync` and `nvgpu.warpgroup.mma`. <https://mlir.llvm.org/docs/Dialects/NVGPU/>
+[^mlir-amdgpu]: MLIR Project, "'amdgpu' Dialect": `amdgpu.mfma` and `amdgpu.wmma`. <https://mlir.llvm.org/docs/Dialects/AMDGPU/#amdgpumfma-amdgpumfmaop>

@@ -1,8 +1,12 @@
-n = 64, flops = 524288
-schedule         tile      bytes   flops/byte
-naive               -    1081344        0.485
-tiled               4     294912        1.778
-tiled               8     163840        3.200
-tiled              16      98304        5.333
-tiled              32      65536        8.000
-compulsory          n      49152       10.667
+n = 64: 524288 flops, working set 48 KiB
+  naive                 1081344 bytes     0.485 flops/byte
+  tiled, t = 4           294912 bytes     1.778 flops/byte
+  tiled, t = 16           98304 bytes     5.333 flops/byte
+  tiled, t = 32           65536 bytes     8.000 flops/byte
+  compulsory              49152 bytes    10.667 flops/byte
+n = 2048: 17179869184 flops, working set 49152 KiB
+  naive             34393292800 bytes     0.500 flops/byte
+  tiled, t = 4       8623489024 bytes     1.992 flops/byte
+  tiled, t = 16      2181038080 bytes     7.877 flops/byte
+  tiled, t = 32      1107296256 bytes    15.515 flops/byte
+  compulsory           50331648 bytes   341.333 flops/byte

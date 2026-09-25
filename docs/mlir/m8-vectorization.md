@@ -22,7 +22,7 @@
 
         A computable trip count, no loop-carried dependence that the widening would reorder illegally, and either no aliasing between the memory it touches or a proof, such as Vortex's `&mut` exclusivity, that removes the need for a runtime check.
 
-        Introduced in [P10. Vectorization](../optimize/p10-vectorization.md#the-facts-a-vectorizer-borrows).
+        Introduced in [P10. Vectorization](../optimize/p10-vectorization.md#what-else-a-vectorizer-needs).
 
     ??? question "Why does Vortex's [f32; 64, 64] fit NEON's fixed-width model better than SVE's scalable one?"
 
@@ -134,7 +134,7 @@ Lowering with `--convert-vector-to-llvm` and `--convert-func-to-llvm` turns `vec
 <figcaption>Figure 1. Lowering <code>vector&lt;2x2xf32&gt;</code> with <code>--convert-vector-to-llvm</code> produces one 1-D <code>vector&lt;2xf32&gt;</code> per row, held in an LLVM array, rather than one flat 4-lane vector. Each row's two elements stay together; nothing crosses between rows.</figcaption>
 </figure>
 
-Vortex's `matmul` kernel would meet this same unrolling wherever a lowering chose a tile wider than one dimension, such as the 2x2 accumulator tile [P12](../optimize/p12-fast-gemm.md) builds toward: the tile's shape can stay a single `vector<2x2xf32>` value through every pass that reasons about the tile as a whole, `vector.contract` among them, and only unroll into per-row 1-D vectors at the point a real target is chosen, the same point [P10](../optimize/p10-vectorization.md#one-instruction-four-numbers) fixed a lane width for the same kernel one level lower in the stack, working on LLVM IR instead of MLIR.
+Vortex's `matmul` kernel would meet this same unrolling wherever a lowering chose a tile wider than one dimension, such as the 2x2 accumulator tile [P12](../optimize/p12-fast-gemm.md) builds toward: the tile's shape can stay a single `vector<2x2xf32>` value through every pass that reasons about the tile as a whole, `vector.contract` among them, and only unroll into per-row 1-D vectors at the point a real target is chosen, the same point [P10](../optimize/p10-vectorization.md#four-lanes-one-instruction) fixed a lane width for the same kernel one level lower in the stack, working on LLVM IR instead of MLIR.
 
 ??? check "A pass could flatten vector<2x2xf32> straight into vector<4xf32> instead of an array of two vector<2xf32> values. What would that choice cost?"
 

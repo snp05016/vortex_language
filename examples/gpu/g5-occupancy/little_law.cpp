@@ -1,38 +1,33 @@
-// Follows: Vasily Volkov, "Better Performance at Lower Occupancy", GTC 2010,
-// slides 7, 8, 10, 11 and 12 to 14.
+// Follows: Vasily Volkov, "Better Performance at Lower Occupancy", GTC 2010:
+// slide 11 (latency, throughput and needed parallelism for three GPUs) and
+// slides 16 to 21 (threads per SM needed for full throughput on a GTX480 at
+// ILP 1 to 4, read from his measured curves).
 //
-// Little's law says a machine needs (latency x throughput) operations in
-// flight to run at full throughput. On the G80-GT200 architecture Volkov
-// measured, arithmetic latency is about 24 cycles and one SM completes about
-// 8 operations per cycle at peak, so about 192 operations must be in flight
-// at once (slide 11). Those operations can come from more warps
-// (thread-level parallelism, TLP) or from more independent operations per
-// thread (instruction-level parallelism, ILP); Little's law does not care
-// which. This computes, for several (warps, independent operations per
-// thread) pairs, how close each comes to that target, in the style of
-// Volkov's slides 16 and 18, which plot the same shape against measured
-// hardware.
-#include <algorithm>
+// Little's law: operations in flight = latency x throughput. Volkov counts
+// throughput in cores per SM, so the product is the number of independent
+// thread-operations an SM must hold. With `ilp` independent operations per
+// thread, the threads needed fall to that number divided by `ilp`.
 #include <cstdio>
 
-constexpr int kWarpSize = 32;
-constexpr int kNeededParallelism = 192;  // Volkov, slide 11, G80-GT200 row
-
-struct Config {
-    int warps;
-    int ilp;  // independent operations issued per thread
+struct Gpu {
+    const char* name;
+    int latency;     // cycles, approximate (slide 11)
+    int throughput;  // cores per SM (slide 11)
 };
 
 int main() {
-    Config configs[] = {
-        {1, 1}, {2, 1}, {1, 2}, {4, 1}, {2, 2}, {6, 1}, {3, 2}, {1, 6},
-    };
+    const Gpu gpus[] = {{"G80-GT200", 24, 8}, {"GF100", 18, 32},
+                        {"GF104", 18, 48}};
+    std::printf("gpu        latency  throughput  in flight\n");
+    for (const auto& g : gpus)
+        std::printf("%-10s %7d %11d %10d\n", g.name, g.latency, g.throughput,
+                    g.latency * g.throughput);
 
-    std::printf("warps ilp in_flight utilization\n");
-    for (const auto& c : configs) {
-        int in_flight = c.warps * kWarpSize * c.ilp;
-        int utilization = std::min(100, in_flight * 100 / kNeededParallelism);
-        std::printf("%5d %3d %9d %10d%%\n", c.warps, c.ilp, in_flight,
-                    utilization);
-    }
+    // GTX480 is a GF100 part. Measured: the smallest thread count at which
+    // Volkov's curves reach 100 percent of peak (slides 16, 18, 20, 21).
+    const int needed = 18 * 32;
+    const int measured[] = {576, 320, 256, 192};
+    std::printf("\nilp  predicted threads  measured threads (GTX480)\n");
+    for (int ilp = 1; ilp <= 4; ++ilp)
+        std::printf("%3d %18d %17d\n", ilp, needed / ilp, measured[ilp - 1]);
 }

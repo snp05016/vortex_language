@@ -1,47 +1,74 @@
-// One matrix-unit instruction multiplies and accumulates a whole small tile:
-// D = A * B + C for fixed-size A, B, C, D (the shape WMMA and the SIMD-group
-// matrix functions both expose). A scalar multiply-add instruction does the
-// same job for one number. This example tiles an N x N x N matrix multiply
-// into T x T x T pieces along every axis and counts how many tile
-// instructions that takes, and how many scalar multiply-adds each tile
-// instruction stands in for. The total work does not change; the number of
-// instructions the hardware has to issue for it does.
+// A matrix unit computes D = A * B + C for one small tile of fixed shape in a
+// single instruction. This program models that instruction on a 2 x 2 x 2
+// tile of integers, then builds a 4 x 4 x 4 product out of it by chaining
+// tiles along the reduction dimension k, each result fed in as the next C,
+// and checks the answer against the plain triple loop. Integers keep every
+// sum exact, so the check is about which products are added, not rounding.
+// Last, it counts tile instructions for larger products and tile shapes.
 //
-// Follows: https://developer.nvidia.com/blog/programming-tensor-cores-cuda-9/
-//          https://developer.apple.com/metal/Metal-Shading-Language-Specification.pdf (6.8, SIMD-group matrix functions)
+// Follows: https://docs.nvidia.com/cuda/parallel-thread-execution/index.html#warp-level-matrix-instructions
+//          https://developer.nvidia.com/blog/programming-tensor-cores-cuda-9/
 
+#include <array>
 #include <cstddef>
 #include <print>
-#include <stdexcept>
 
-struct Counts {
-  std::size_t tile_ops = 0;       // one D = A*B + C per call
-  std::size_t scalar_macs = 0;    // scalar multiply-adds those tile ops cover
-};
+constexpr std::size_t t = 2;  // the one tile shape this "unit" accepts
+using Tile = std::array<std::array<int, t>, t>;
 
-// Tiling an N x N x N matmul into T x T x T tiles along every axis: each of
-// the (N/T)^2 output tiles accumulates over N/T tiles of the reduction
-// dimension, one tile instruction per step, the way a real matrix unit
-// chains D = A*B + C across the reduction.
-Counts tile_matmul(std::size_t n, std::size_t t) {
-  if (n % t != 0) throw std::invalid_argument("n must be a multiple of t");
-  std::size_t tiles_per_side = n / t;
-  Counts c;
-  c.tile_ops = tiles_per_side * tiles_per_side * tiles_per_side;
-  c.scalar_macs = c.tile_ops * t * t * t;
-  return c;
+// The "instruction": fixed shape, no loop visible to the program.
+Tile mma(const Tile& a, const Tile& b, const Tile& c) {
+  Tile d = c;
+  for (std::size_t i = 0; i < t; ++i)
+    for (std::size_t j = 0; j < t; ++j)
+      for (std::size_t k = 0; k < t; ++k) d[i][j] += a[i][k] * b[k][j];
+  return d;
 }
 
-void row(std::size_t n, std::size_t t) {
-  Counts c = tile_matmul(n, t);
-  std::size_t naive_scalar_instructions = n * n * n;
-  std::println("n={:<4} t={:<3} tile_ops={:<8} scalar_macs={:<10} naive_scalar_instructions={:<10} macs_match={}",
-               n, t, c.tile_ops, c.scalar_macs, naive_scalar_instructions,
-               c.scalar_macs == naive_scalar_instructions);
+constexpr std::size_t n = 4;
+using Matrix = std::array<std::array<int, n>, n>;
+
+Tile tile_of(const Matrix& m, std::size_t r, std::size_t c) {
+  Tile x{};
+  for (std::size_t i = 0; i < t; ++i)
+    for (std::size_t j = 0; j < t; ++j) x[i][j] = m[r * t + i][c * t + j];
+  return x;
 }
 
 int main() {
-  row(64, 8);
-  row(64, 16);
-  row(256, 16);
+  Tile d = mma({{{2, 0}, {1, 1}}}, {{{1, 3}, {2, 0}}}, {{{1, 1}, {0, 1}}});
+  std::println("one instruction: D = [[{}, {}], [{}, {}]]", d[0][0], d[0][1], d[1][0], d[1][1]);
+
+  Matrix a{}, b{}, scalar{}, tiled{};
+  for (std::size_t i = 0; i < n; ++i)
+    for (std::size_t j = 0; j < n; ++j) {
+      a[i][j] = static_cast<int>((i + 2 * j) % 5) - 1;
+      b[i][j] = static_cast<int>((3 * i + j) % 4) - 1;
+    }
+  for (std::size_t i = 0; i < n; ++i)  // the reference: n^3 multiply-adds
+    for (std::size_t j = 0; j < n; ++j)
+      for (std::size_t k = 0; k < n; ++k) scalar[i][j] += a[i][k] * b[k][j];
+
+  std::size_t instructions = 0;
+  for (std::size_t ti = 0; ti < n / t; ++ti)
+    for (std::size_t tj = 0; tj < n / t; ++tj) {
+      Tile acc{};                                  // C starts at zero
+      for (std::size_t tk = 0; tk < n / t; ++tk) {  // chain along k
+        acc = mma(tile_of(a, ti, tk), tile_of(b, tk, tj), acc);
+        ++instructions;
+      }
+      for (std::size_t i = 0; i < t; ++i)
+        for (std::size_t j = 0; j < t; ++j) tiled[ti * t + i][tj * t + j] = acc[i][j];
+    }
+  std::println("4x4x4 from 2x2x2 tiles: {} instructions of {} multiply-adds, matches loop: {}",
+               instructions, t * t * t, tiled == scalar);
+
+  // Counting only: an M x N x K product on an m x n x k tile shape that
+  // divides it exactly takes (M/m)(N/n)(K/k) instructions.
+  struct Case { std::size_t M, N, K, m, n, k; };
+  for (Case c : {Case{64, 64, 64, 16, 16, 16}, Case{64, 64, 64, 16, 8, 16}, Case{64, 64, 64, 8, 8, 8}}) {
+    std::size_t count = (c.M / c.m) * (c.N / c.n) * (c.K / c.k);
+    std::println("{}x{}x{} on {}x{}x{}: {} instructions x {} = {} multiply-adds", c.M, c.N, c.K,
+                 c.m, c.n, c.k, count, c.m * c.n * c.k, count * c.m * c.n * c.k);
+  }
 }

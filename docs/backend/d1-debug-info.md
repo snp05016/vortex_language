@@ -1,110 +1,129 @@
 # D1. Debug information
 
-<p class="page-intro">A compiled function is a run of bytes with no source code left in it. Debug information is a second, parallel encoding, stored beside the machine code, that maps those bytes back to file names, line numbers and stack frames, so a debugger, a profiler or a crash report can speak in the terms the programmer used.</p>
+<p class="page-intro">A compiled function is a run of bytes with no source code left in it. Debug information is a second encoding, written beside the machine code, that maps those bytes back to files, lines, functions and stack frames. This chapter decodes the three parts a young compiler needs first (the line table, the tree of entries and the unwind tables) byte by byte, so that Vortex programs can be stepped, backtraced and profiled in the terms their author wrote.</p>
 
-<p class="vx-meta" markdown="1">Level: Advanced · Reading time: about 45 minutes · Builds on: [A5. Stack frames](a5-stack-frames.md), [B3. Object files and assemblers](b3-object-files.md)</p>
+<p class="vx-meta" markdown="1">Level: Advanced · Reading time: about 55 minutes · Builds on: [A5. Stack frames](a5-stack-frames.md), [B3. Object files and assemblers](b3-object-files.md)</p>
 
 ???+ remember "Before you start, remember"
 
-    ??? question "What is a frame record, and what must AArch64 code do to walk one?"
+    ??? question "What is a frame record, and how does a debugger walk a chain of them?"
 
-        The saved FP and LR of one call, with FP pointing at them. Walking the chain means following each frame's saved FP to the one below it, down to a zero that marks the first call.
+        The saved x29 (FP) and x30 (LR) of one call, stored together, with x29 pointing at them. Walking the chain means following each saved FP to the record below it, down to a zero that marks the first call.
 
-        Introduced in [A5. Stack frames](a5-stack-frames.md#key-ideas).
+        Introduced in [A5. Stack frames](a5-stack-frames.md#the-frame-record-and-the-chain).
 
-    ??? question "Why must a leaf function on Apple's targets still sometimes build a frame record?"
+    ??? question "Which functions may skip building a frame record under Apple's arm64 ABI?"
 
-        It must not, if it truly calls nothing; the exception AAPCS64 and Apple both name is "leaf functions or tail calls," and any function that calls anything else, even once, falls outside it.
+        Leaf functions (functions that call nothing) and tail calls. Every other function keeps x29 pointing at a valid frame record, which is why a backtrace works on Apple's platforms even without debug information.
 
-        Introduced in [A5. Stack frames](a5-stack-frames.md#key-ideas).
+        Introduced in [A5. Stack frames](a5-stack-frames.md#the-frame-record-and-the-chain).
 
     ??? question "What is a relocation, and what three things does it record?"
 
-        The object file's record of one unfinished patch: which bytes are wrong, which symbol will fix them, and how to combine the symbol's final address with whatever is already sitting in those bytes.
+        The object file's record of one unfinished patch: which bytes are wrong, which symbol will fix them, and how to combine the symbol's final address with whatever already sits in those bytes.
 
         Introduced in [B3. Object files and assemblers](b3-object-files.md#relocations-the-holes-themselves).
 
-    ??? question "When a Vortex runtime check fails, what exact line does the program write to standard error?"
+    ??? question "When a Vortex runtime check fails, what line does the program write to standard error?"
 
-        `runtime error[<kind>]: <message> at <file>:<line>:<column>`, then the program exits with status 101. The kind names the failed check, such as `bounds` or `stack`.
+        `runtime error[<kind>]: <message> at <file>:<line>:<column>`, and then it exits with status 101. The kind names the failed check, such as `bounds` or `stack`.
 
-        Introduced in [stage 9. Runtime safety](../compiler/guide/stage-9-runtime-safety.md#stopping-with-a-clear-runtime-error).
+        Introduced in [9. Runtime safety](../compiler/guide/stage-9-runtime-safety.md#stopping-with-a-clear-runtime-error).
 
 !!! goals "In this chapter"
 
-    - Explain why a line-number table is stored as a short opcode program rather than one row per address.
-    - Recognize a debugging information entry (DIE), an abbreviation and the `.debug_info` tree, and explain why many DIEs share one abbreviation code.
-    - Explain what call frame information adds beyond the frame record from [A5](a5-stack-frames.md), and why an unwinder needs it at every instruction, not only at a function's first one.
-    - Read the difference between Apple's compact unwind encoding and DWARF's CIE/FDE model, and say when a tool falls back from one to the other.
+    - Decode a DWARF line-number program by hand, byte by byte, including a special opcode, and explain why DWARF stores a program instead of a table.
+    - Read a `.debug_info` tree of entries and its abbreviation table, and predict which entries share an abbreviation code.
+    - Read call frame information as rows of unwinding rules, and explain what it gives an unwinder that the frame record from A5 does not.
+    - Predict whether an Apple arm64 function gets a compact unwind encoding or falls back to a DWARF entry, and check the prediction with `llvm-objdump`.
+    - Trace where each kind of debug information goes between the assembler and the debugger, including the `.dSYM` bundle on macOS.
 
 ## A run of bytes cannot name itself
 
-Take a function that has already been compiled: a run of machine instructions at some address, with no comment, no variable name and no file name anywhere inside it. Run it under a debugger and stop it mid-call, and the processor can tell you exactly one thing about where you are: the program counter, a number. Everything else a debugger prints, a backtrace with function names, a line highlighted in a source file, a local variable's value read out by name, comes from a second file the compiler also wrote, read alongside the first.
+Stop a running program in a debugger and the processor can tell you one thing about where you are: the program counter, a number. Everything else the debugger prints (a backtrace with function names, a highlighted source line, a local variable read out by name) comes from data the compiler wrote next to the code and the debugger reads alongside it.
 
-That second file is not a metaphor. On every target Vortex compiles for, it is a set of sections inside the same object file as the code: `.debug_info`, `.debug_line`, `.debug_abbrev`, `.debug_str`, and on Apple's targets a `__compact_unwind` section alongside a `.eh_frame`. **Debug information** is the general name for all of it: data, produced by the compiler, that describes the compiled program in the vocabulary of its source rather than the vocabulary of its instructions. The dominant format for it, and the one every example in this chapter uses, is **DWARF**, a format standardized independently of any one compiler, currently at version 5[^dwarf5].
+That data is not hidden. Compile a six-line C function with `clang -g -O0 -c clamp.c` and list the sections of the object file (Apple clang 21, macOS 27 on an M4 Pro, 2026-09-24; the source appears in the section on `.debug_info` below):
 
-This chapter covers two of DWARF's jobs, the two the research notes behind it call out as the ones to learn first: mapping an address back to a source line (the **line number table**), and describing a function's tree of debugging information entries (the **DIE tree**, `.debug_info`). It also covers a job that sits next to DWARF rather than inside it on Apple's targets: **call frame information**, the data an unwinder reads to walk a stack it did not build, which is what turns a raw list of return addresses into the named backtrace a debugger prints. A fourth DWARF job, describing exactly where a variable's value lives at each point in a function (`DW_AT_location`), is deliberately out of scope here: it depends on register allocation and spilling in ways [C5](c5-spilling.md) has not yet introduced, and the research notes behind this chapter put it later for the same reason. Line tables and frames come first because a compiler needs them the moment it can produce a stack trace at all; variable locations come once the back end tracks where a value lives well enough to describe it.
+```text
+Idx Name             Size     Type
+  0 __text           00000064 TEXT
+  1 __debug_abbrev   00000061 DATA, DEBUG
+  2 __debug_info     00000066 DATA, DEBUG
+  3 __debug_str_offs 00000034 DATA, DEBUG
+  4 __debug_str      0000011a DATA, DEBUG
+  5 __debug_addr     00000010 DATA, DEBUG
+  6 __debug_names    00000070 DATA, DEBUG
+  7 __compact_unwind 00000020 DATA
+  8 __debug_line     0000008d DATA, DEBUG
+  9 __debug_line_str 00000068 DATA, DEBUG
+```
 
-## The line number table: an opcode program, not a lookup table
+One hundred bytes of code arrive with nine sections that describe them. **Debug information** is the general name for this data: facts produced by the compiler that describe the compiled program in the vocabulary of its source rather than of its instructions. Every section in that list except `__text` and `__compact_unwind` holds **DWARF**, the debugging format these tools use, defined by the DWARF committee's standard, whose current version 5 was published in 2017[^dwarf5]. Mach-O spells the section names `__debug_line` and so on; ELF spells the same sections `.debug_line`. This chapter uses the ELF spelling in prose.
 
-Start with the smallest question a debugger has to answer: given an address, what source line was the compiler translating when it emitted the instruction there? The naive answer is a table with one row per address: 4 bytes of address, a line number, repeat for every instruction in the program. For a program with thousands of instructions, most of which share a line with their neighbors, that table would be almost entirely redundant.
-
-DWARF's answer, walked through in plain language in the DWARF committee's own introductory guide, is a small **state machine**[^eager]. The compiler does not write rows directly; it writes a short program of opcodes that, when run, rebuilds the rows. The machine keeps a handful of registers, the two that matter here are `address` (where the next instruction the debugger should attribute to a source line begins) and `line` (which line in which file that instruction came from), and the opcode program does three things to them: advance `address` forward by some amount, add a signed delta to `line` (which can move it backward as well as forward), and **copy** the current `(address, line)` pair into the table as a finished row. A run of consecutive instructions on the same line costs one `advance_pc` and one `copy`, not one row per instruction.
-
-The following example is a toy model of exactly that machine, small enough to read end to end, built to run and print its own output rather than being taken on faith:
-
---8<-- "includes/examples/backend/d1-debug-info/line_number_program.cpp.md"
-
-The six rows it prints come from a fabricated loop: line 10 is the function's first statement, line 11 is a loop condition checked twice, line 12 is the loop body, and line 14 runs once the loop is done. Notice that `address` only ever increases, 0x0, 0x8, 0xc, 0x10, 0x18, 0x1c, because instructions are laid out one after another in memory and the compiler never moves one earlier to make room for another. `line`, by contrast, goes 10, 11, 12, 11, 14: it drops back to 11 at the loop's back edge, because the fourth block of instructions came from the same source line as the second. A table indexed only by line number could not represent this; a table built by a state machine that advances `address` and `line` independently represents it for free.
+This chapter covers three jobs, in the order a new back end needs them. The **line table** maps an address to a file, line and column. The **tree of entries** in `.debug_info` names the functions, their parameters and their types. **Call frame information** tells an unwinder how to step from one frame to its caller at any instruction. Describing where a variable's value lives at every instruction after optimization is a fourth job; it waits for [C5](c5-spilling.md), for reasons the last section explains.
 
 <figure class="vx-figure">
-<svg viewBox="0 0 620 300" role="img" aria-labelledby="d1-line-title d1-line-desc">
-<title id="d1-line-title">The line-number state machine stepping through line_number_program.cpp's toy opcode stream</title>
-<desc id="d1-line-desc">Six opcode groups on the left, each advancing the address register, and usually the line register, before a copy opcode. Each opcode group produces one row on the right: address 0x0 line 10, address 0x8 line 11, address 0xc line 12, address 0x10 line 11 (the loop's back edge, where line falls from 12 back to 11 while address keeps rising), address 0x18 line 14, and address 0x1c marked end_sequence.</desc>
-<defs>
-<marker id="d1-line-head" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path class="vx-arrowhead" d="M0 0 L10 5 L0 10 z"/></marker>
-</defs>
-<text class="vx-text-muted" x="150" y="18" text-anchor="middle">opcodes run</text>
-<text class="vx-text-muted" x="470" y="18" text-anchor="middle">row written</text>
-<g>
-<rect class="vx-box" x="20" y="30" width="260" height="34" rx="4" style="--vx-i:0;--vx-n:6" /><text class="vx-mono vx-seq" x="30" y="52" style="--vx-i:0;--vx-n:6">line+=9, copy</text>
-<line class="vx-line" x1="282" y1="47" x2="336" y2="47" marker-end="url(#d1-line-head)"/>
-<rect class="vx-box" x="340" y="30" width="200" height="34" rx="4" style="--vx-i:0;--vx-n:6" /><text class="vx-mono vx-seq" x="350" y="52" style="--vx-i:0;--vx-n:6">0x0, line 10</text>
+<svg viewBox="0 0 760 300" role="img" aria-label="Where debug information goes from the compiler to the debugger on macOS" aria-describedby="d1-flow-desc">
+<desc id="d1-flow-desc">Left to right. The compiler writes assembly containing .loc and .cfi directives. The assembler turns them into an object file with __debug_line, __debug_info and __debug_abbrev sections, plus __compact_unwind and, for some functions, __eh_frame. The linker builds the executable: it keeps the unwind data as __unwind_info and __eh_frame, drops the debug sections, and writes a debug map into the symbol table naming each object file. dsymutil follows the debug map back to the object files and links their DWARF into a .dSYM bundle. lldb reads the executable and the .dSYM.</desc>
+<defs><marker id="d1-flow-head" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path class="vx-arrowhead" d="M0 0 L10 5 L0 10 z"/></marker></defs>
+<g class="vx-seq" style="--vx-i: 0; --vx-n: 5">
+<rect class="vx-box" x="10" y="40" width="130" height="110" rx="4"/>
+<text class="vx-text" x="75" y="62" text-anchor="middle">compiler</text>
+<text class="vx-mono" x="22" y="88">.loc 1 11 9</text>
+<text class="vx-mono" x="22" y="108">.cfi_offset</text>
+<text class="vx-text-muted" x="22" y="134">assembly text</text>
 </g>
-<g>
-<rect class="vx-box" x="20" y="72" width="260" height="34" rx="4" style="--vx-i:1;--vx-n:6" /><text class="vx-mono vx-seq" x="30" y="94" style="--vx-i:1;--vx-n:6">pc+=8, line+=1, copy</text>
-<line class="vx-line" x1="282" y1="89" x2="336" y2="89" marker-end="url(#d1-line-head)"/>
-<rect class="vx-box" x="340" y="72" width="200" height="34" rx="4" style="--vx-i:1;--vx-n:6" /><text class="vx-mono vx-seq" x="350" y="94" style="--vx-i:1;--vx-n:6">0x8, line 11</text>
+<line class="vx-line" x1="140" y1="95" x2="168" y2="95" marker-end="url(#d1-flow-head)"/>
+<g class="vx-seq" style="--vx-i: 1; --vx-n: 5">
+<rect class="vx-box" x="170" y="20" width="170" height="160" rx="4"/>
+<text class="vx-text" x="255" y="42" text-anchor="middle">object file (.o)</text>
+<text class="vx-mono" x="182" y="68">__text</text>
+<text class="vx-mono" x="182" y="88">__debug_line</text>
+<text class="vx-mono" x="182" y="108">__debug_info</text>
+<text class="vx-mono" x="182" y="128">__debug_abbrev</text>
+<text class="vx-mono" x="182" y="148">__compact_unwind</text>
+<text class="vx-mono" x="182" y="168">__eh_frame</text>
 </g>
-<g>
-<rect class="vx-box" x="20" y="114" width="260" height="34" rx="4" style="--vx-i:2;--vx-n:6" /><text class="vx-mono vx-seq" x="30" y="136" style="--vx-i:2;--vx-n:6">pc+=4, line+=1, copy</text>
-<line class="vx-line" x1="282" y1="131" x2="336" y2="131" marker-end="url(#d1-line-head)"/>
-<rect class="vx-box" x="340" y="114" width="200" height="34" rx="4" style="--vx-i:2;--vx-n:6" /><text class="vx-mono vx-seq" x="350" y="136" style="--vx-i:2;--vx-n:6">0xc, line 12</text>
+<line class="vx-line" x1="340" y1="95" x2="378" y2="95" marker-end="url(#d1-flow-head)"/>
+<g class="vx-seq" style="--vx-i: 2; --vx-n: 5">
+<rect class="vx-box-strong" x="380" y="20" width="170" height="160" rx="4"/>
+<text class="vx-text" x="465" y="42" text-anchor="middle">executable</text>
+<text class="vx-mono" x="392" y="68">__text</text>
+<text class="vx-mono" x="392" y="88">__unwind_info</text>
+<text class="vx-mono" x="392" y="108">__eh_frame</text>
+<text class="vx-text-accent" x="392" y="134">debug map:</text>
+<text class="vx-text-muted" x="392" y="152">"clamp.o holds</text>
+<text class="vx-text-muted" x="392" y="170">DWARF for _clamp"</text>
 </g>
-<g>
-<rect class="vx-box-accent" x="20" y="156" width="260" height="34" rx="4" style="--vx-i:3;--vx-n:6" /><text class="vx-mono vx-seq" x="30" y="178" style="--vx-i:3;--vx-n:6">pc+=4, line-=1, copy</text>
-<line class="vx-line" x1="282" y1="173" x2="336" y2="173" marker-end="url(#d1-line-head)"/>
-<rect class="vx-box-accent" x="340" y="156" width="200" height="34" rx="4" style="--vx-i:3;--vx-n:6" /><text class="vx-mono vx-seq" x="350" y="178" style="--vx-i:3;--vx-n:6">0x10, line 11</text>
+<line class="vx-line" x1="550" y1="95" x2="608" y2="95" marker-end="url(#d1-flow-head)"/>
+<g class="vx-seq" style="--vx-i: 4; --vx-n: 5">
+<rect class="vx-box" x="610" y="40" width="140" height="110" rx="4"/>
+<text class="vx-text" x="680" y="62" text-anchor="middle">lldb</text>
+<text class="vx-text-muted" x="622" y="88">backtraces,</text>
+<text class="vx-text-muted" x="622" y="106">line breakpoints,</text>
+<text class="vx-text-muted" x="622" y="124">names</text>
 </g>
-<g>
-<rect class="vx-box" x="20" y="198" width="260" height="34" rx="4" style="--vx-i:4;--vx-n:6" /><text class="vx-mono vx-seq" x="30" y="220" style="--vx-i:4;--vx-n:6">pc+=8, line+=3, copy</text>
-<line class="vx-line" x1="282" y1="215" x2="336" y2="215" marker-end="url(#d1-line-head)"/>
-<rect class="vx-box" x="340" y="198" width="200" height="34" rx="4" style="--vx-i:4;--vx-n:6" /><text class="vx-mono vx-seq" x="350" y="220" style="--vx-i:4;--vx-n:6">0x18, line 14</text>
-</g>
-<g>
-<rect class="vx-box-strong" x="20" y="240" width="260" height="34" rx="4" style="--vx-i:5;--vx-n:6" /><text class="vx-mono vx-seq" x="30" y="262" style="--vx-i:5;--vx-n:6">pc+=4, end_sequence</text>
-<line class="vx-line" x1="282" y1="257" x2="336" y2="257" marker-end="url(#d1-line-head)"/>
-<rect class="vx-box-strong" x="340" y="240" width="200" height="34" rx="4" style="--vx-i:5;--vx-n:6" /><text class="vx-mono vx-seq" x="350" y="262" style="--vx-i:5;--vx-n:6">0x1c, end_seq</text>
+<g class="vx-seq" style="--vx-i: 3; --vx-n: 5">
+<rect class="vx-box-accent" x="380" y="220" width="170" height="60" rx="4"/>
+<text class="vx-text" x="465" y="244" text-anchor="middle">dsymutil</text>
+<text class="vx-mono" x="465" y="266" text-anchor="middle">prog.dSYM</text>
+<path class="vx-line" d="M255 180 L255 250 L378 250" fill="none" marker-end="url(#d1-flow-head)"/>
+<text class="vx-text-muted" x="262" y="240">DWARF stays here</text>
+<path class="vx-line" d="M550 250 L680 250 L680 152" fill="none" marker-end="url(#d1-flow-head)"/>
 </g>
 </svg>
-<figcaption>Figure 1. The line-number state machine running <code>line_number_program.cpp</code>'s toy opcode stream. The highlighted row is the loop's back edge: <code>address</code> keeps rising while <code>line</code> falls from 12 back to 11. The last row, an <code>end_sequence</code>, closes the range of addresses this table covers; DWARF requires one to end every contiguous run of code.</figcaption>
+<figcaption>Figure 1. Where each kind of debug information goes on macOS. The unwind tables travel into the executable, because the running program needs them. The DWARF debug sections stay in the object files; the executable records only a debug map naming them, and <code>dsymutil</code> gathers them into a <code>.dSYM</code> bundle.</figcaption>
 </figure>
 
-The toy interpreter above proves the idea; the next example shows the real thing. `.file` and `.loc` are assembler directives, understood by both GNU `as` and the LLVM integrated assembler clang uses, that ask the assembler to build an actual DWARF `.debug_line` section as it assembles ordinary instructions; a real compiler emits the same directives automatically as it walks each statement's source position, which LLVM's own guide to generating this kind of information describes end to end[^llvm-sld]:
+## The line table: a program, not a table
+
+Start with the smallest question a debugger must answer: given an address, which source line was the compiler translating when it emitted the instruction there? The obvious answer is a table with one row per instruction. Most neighbouring instructions share a line, so almost every row would repeat the one above it.
+
+Here is the question on a real function. `line_table.s` is `clamp(v, lo, hi)` written by hand. Each `.loc` directive says "the instructions after this came from file 1, line L, column C"; the assembler collects them into a `.debug_line` section, the same way a compiler's own `.loc` lines are collected when it compiles with `-g`[^llvm-sld].
 
 --8<-- "includes/examples/backend/d1-debug-info/line_table.s.md"
 
-Assembling this file and reading its `.debug_line` section back with `llvm-dwarfdump --debug-line` (Apple clang 21, `llvm-dwarfdump`, arm64-apple-macosx, 2026-09-24) produces a DWARF version 5 line table whose rows are exactly the five `.loc` lines this file wrote, plus one `end_sequence` row the assembler adds on its own at the function's last address:
+Assembling it with `cc -c` and reading the result with `llvm-dwarfdump --debug-line` (LLVM 18.1.8 tools, same machine and date) gives six rows:
 
 ```text
 Address            Line   Column File   ISA Discriminator OpIndex Flags
@@ -117,123 +136,440 @@ Address            Line   Column File   ISA Discriminator OpIndex Flags
 0x0000000000000024     16      5      1   0             0       0  is_stmt end_sequence
 ```
 
-`clamp`'s branches, `b.ge`, `b.le` and the unconditional `b`s, are exactly what make this more than a straight-line example: the assembler had to place `.loc 1 16 5` once, on the shared exit label `3:`, yet the table above shows that same line and column at two different addresses, 0x20 and 0x24. The first is the real instruction, `ret`; the second is the synthetic `end_sequence` row the assembler always appends to close out the range, at the address one past the function's last byte. This is the same idea as the toy interpreter's row for address 0x1c: an `end_sequence` marks where a contiguous run of code, this function, stops, so a debugger stepping past the function's last instruction does not silently attribute the address after it to line 16 as well.
+Each row says "from this address on, until the next row, the code belongs to this line and column". The row at 0x8 covers the `mov` and the `b` at 0x8 and 0xc. The last row, at 0x24, is one byte past the final `ret`. Its **end_sequence** flag marks the first address after a contiguous run of code, so a debugger does not attribute whatever follows the function to line 16[^dwarf5].
 
-??? check "Why does the line-number program move the address and the line number with two separate opcodes, rather than writing one finished row for every unique source line up front?"
+### The state machine
 
-    Because the two do not move together. Address always increases, since instructions sit one after another in memory, but the same line can be visited from more than one place (a loop's back edge, in Figure 1) or skipped over entirely (an inlined call, a line with no code of its own). A table built line-by-line cannot represent an address that revisits an earlier line; a state machine that advances each register independently, and only writes a row when `copy` runs, represents it directly and, for the common case of many instructions sharing one line, needs far fewer opcodes than one row per instruction would.
+DWARF does not store these rows. It stores a short program that rebuilds them when run on a small, imagined **state machine**: a set of registers with defined starting values and a list of byte-sized instructions that change them[^dwarf5][^eager]. The registers that matter here are `address`, `file`, `line` and `column`, plus the flags `is_stmt` (this instruction is a good place for a line breakpoint) and `end_sequence`. At the start of each sequence, `address` is 0, `line` is 1 and `is_stmt` takes a default from the table's header[^dwarf5].
 
-## The DIE tree: `.debug_info` and why entries share abbreviations
+Instructions come in three kinds. **Standard opcodes** each do one thing: `DW_LNS_copy` (opcode 1) appends the current registers as a row, `DW_LNS_advance_pc` (2) adds to `address`, `DW_LNS_advance_line` (3) adds a signed amount to `line`, and `DW_LNS_set_column` (5) sets `column`. **Extended opcodes** start with a zero byte, then a length, then a sub-opcode; `DW_LNE_end_sequence` and `DW_LNE_set_address` are the two used here. **Special opcodes**, every byte value from the header's `opcode_base` upward, advance `address` and `line` together and append a row, all in one byte[^dwarf5].
 
-The line table answers "what line is this address," a question about code. `.debug_info` answers questions about the program's own structure: what functions exist, what parameters and locals each one declares, what types those locals have. It stores that as a tree of **debugging information entries**, or **DIEs**: one DIE for the compile unit at the root, one for each function, one for each of that function's parameters and locals, one for each type. Every DIE has a **tag** naming what kind of thing it describes, `DW_TAG_subprogram` for a function, `DW_TAG_formal_parameter` for a parameter, and a list of **attributes**, name and type and, eventually, location, that describe it.
+The operands are **LEB128** numbers ("little-endian base 128"): each byte carries seven bits of the value, low bits first, and a set top bit means another byte follows. Small numbers, which are most numbers in debug information, take one byte[^dwarf5]. The signed form, SLEB128, sign-extends from the last byte, so a line step of −1 is the single byte `0x7f`.
 
-Writing every DIE's tag and full attribute list out in the file would repeat the same shape constantly: a `DW_TAG_formal_parameter` with a name, a type and a location looks structurally identical to the next parameter that also has a name, a type and a location, even though the actual name and type differ. DWARF factors that shape out once, into a separate `.debug_abbrev` section, and lets many DIEs reuse it: an **abbreviation** records a tag plus the ordered list of (attribute, form) pairs a DIE with that shape carries; a DIE in `.debug_info` then writes only a small abbreviation code, followed by the attribute *values* in the order the abbreviation promised[^dwarf5]. Two DIEs that happen to have the same tag and the same set of attributes present, even with completely different values, share one abbreviation.
+### Decoding it by hand
 
-The next example builds a tiny DIE tree by hand, for a two-function toy program, and counts how many distinct abbreviations it actually needs:
+`llvm-dwarfdump --debug-line --verbose` prints the bytes of the program for `line_table.s`, and the table's header, which says `line_base = -5`, `line_range = 14` and `opcode_base = 13`. The whole program is 33 bytes, 8 of them the starting address:
+
+```text
+05 05                          set_column 5
+00 09 02 00 00 00 00 00 00 00 00   extended, 9 bytes: set_address 0x0
+03 09                          advance_line 9        line 1 -> 10
+01                             copy                  row 0x00, line 10, col 5
+05 09                          set_column 9
+83                             special opcode
+05 05                          set_column 5
+84                             special opcode
+05 09  83  05 05  84           the same pattern again
+02 04                          advance_pc 4
+00 01 01                       extended, 1 byte: end_sequence
+```
+
+Take the first special opcode, `0x83`, which is 131. DWARF defines its meaning with three lines of arithmetic[^dwarf5]:
+
+$$\text{adjusted} = 131 - \text{opcode\_base} = 118$$
+
+$$\Delta\text{address} = \lfloor 118 / \text{line\_range} \rfloor = \lfloor 118 / 14 \rfloor = 8$$
+
+$$\Delta\text{line} = \text{line\_base} + (118 \bmod 14) = -5 + 6 = 1$$
+
+So `0x83` moves `address` from 0 to 8 and `line` from 10 to 11, then appends the row `0x8, line 11`, which is the second row of the table. (The header's `minimum_instruction_length` is 1 here, so the address step is in bytes.) Try `0x84` yourself before reading on: adjusted 119, address step 8, line step −5 + 7 = 2, which takes line 11 at 0x8 to line 13 at 0x10.
+
+<figure class="vx-figure">
+<svg viewBox="0 0 760 290" role="img" aria-label="The line-number state machine decoding the bytes of line_table.s's program" aria-describedby="d1-line-desc">
+<desc id="d1-line-desc">Three columns. Left: the opcode bytes in order, grouped. Middle: the address and line registers after each group. Right: the rows appended. 03 09 then 01 give address 0 line 10 and append a row. 83 adds 8 to the address and 1 to the line, giving 0x8 line 11 and a row. 84 adds 8 and 2, giving 0x10 line 13. 83 gives 0x18 line 14. 84 gives 0x20 line 16. 02 04 then 00 01 01 add 4 to the address and append the end_sequence row at 0x24.</desc>
+<defs><marker id="d1-line-head" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path class="vx-arrowhead" d="M0 0 L10 5 L0 10 z"/></marker></defs>
+<text class="vx-text-muted" x="120" y="18" text-anchor="middle">opcode bytes</text>
+<text class="vx-text-muted" x="395" y="18" text-anchor="middle">registers after</text>
+<text class="vx-text-muted" x="650" y="18" text-anchor="middle">row appended</text>
+<g class="vx-seq" style="--vx-i: 0; --vx-n: 6">
+<rect class="vx-box" x="10" y="30" width="220" height="34" rx="4"/><text class="vx-mono" x="20" y="52">03 09, 01 (line += 9, copy)</text>
+<line class="vx-line" x1="230" y1="47" x2="298" y2="47" marker-end="url(#d1-line-head)"/>
+<text class="vx-mono" x="300" y="52">address 0x00, line 10</text>
+<line class="vx-line" x1="505" y1="47" x2="568" y2="47" marker-end="url(#d1-line-head)"/>
+<rect class="vx-box" x="570" y="30" width="180" height="34" rx="4"/><text class="vx-mono" x="580" y="52">0x00  10</text>
+</g>
+<g class="vx-seq" style="--vx-i: 1; --vx-n: 6">
+<rect class="vx-box-accent" x="10" y="72" width="220" height="34" rx="4"/><text class="vx-mono" x="20" y="94">83 (+8 bytes, +1 line)</text>
+<line class="vx-line" x1="230" y1="89" x2="298" y2="89" marker-end="url(#d1-line-head)"/>
+<text class="vx-mono" x="300" y="94">address 0x08, line 11</text>
+<line class="vx-line" x1="505" y1="89" x2="568" y2="89" marker-end="url(#d1-line-head)"/>
+<rect class="vx-box-accent" x="570" y="72" width="180" height="34" rx="4"/><text class="vx-mono" x="580" y="94">0x08  11</text>
+</g>
+<g class="vx-seq" style="--vx-i: 2; --vx-n: 6">
+<rect class="vx-box" x="10" y="114" width="220" height="34" rx="4"/><text class="vx-mono" x="20" y="136">84 (+8 bytes, +2 lines)</text>
+<line class="vx-line" x1="230" y1="131" x2="298" y2="131" marker-end="url(#d1-line-head)"/>
+<text class="vx-mono" x="300" y="136">address 0x10, line 13</text>
+<line class="vx-line" x1="505" y1="131" x2="568" y2="131" marker-end="url(#d1-line-head)"/>
+<rect class="vx-box" x="570" y="114" width="180" height="34" rx="4"/><text class="vx-mono" x="580" y="136">0x10  13</text>
+</g>
+<g class="vx-seq" style="--vx-i: 3; --vx-n: 6">
+<rect class="vx-box" x="10" y="156" width="220" height="34" rx="4"/><text class="vx-mono" x="20" y="178">83 (+8 bytes, +1 line)</text>
+<line class="vx-line" x1="230" y1="173" x2="298" y2="173" marker-end="url(#d1-line-head)"/>
+<text class="vx-mono" x="300" y="178">address 0x18, line 14</text>
+<line class="vx-line" x1="505" y1="173" x2="568" y2="173" marker-end="url(#d1-line-head)"/>
+<rect class="vx-box" x="570" y="156" width="180" height="34" rx="4"/><text class="vx-mono" x="580" y="178">0x18  14</text>
+</g>
+<g class="vx-seq" style="--vx-i: 4; --vx-n: 6">
+<rect class="vx-box" x="10" y="198" width="220" height="34" rx="4"/><text class="vx-mono" x="20" y="220">84 (+8 bytes, +2 lines)</text>
+<line class="vx-line" x1="230" y1="215" x2="298" y2="215" marker-end="url(#d1-line-head)"/>
+<text class="vx-mono" x="300" y="220">address 0x20, line 16</text>
+<line class="vx-line" x1="505" y1="215" x2="568" y2="215" marker-end="url(#d1-line-head)"/>
+<rect class="vx-box" x="570" y="198" width="180" height="34" rx="4"/><text class="vx-mono" x="580" y="220">0x20  16</text>
+</g>
+<g class="vx-seq" style="--vx-i: 5; --vx-n: 6">
+<rect class="vx-box-strong" x="10" y="240" width="220" height="34" rx="4"/><text class="vx-mono" x="20" y="262">02 04, 00 01 01 (end)</text>
+<line class="vx-line" x1="230" y1="257" x2="298" y2="257" marker-end="url(#d1-line-head)"/>
+<text class="vx-mono" x="300" y="262">address 0x24</text>
+<line class="vx-line" x1="505" y1="257" x2="568" y2="257" marker-end="url(#d1-line-head)"/>
+<rect class="vx-box-strong" x="570" y="240" width="180" height="34" rx="4"/><text class="vx-mono" x="580" y="262">0x24  end_sequence</text>
+</g>
+</svg>
+<figcaption>Figure 2. The state machine running the real program from <code>line_table.s</code> (the <code>set_column</code> bytes are left out). Each one-byte special opcode moves two registers and appends a row; the highlighted <code>0x83</code> is the one decoded by hand above.</figcaption>
+</figure>
+
+The next example is the same decoding done by a program. It holds the 33 bytes, applies the three rules for special opcodes and the handful of standard and extended opcodes this program uses, and prints a trace. Its rows match `llvm-dwarfdump`'s, which is the check that the arithmetic above is right.
+
+--8<-- "includes/examples/backend/d1-debug-info/line_number_program.cpp.md"
+
+### Why a program
+
+Two reasons, both visible in the example. First, size: the whole program is 33 bytes, while a table holding an 8-byte address for each of its six rows would spend 48 bytes on the addresses alone. Each one-byte special opcode does the work of a row. Second, freedom: `address` only moves forward, but `line` may move back. The standard's own discussion of special opcodes gives the reason a negative `line_base` exists: on a machine where the scheduler interleaves instructions from different lines, a later instruction may belong to an earlier line[^dwarf5]. A loop's back edge does the same thing.
+
+The same freedom covers code that belongs to no line. The standard allows **line 0** for instructions that cannot be attributed to any source line[^dwarf5], such as a shared error path the compiler invented. The `is_stmt` flag marks the rows that are recommended breakpoint locations, the places that represent a line or statement[^dwarf5]. In the `.ll` example later in this chapter, LLVM marks the second row of a one-line function `is_stmt 0`: that row continues line 3 rather than starting a statement.
+
+??? check "Which single byte encodes \"address += 4, line -= 1\" in this table's header, and why could no special opcode encode \"line += 9\"?"
+
+    Work the formula backwards: opcode = (Δline − line_base) + line_range × Δaddress + opcode_base = (−1 + 5) + 14 × 4 + 13 = 73, which is `0x49`. Decoding checks it: 73 − 13 = 60, 60 / 14 = 4, −5 + 60 mod 14 = −5 + 4 = −1. The largest line step a special opcode can express is line_base + line_range − 1 = 8, so a jump of 9 lines needs `DW_LNS_advance_line`, which is why the program above reaches line 10 with `03 09` rather than a special opcode.
+
+## The tree of entries: `.debug_info`
+
+The line table answers "which line is this address?", a question about code. `.debug_info` answers questions about the program's structure: which functions exist, what each one's parameters and locals are called, what their types are, and where they live. Here is the source that produced the section list at the top of this chapter:
+
+```c
+int clamp(int v, int lo, int hi) {
+    int r = v;
+    if (r < lo) r = lo;
+    if (r > hi) r = hi;
+    return r;
+}
+```
+
+`llvm-dwarfdump --debug-info clamp.o` prints this tree (same machine and date; long paths and a few compile-unit attributes cut):
+
+```text
+0x0000000c: DW_TAG_compile_unit
+              DW_AT_producer    ("Apple clang version 21.0.0 (clang-2100.3.30.1)")
+              DW_AT_name        ("clamp.c")
+              DW_AT_stmt_list   (0x00000000)
+              DW_AT_low_pc      (0x0000000000000000)
+              DW_AT_high_pc     (0x0000000000000064)
+0x00000025:   DW_TAG_subprogram
+                DW_AT_low_pc    (0x0000000000000000)
+                DW_AT_high_pc   (0x0000000000000064)
+                DW_AT_frame_base (DW_OP_reg31 WSP)
+                DW_AT_name      ("clamp")
+                DW_AT_type      (0x00000061 "int")
+0x00000034:     DW_TAG_formal_parameter
+                  DW_AT_location (DW_OP_fbreg +12)
+                  DW_AT_name    ("v")
+                  DW_AT_type    (0x00000061 "int")
+0x0000003f:     DW_TAG_formal_parameter      ... "lo", DW_OP_fbreg +8
+0x0000004a:     DW_TAG_formal_parameter      ... "hi", DW_OP_fbreg +4
+0x00000055:     DW_TAG_variable              ... "r",  DW_OP_fbreg +0
+0x00000060:     NULL
+0x00000061:   DW_TAG_base_type
+                DW_AT_name      ("int")
+                DW_AT_encoding  (DW_ATE_signed)
+                DW_AT_byte_size (0x04)
+```
+
+Each block is a **debugging information entry**, or **DIE**: one record describing one thing in the program[^dwarf5][^eager]. A DIE has a **tag** that says what kind of thing it is (`DW_TAG_subprogram` for a function, `DW_TAG_formal_parameter` for a parameter) and a list of **attributes**, each a name and a value. Indentation shows the tree: the parameters are children of the function, the function a child of the compile unit, and a `NULL` entry closes a list of children.
+
+Three attributes connect this tree to the rest of the chapter. `DW_AT_stmt_list` points at this unit's line table. `DW_AT_low_pc` and `DW_AT_high_pc` give the function's address range, which is how a debugger turns a program counter into the name `clamp` for a backtrace. `DW_AT_type` is a reference to another DIE, the `int` at offset 0x61, so a type is described once and shared.
+
+The parameters' `DW_AT_location` values are small **DWARF expressions**: `DW_OP_fbreg +12` means "12 bytes past the frame base", and the function's `DW_AT_frame_base` says the frame base is the stack pointer. At `-O0` clang keeps each variable in one stack slot for the whole function, as here, so one expression per variable is enough.
+
+### Abbreviations
+
+Writing every DIE's tag and attribute names in full would repeat the same shape constantly: the three parameters carry the same five attributes in the same order. DWARF factors the shape out into `.debug_abbrev`. An **abbreviation** declares a tag, whether the entry has children, and an ordered list of (attribute, **form**) pairs, where the form says how the value is encoded (`DW_FORM_strx1` is a one-byte index into the unit's list of string offsets, `DW_FORM_ref4` a four-byte offset to another DIE). Each DIE in `.debug_info` then begins with an abbreviation code, as a ULEB128, followed only by the values[^dwarf5].
+
+Here is the abbreviation clang wrote for the parameters (`llvm-dwarfdump --debug-abbrev clamp.o`):
+
+```text
+[3] DW_TAG_formal_parameter DW_CHILDREN_no
+        DW_AT_location  DW_FORM_exprloc
+        DW_AT_name      DW_FORM_strx1
+        DW_AT_decl_file DW_FORM_data1
+        DW_AT_decl_line DW_FORM_data1
+        DW_AT_type      DW_FORM_ref4
+```
+
+The whole unit uses five abbreviations for seven DIEs. All three parameters use code 3. The local `r` has exactly the same attribute list, yet it gets its own code 4, because its tag differs. The next example assigns codes the way a producer does, first for the seven DIEs above and then for two that `clamp.c` did not have.
 
 --8<-- "includes/examples/backend/d1-debug-info/abbrev_dedup.cpp.md"
 
-Eight DIEs, five distinct abbreviations. The compile unit is its own shape. Both functions, `average3` and `clamp`, share one abbreviation, because both are a `DW_TAG_subprogram` with a name, a type and a location, even though their names and low-PC values differ. The two parameters share another, the two ordinary locals (`sum` and `result`) share a third, and `unused_tmp`, whose type and location were optimized away, needs a fourth because its attribute list is genuinely a different shape, not because its value differs. A DIE's shape is decided entirely by which attributes it carries, never by what those attributes say.
+The two extra entries each need a new code for a different reason. `t` has no `DW_AT_location`: when a variable's entry has no location, DWARF says the variable exists in the source but not in the running program[^dwarf5], which is how a debugger knows to print "optimized out". `zero` has the same attributes as `clamp` but no children, and the children flag is part of the abbreviation.
 
-??? check "Two `DW_TAG_variable` DIEs in the same function both have a `DW_AT_name`. One also has a `DW_AT_location` because it survives to run time; the other was eliminated entirely and has neither a type nor a location. Can the two share an abbreviation code?"
+<figure class="vx-figure">
+<svg viewBox="0 0 760 280" role="img" aria-label="The DIE tree for clamp.c with each entry's abbreviation code" aria-describedby="d1-die-desc">
+<desc id="d1-die-desc">A tree. The compile unit, abbreviation 1, has two children: the subprogram clamp, abbreviation 2, and the base type int, abbreviation 5. clamp has four children: parameters v, lo and hi, all abbreviation 3, and the variable r, abbreviation 4. Dashed arrows from every type attribute point at the int entry. On the right, the abbreviation table lists codes 1 to 5 with their tags; code 3 is shared by three entries.</desc>
+<defs><marker id="d1-die-head" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path class="vx-arrowhead" d="M0 0 L10 5 L0 10 z"/></marker></defs>
+<rect class="vx-box-strong" x="170" y="14" width="190" height="34" rx="4"/><text class="vx-mono" x="180" y="36">[1] compile_unit</text>
+<line class="vx-line" x1="220" y1="48" x2="120" y2="84"/>
+<line class="vx-line" x1="320" y1="48" x2="420" y2="84"/>
+<rect class="vx-box" x="30" y="84" width="190" height="34" rx="4"/><text class="vx-mono" x="40" y="106">[2] subprogram clamp</text>
+<rect class="vx-box" x="340" y="84" width="170" height="34" rx="4"/><text class="vx-mono" x="350" y="106">[5] base_type int</text>
+<line class="vx-line" x1="60" y1="118" x2="60" y2="244"/>
+<g class="vx-seq" style="--vx-i: 0; --vx-n: 4">
+<line class="vx-line" x1="60" y1="156" x2="80" y2="156"/>
+<rect class="vx-box-accent" x="80" y="140" width="170" height="30" rx="4"/><text class="vx-mono" x="90" y="160">[3] parameter v</text>
+</g>
+<g class="vx-seq" style="--vx-i: 1; --vx-n: 4">
+<line class="vx-line" x1="60" y1="190" x2="80" y2="190"/>
+<rect class="vx-box-accent" x="80" y="176" width="170" height="30" rx="4"/><text class="vx-mono" x="90" y="196">[3] parameter lo</text>
+</g>
+<g class="vx-seq" style="--vx-i: 2; --vx-n: 4">
+<line class="vx-line" x1="60" y1="224" x2="80" y2="224"/>
+<rect class="vx-box-accent" x="80" y="212" width="170" height="30" rx="4"/><text class="vx-mono" x="90" y="232">[3] parameter hi</text>
+</g>
+<g class="vx-seq" style="--vx-i: 3; --vx-n: 4">
+<line class="vx-line" x1="60" y1="258" x2="80" y2="258"/>
+<rect class="vx-box" x="80" y="246" width="170" height="30" rx="4"/><text class="vx-mono" x="90" y="266">[4] variable r</text>
+</g>
+<path class="vx-line" d="M250 190 C 320 190, 400 160, 420 120" fill="none" stroke-dasharray="4 4" marker-end="url(#d1-die-head)"/>
+<text class="vx-text-muted" x="300" y="210">DW_AT_type</text>
+<rect class="vx-box" x="560" y="14" width="190" height="150" rx="4"/>
+<text class="vx-text" x="570" y="36">.debug_abbrev</text>
+<text class="vx-mono" x="570" y="62">1  compile_unit</text>
+<text class="vx-mono" x="570" y="84">2  subprogram</text>
+<text class="vx-text-accent" x="570" y="106">3  formal_parameter</text>
+<text class="vx-mono" x="570" y="128">4  variable</text>
+<text class="vx-mono" x="570" y="150">5  base_type</text>
+<text class="vx-text-muted" x="560" y="192">each DIE stores a code,</text>
+<text class="vx-text-muted" x="560" y="210">then only its values</text>
+</svg>
+<figcaption>Figure 3. The DIE tree clang wrote for <code>clamp.c</code>, with each entry's abbreviation code. Shape, not content, decides the code: the three parameters share code 3, and <code>r</code> needs code 4 only because its tag is different.</figcaption>
+</figure>
 
-    No. An abbreviation is keyed on the tag and the exact set of attributes present, not on what the attributes say. The surviving variable's abbreviation lists `DW_AT_location` among its attributes; the eliminated one's does not, so its attribute list is a different shape even though both share the tag `DW_TAG_variable` and both have a name. They need two different abbreviation codes, the same way `unused_tmp` needed its own abbreviation in the example above.
+One more detail ties this section to [B3](b3-object-files.md#relocations-the-holes-themselves). The object file's DWARF names addresses in `__text`, and those addresses are not final until the linker places the code. `llvm-objdump -r clamp.o` shows one relocation in `__debug_addr` and one in `__debug_line`, both against `__text`: the `DW_AT_low_pc` values and the line table's `set_address` operand are holes like any other.
 
-## Call frame information: unwinding a stack the unwinder did not build
+??? check "A function has two locals, `a` and `b`, both `int`, both named, both declared in the same file. At `-O2`, `a` stays in a register and `b` is folded away entirely. Can their two DIEs share an abbreviation?"
 
-[A5](a5-stack-frames.md#key-ideas) already answered how one function calls another: a **frame record**, x29 and x30 saved together with x29 pointing at them, chained frame to frame, so a debugger can walk from the innermost call back to the first. That is enough to print a backtrace's list of return addresses when nothing has gone wrong. It is not enough for every case a real unwinder has to handle: a signal that arrives mid-instruction, a language with exception handling unwinding past several frames to find a handler, or a profiler sampling a stack at an arbitrary, unpredictable point in a function's body. All three need to answer "where is the saved return address, and where is the caller's frame pointer, at *this exact instruction*," not only "at the function's first instruction." A function's prologue does not finish its saves in one atomic step: between `stp x29, x30, [sp, #-32]!` and the following `mov x29, sp`, the frame record exists but x29 does not point at it yet, and an unwinder asked to work at that one instruction needs to know that too.
+    No. `a` keeps a `DW_AT_location` attribute and `b` has none, so their attribute lists differ, and the abbreviation is keyed on the tag, the children flag and the exact (attribute, form) list. Their values, such as the names `a` and `b`, never matter.
 
-**Call frame information**, or **CFI**, is DWARF's answer: a second, per-instruction opcode program, structurally the twin of the line-number program but describing register locations instead of source lines. Two record kinds carry it. A **CIE** (Common Information Entry) holds the parts shared by every function using one calling convention: which register number is the return address, what the very first instruction's state looks like, before any of a function's own prologue has run. An **FDE** (Frame Description Entry) points at one CIE and then carries the opcode program for one specific function's prologue and epilogue, saying at which instruction offset each register save happens and where it went[^taylor-ehframe]. Assemble a function with `.cfi_startproc`, `.cfi_def_cfa_offset` and `.cfi_offset` directives, the same kind of directive family as `.loc`, and the assembler builds exactly this: a CIE shared by the object file's functions and one FDE per function.
+## Call frame information: unwinding at any instruction
+
+[A5](a5-stack-frames.md#the-frame-record-and-the-chain) gave every calling function a frame record, and a debugger stopped at a breakpoint can follow x29 from record to record to list the return addresses. That covers the common case and misses three others.
+
+First, an unwinder may stop anywhere. A profiler's sample or a signal can land on the first instruction of a function, after `bl` has put the return address in x30 but before the prologue has stored anything; at that moment x29 still points at the caller's record, and a pure x29 walk skips a frame. Second, a leaf function may build no record at all. Third, unwinding for exceptions must do more than list return addresses: it must put back every callee-saved register (x19 to x28, d8 to d15) that each frame saved, and a frame record says nothing about those.
+
+DWARF describes the general problem precisely. A debugger **virtually unwinds** the stack: starting from the current frame, it computes the registers the caller would see and the caller's frame address, without changing the running program, then repeats[^dwarf5]. To do that it needs, for every instruction address, where each saved register is and how to find the caller's frame.
+
+### The table and its rows
+
+DWARF's answer is **call frame information** (**CFI**). Conceptually it is a large table: one row per code address, one column for the **canonical frame address** (**CFA**) and one column per register[^dwarf5]. The CFA is a fixed reference point for a frame, which the standard says is typically the stack pointer's value at the call site in the caller[^dwarf5]. On AArch64, `bl` does not move sp, so the CFA is the value sp had on entry. Each register column holds a rule, such as "saved at CFA − 24" or "unchanged".
+
+Stored in full, that table would be larger than the code. As with the line table, DWARF stores a program instead. A **Common Information Entry** (**CIE**) holds what many functions share: the code and data alignment factors, which column holds the return address, and the opening rules. A **Frame Description Entry** (**FDE**) names one function's address range, points at its CIE, and carries opcodes that change the rules at chosen offsets into the function[^dwarf5][^taylor-ehframe].
+
+The compiler does not write CIEs and FDEs itself. It writes **CFI directives** into its assembly, and the assembler builds the entries. `.cfi_startproc` and `.cfi_endproc` bracket a function; `.cfi_def_cfa_offset 32` says "the CFA is now sp + 32"; `.cfi_offset w30, -24` says "x30's value for the caller is saved at CFA − 24"; `.cfi_def_cfa w29, 16` says "compute the CFA from x29 + 16 from now on". A directive takes effect at the address where it appears, so it goes after the instruction that made it true.
+
+### Decoding an FDE by hand
+
+The next example holds three small functions with three prologue shapes. The middle one, `_odd_frame`, stores its frame record at the bottom of a 32-byte frame and describes the CFA from sp.
 
 --8<-- "includes/examples/backend/d1-debug-info/cfi_unwind.s.md"
 
-Assembling this and reading its `.eh_frame` section (Apple clang 21, `llvm-dwarfdump --eh-frame`, arm64-apple-macosx, 2026-09-24) shows the CIE and FDE the three `.cfi_*` directives produced:
+Assembled and linked into a small library with `cc -dynamiclib` (same machine and date), `llvm-dwarfdump --eh-frame` prints one CIE and one FDE (padding opcodes and format lines left out):
 
 ```text
 00000000 00000010 00000000 CIE
-  Format:                DWARF32
+  Version:               1
   Augmentation:          "zR"
   Code alignment factor: 1
   Data alignment factor: -8
   Return address column: 30
+  Augmentation data:     10
   DW_CFA_def_cfa: WSP +0
 
-00000014 00000020 00000018 FDE cie=00000000 pc=00000040...00000060
+00000014 00000020 00000018 FDE cie=00000000 pc=000003a8...000003c8
   DW_CFA_advance_loc: 4
   DW_CFA_def_cfa_offset: +32
   DW_CFA_offset: W30 -24
   DW_CFA_offset: W29 -32
 
-  0x40: CFA=WSP
-  0x44: CFA=WSP+32: W29=[CFA-32], W30=[CFA-24]
+  0x3a8: CFA=WSP
+  0x3ac: CFA=WSP+32: W29=[CFA-32], W30=[CFA-24]
 ```
 
-Read the bottom two lines the way an unwinder does, not the way an assembly listing reads. At address 0x40, the function's first instruction, the **canonical frame address** (the address one past the incoming stack pointer, DWARF's fixed reference point for a frame) is simply the stack pointer: nothing has been saved yet. At 0x44, one instruction later, `stp x29, x30, [sp, #-32]!` has run, and the row changes on every count: the CFA is now 32 bytes above sp, and both w29 and w30 have addresses at which they were saved. `DW_CFA_advance_loc: 4` is what makes this address-indexed: it is CFI's version of the line table's `advance_pc`, telling the unwinder these facts hold starting four bytes into the function, not from the very first instruction. An unwinder stopped at address 0x40 and one stopped at 0x44 get different, correct answers for where x30 lives, from the same FDE.
+The FDE covers 0x3a8 to 0x3c8, which `nm` confirms is `_odd_frame`. Its opcodes are seven bytes, `44 0e 20 9e 03 9d 04`, and each can be read with DWARF's encoding table[^dwarf5]:
 
-Apple's targets keep a second, independent answer to the same question alongside the DWARF one. `count_word_char`'s object file also carries a `__compact_unwind` section, a fixed-size, four-byte-per-function encoding for the small set of prologue shapes clang's own back end knows how to compile down (a frame-pointer save at a fixed offset is one of them), one entry per function, decoded without running any opcode program at all[^compact-unwind]. The two coexist deliberately: compact unwind is what `libunwind` reads first, because a table lookup is cheaper than interpreting a byte-code program, and it falls back to walking the `.eh_frame` DWARF program only for a prologue shape compact unwind's small format cannot express. Neither is a substitute for the frame record from [A5](a5-stack-frames.md); the frame record is what a debugger reads directly out of live memory to walk a stack it is not unwinding formally, while CFI and compact unwind exist because a stack that is *not* live, one being unwound after the fact, offers no register to read x29 out of at all, and needs the equivalent facts recovered from data instead.
+- `44`: the top two bits are `01`, which is `DW_CFA_advance_loc`, and the low six bits are the delta, 4. Multiplied by the code alignment factor 1, it moves the current location 4 bytes into the function, past the `stp`.
+- `0e 20`: `DW_CFA_def_cfa_offset` with ULEB128 operand 32. The CFA is now sp + 32, because the `stp` moved sp down by 32.
+- `9e 03`: top bits `10` are `DW_CFA_offset`, low six bits are register 30. The operand 3 is a *factored* offset: 3 × the data alignment factor −8 = −24. So x30 is saved at CFA − 24.
+- `9d 04`: register 29, 4 × −8 = −32. x29 is saved at CFA − 32.
 
-This also explains the split between `.debug_frame` and `.eh_frame`, two sections that hold the same CIE/FDE structure for two different readers. `.eh_frame` ships with the executable, because exception handling and signal unwinding need it whether or not a debugger is attached; `.debug_frame`, when a compiler emits it at all, is stripped along with the rest of `.debug_*` before shipping, kept only for an offline debugger. AAPCS64's own DWARF register mapping, which register number means x29 and which means the vector registers, is standardized separately from the frame-information format itself, so that a CIE built for AArch64 and one built for x86-64 agree on what "register 29" even refers to[^aadwarf64].
+The register numbers come from Arm's DWARF supplement for AArch64, which numbers x0 to x30 as 0 to 30 and sp as 31[^aadwarf64]; the CIE's "return address column: 30" therefore means x30. The two rows at the bottom are the table these opcodes rebuild. An unwinder stopped at 0x3a8 learns that nothing is saved yet and the return address is still in x30. One stopped at 0x3ac or later learns where both were stored.
 
-On a fully stripped Mach-O executable, one more piece finishes the picture: `dsymutil` reads the executable's **debug map**, a table connecting the stripped binary's remaining symbols back to the `.o` files the linker consumed, and uses it to gather every one of those object files' `.debug_info` and `.debug_line` sections into a single `.dSYM` bundle next to the executable, so a debugger can symbolicate a crash from a shipped binary without the original build directory still existing[^dsymutil].
+<figure class="vx-figure">
+<svg viewBox="0 0 760 300" role="img" aria-label="The stack of _odd_frame before and after its first instruction, with the CFI row that describes each" aria-describedby="d1-cfa-desc">
+<desc id="d1-cfa-desc">Two stack pictures side by side, addresses growing upward. Left, at offset 0 before stp: sp and the CFA are the same address; x29 and x30 are still in registers; the CFI row reads CFA = sp. Right, at offset 4 after stp x29, x30, [sp, #-32]!: sp has moved 32 bytes down; the CFA is still the old address, now sp + 32; the saved x29 sits at CFA - 32, which is sp, and the saved x30 at CFA - 24; the slot at CFA - 16 holds the spilled w0. The CFI row reads CFA = sp + 32, x29 at CFA - 32, x30 at CFA - 24.</desc>
+<text class="vx-text" x="170" y="20" text-anchor="middle">at +0 (before stp)</text>
+<text class="vx-text" x="560" y="20" text-anchor="middle">at +4 and later</text>
+<rect class="vx-box" x="100" y="40" width="140" height="40" rx="2"/><text class="vx-text-muted" x="170" y="65" text-anchor="middle">caller's frame</text>
+<line class="vx-line" x1="60" y1="80" x2="250" y2="80"/>
+<text class="vx-text-accent" x="20" y="84">CFA</text>
+<text class="vx-mono" x="256" y="84">= sp</text>
+<rect class="vx-box" x="100" y="80" width="140" height="160" rx="2" stroke-dasharray="4 4"/>
+<text class="vx-text-muted" x="170" y="165" text-anchor="middle">not yet claimed</text>
+<g class="vx-seq" style="--vx-i: 0; --vx-n: 2">
+<rect class="vx-box" x="490" y="40" width="140" height="40" rx="2"/><text class="vx-text-muted" x="560" y="65" text-anchor="middle">caller's frame</text>
+<line class="vx-line" x1="440" y1="80" x2="640" y2="80"/>
+<text class="vx-text-accent" x="400" y="84">CFA</text>
+<text class="vx-mono" x="646" y="84">= sp + 32</text>
+<rect class="vx-box" x="490" y="80" width="140" height="40" rx="2"/><text class="vx-mono" x="500" y="105">(unused)</text>
+<rect class="vx-box" x="490" y="120" width="140" height="40" rx="2"/><text class="vx-mono" x="500" y="145">w0 at +16</text>
+</g>
+<g class="vx-seq" style="--vx-i: 1; --vx-n: 2">
+<rect class="vx-box-accent" x="490" y="160" width="140" height="40" rx="2"/><text class="vx-mono" x="500" y="185">saved x30</text>
+<text class="vx-mono" x="646" y="185">CFA - 24</text>
+<rect class="vx-box-accent" x="490" y="200" width="140" height="40" rx="2"/><text class="vx-mono" x="500" y="225">saved x29</text>
+<text class="vx-mono" x="646" y="225">CFA - 32 = sp</text>
+</g>
+<text class="vx-mono" x="20" y="275">row: CFA = sp</text>
+<text class="vx-mono" x="400" y="275">row: CFA = sp+32, x29 [CFA-32], x30 [CFA-24]</text>
+</svg>
+<figcaption>Figure 4. What the two CFI rows of <code>_odd_frame</code> describe. The CFA does not move; sp moves away from it, and the rule for finding the CFA changes to keep pointing at the same place. Each saved register is found relative to the CFA, never relative to sp.</figcaption>
+</figure>
 
-??? check "A profiler samples a running program's stack once every millisecond, at whatever instruction each sample happens to land on. Why can it not simply read x29 out of the CPU and walk the frame-record chain from A5, the way lldb does at a breakpoint?"
+### `.eh_frame` and `.debug_frame`
 
-    It can, and on a live, running thread that is often exactly what it does: x29 is a real register with a real value at every instant, so the frame-record chain works at any instruction, not only at function boundaries. Call frame information earns its keep in the case that trips this up: a signal handler, or an unwinder working from a *saved* copy of the registers taken at an arbitrary instant rather than from the live thread, needs to know not only what x29 holds now but which memory location backs it up, in case the sample landed inside a prologue before x29 was set. CFI's per-instruction program answers that question at any address; a single frame-record read only answers it for the register file the CPU happens to hold at the moment of the read.
+The same CIE and FDE design appears in two sections. `.debug_frame` is DWARF's own, for debuggers. `.eh_frame` is the copy the running program uses to unwind for exceptions, so it is kept in the shipped binary. Taylor describes the differences: an FDE in `.eh_frame` points at its CIE with a relative offset instead of a section offset, and the CIE's **augmentation** string adds fields, such as `R` for how the FDE's addresses are encoded[^taylor-ehframe]. The CIE above says `"zR"` with augmentation data `10`, which is `DW_EH_PE_pcrel`: the FDE's start address is stored relative to its own position[^taylor-ehframe].
+
+How much code the table covers is a choice. Taylor notes that by default an FDE only has to be right where an exception can occur, at calls and throws, and that GCC's `-fasynchronous-unwind-tables` makes it cover every instruction so that a signal handler can unwind[^taylor-ehframe]. A profiler needs the second kind.
+
+??? check "A sampling profiler walks the stack by following x29 alone. A sample lands on the first instruction of `_odd_frame`, before the `stp`. Which function goes missing from its backtrace, and what does the CFI row for that address tell an unwinder instead?"
+
+    `_odd_frame`'s caller. At that instruction x29 still points at the caller's own frame record, so the walk starts from the caller's saved values and continues to the caller's caller; the caller's return address, which sits in x30 and nowhere in memory, is never read. The CFI row at offset 0 says CFA = sp with no registers saved, which tells an unwinder that the return address into the caller is still in x30.
+
+## Apple's compact unwind, and when it falls back
+
+Most functions have one of a few prologue shapes, and an FDE spends several bytes of opcodes to describe each one. Apple's toolchain instead gives each function a 32-bit **compact unwind encoding** that names its shape directly, and keeps DWARF for the functions whose shape the compact format cannot express[^compact-unwind]. The assembler writes one row per function into a `__compact_unwind` section. The linker turns those rows into a `__unwind_info` section, which libunwind's header calls a small and fast way for the runtime to find unwind information; for a function with only DWARF unwind information, that table holds the offset of its FDE in `__eh_frame`[^compact-unwind].
+
+For arm64 the encoding's mode field has three common values[^compact-unwind]. **Frame mode** (0x04000000) is the standard prologue: x29 and x30 pushed, x29 pointing at them, and any callee-saved pairs stored right below in register order, one bit per pair. **Frameless mode** (0x02000000) is a leaf that saves no x29 and x30 and leaves the return address in x30, with its stack size in the encoding. **DWARF mode** (0x03000000) means "no compact encoding; the low 24 bits give the FDE's offset in `__eh_frame`".
+
+`llvm-objdump --unwind-info` on the example's object file shows one encoding per function (same machine and date):
+
+| Function | Prologue shape | Object file | Linked library |
+| --- | --- | --- | --- |
+| `_with_frame` | record at CFA − 16, CFA from x29 | `0x04000000` | `0x04000000` |
+| `_odd_frame` | record at CFA − 32, CFA from sp | `0x03000000` | `0x03000014` |
+| `_leaf` | nothing saved | `0x02000000` | `0x02000000` |
+
+Only `_odd_frame` got an FDE, and in the linked library its encoding's low bits, 0x14, are the FDE's offset in `__eh_frame`: exactly where the dump above found it. The header describes DWARF mode as something only the linker writes; on this machine the assembler also wrote it, with a zero offset, and the linker filled the offset in. The encodings are derived from the CFI directives, not from the instructions: `_odd_frame` builds a perfectly good frame record, but its directives describe the CFA from sp with the record 32 bytes below it, a shape frame mode has no code for.
+
+Changing `_with_frame` to also save x19 and x20 as a pair right below its frame record, with matching `.cfi_offset w19, -24` and `.cfi_offset w20, -32`, gives `0x04000001` when assembled on the same machine: frame mode with the bit for the x19/x20 pair set.
+
+??? check "A back end emits `stp x29, x30, [sp, #-16]!`, then `mov x29, sp`, then `.cfi_def_cfa w29, 16` and the two `.cfi_offset` lines, and allocates its locals below that with `sub sp, sp, #48`. Which mode do you expect, and what would you run to find out?"
+
+    Frame mode, 0x04000000: the frame record sits right below the CFA, x29 points at it, and the CFA is described from x29, which is the standard shape. Locals below the record do not matter, because an unwinder in frame mode needs only x29. Assemble the function and run `llvm-objdump --unwind-info` on the object file; if it prints 0x03000000, the directives describe some other shape, and `llvm-dwarfdump --eh-frame` shows which.
+
+## Where debug information goes after the assembler
+
+Unwind tables must reach the executable, because the running program reads them. DWARF debug sections need not, and on macOS they do not. Link `clamp.o` with a `main.o` into a program `prog` and the executable has `__unwind_info` and `__eh_frame` but no `__debug_*` sections at all. The DWARF stays in the object files. The linker writes only a **debug map** into the executable's symbol table: a list naming each object file that holds debug information for it[^dsymutil]. `dsymutil --dump-debug-map prog` prints it (paths shortened, timestamps removed):
+
+```text
+objects:
+  - filename:        '<dir>/clamp.o'
+    symbols:
+      - { sym: _clamp, objAddr: 0x0, binAddr: 0x100000328, size: 0x64 }
+  - filename:        '<dir>/main.o'
+    symbols:
+      - { sym: _main, objAddr: 0x0, binAddr: 0x10000038C, size: 0x2C }
+```
+
+Each symbol pairs an address in its object file with its final address in the executable. `dsymutil prog` follows the map, links the DWARF from each object file into one copy with those final addresses, and writes it into a **`.dSYM` bundle** next to the executable[^dsymutil]. A debugger can then show source lines for a shipped program after the build directory is gone. Without a `.dSYM`, lldb follows the debug map itself: on the same machine, `breakpoint set --file clamp.c --line 3` on `prog` resolved to `clamp + 24` while `clamp.o` was present, and failed to resolve once `clamp.o` was moved away.
 
 ## Line tables first, locations later
 
-Everything in this chapter builds toward one destination the chapter deliberately stops short of: `DW_AT_location`, the attribute that tells a debugger where a variable's *value* lives, in a register, on the stack, or nowhere at all because it was optimized away, at each point in a function. That attribute needs a location-list opcode program of its own, `DW_OP_fbreg` for a stack slot relative to the frame base, `DW_OP_regN` for a register, and it needs the compiler's register allocator and spiller to already track, precisely, where every value lives at every instruction, which [C5](c5-spilling.md) has not yet covered. Line tables and call frame information do not have that dependency: a line table only needs to know which instructions came from which source position, and CFI only needs to know where the *fixed* set of callee-saved registers and the return address were saved, both decided once, early, in code generation. That is why the research behind this chapter, and DWARF producers in general, build line tables and frame information first and treat variable locations as later work.
+A compiler that goes through LLVM does not write `.loc` or `.cfi_*` itself. It attaches **debug metadata** to its IR, and LLVM's code generator writes the directives. LLVM's design goal is that debug information should have little impact on the rest of the compiler: no transformation or code generator should have to change because of it[^llvm-sld]. The example below is a function from a toy calculator language, with a compile unit, a subprogram for `twice` and one `!DILocation` per instruction.
 
-The connection back to Vortex's own runtime is closer than it looks. [Stage 9's runtime error](../compiler/guide/stage-9-runtime-safety.md#stopping-with-a-clear-runtime-error) already reports `runtime error[<kind>]: <message> at <file>:<line>:<column>` for every trap a Vortex program hits, bounds, overflow, running out of stack. That message is built by the compiler carrying source positions through to the point where a check fails at run time; a `.debug_line` table is the same idea turned outward, letting a tool outside the running program, `lldb`, a profiler, a crash reporter, recover the same file:line:column for an address it observed from outside. The compiler already tracks the position; debug information is what makes that tracking legible to something other than the compiler itself.
+--8<-- "includes/examples/backend/d1-debug-info/debug_metadata.ll.md"
+
+`llc -O0 -mtriple=arm64-apple-macosx debug_metadata.ll` (LLVM 18.1.8) turns the metadata into these lines around the two instructions:
+
+```text
+	.file	0 "/toy" "calc.toy"
+	.cfi_startproc
+	.loc	0 3 14 prologue_end
+	add	w0, w0, w0
+	.loc	0 3 1 is_stmt 0
+	ret
+	.cfi_endproc
+```
+
+The first `.loc` also sets `prologue_end`, the flag that marks where a breakpoint on the function's entry should stop[^dwarf5]. The second carries `is_stmt 0`, since the `ret` continues line 3 rather than starting a new statement. Removing every `!dbg` attachment and the metadata, then compiling both versions with `llc -O2`, gives the same two instructions: `add w0, w0, w0` and `ret`. The debug information describes the code without changing it.
+
+Everything so far rests on facts the compiler decides once: which source position each instruction came from, and where the prologue saved each register. A variable's location after optimization is different. It may live in x3 for five instructions, in a stack slot after a spill, and nowhere once its last use has passed. Describing that needs **location lists**, ranges of addresses each paired with an expression, kept correct through register allocation and spilling. That is why this chapter stops at `-O0`-style stack-slot locations, and why [C5](c5-spilling.md) returns to the question.
+
+The connection to Vortex is close. [Stage 9](../compiler/guide/stage-9-runtime-safety.md#stopping-with-a-clear-runtime-error) already requires every runtime check to report `at <file>:<line>:<column>`, so the compiler already carries a source position to each checked operation. A line table is the same knowledge made available to tools outside the program: lldb, a profiler, a crash reporter.
 
 ## For Vortex
 
 !!! vortex "Exercise"
 
-    **Build** the smallest debug-information pipeline that makes `lldb` useful on a compiled Vortex program: enough of a line table to set a breakpoint by file and line, and enough call frame information to walk a stack from anywhere.
+    **Build** the smallest debug information that makes lldb useful on a compiled Vortex program: a line table for breakpoints and stepping, a subprogram entry per function for names, and call frame information for every prologue your back end emits.
 
-    1. A line-table emitter that walks your compiler's existing source-position tracking, the same positions [stage 9](../compiler/guide/stage-9-runtime-safety.md#stopping-with-a-clear-runtime-error) already carries to build its `at <file>:<line>:<column>` message, and emits one `.loc` directive (or the equivalent LLVM IR debug metadata, if your back end goes through LLVM) at the start of each Vortex statement, keyed by the file and line your parser already recorded.
-    2. Call frame information for every prologue and epilogue your back end from [A5](a5-stack-frames.md#for-vortex) emits: `.cfi_startproc`, one `.cfi_offset` per register your prologue saves, `.cfi_def_cfa_offset` at the point the frame is allocated, `.cfi_endproc`. If you assemble through `as` or the LLVM integrated assembler, the directives alone are enough; the assembler builds the CIE and FDE.
-    3. A minimal `.debug_info`: a compile-unit DIE and one `DW_TAG_subprogram` DIE per function, with a name and a low/high PC range, so `lldb` can print a function's name in a backtrace instead of a bare address.
+    1. A line table. For each statement, emit a `.loc` directive (or, if your back end goes through LLVM IR, a `!DILocation` on each instruction) carrying the file, line and column your parser already recorded, the same positions stage 9's runtime errors print. Code your compiler invents that belongs to no statement, such as a shared bounds-failure path, gets line 0.
+    2. Names and ranges. A compile unit and one `DW_TAG_subprogram` per function with its name and address range, either from LLVM metadata or through whatever your assembler route supports.
+    3. Call frame information. Every prologue from your [A5](a5-stack-frames.md#for-vortex) frame layout gets `.cfi_startproc`, `.cfi_endproc`, and one directive after each instruction that changes the CFA rule or saves a register.
 
-    **Not yet:** `DW_AT_location` for variables (it needs the register and spill tracking [C5](c5-spilling.md) has not covered yet); type DIEs beyond what a function signature needs; anything for a JIT'd function that has no object file at all, that is [D2](d2-jit.md)'s problem, not this one's.
+    **Not yet:** locations for variables at `-O1` and above (they need the register allocation and spill tracking from [C5](c5-spilling.md)); type entries beyond what a function signature needs; debug information for code built in memory by a JIT ([D2](d2-jit.md)); a `.dSYM` workflow beyond running `dsymutil` once by hand.
 
     **Proof that it works:**
 
-    - `llvm-dwarfdump --debug-line` on a compiled Vortex object file shows one row per statement your compiler emitted, at the file and line your own source records, checked against the source by hand for at least one function with a loop.
-    - `lldb`, given a compiled Vortex program, accepts `breakpoint set --file <name> --line <N>` for a line inside a function body and actually stops there when the program runs past it; a line with no code of its own (a closing brace, a comment) should fail to set, or lldb should say so, rather than stopping somewhere misleading.
-    - `lldb bt`, run with the program stopped at least three calls deep, prints every frame's function name, not only its address, the same test [A5](a5-stack-frames.md#for-vortex) asked for with the frame-record chain alone, now checked again with the DIEs from this exercise in place.
-    - A table, filled in from your own compiler, with the date and its version: whether your build emits `.debug_frame`, `.eh_frame`, or (on Apple's targets) compact unwind, and which one `lldb bt` actually used to produce the backtrace above.
+    - `llvm-dwarfdump --verify` reports no errors on every object file your test suite produces.
+    - For one function with a loop and an `if`, the rows from `llvm-dwarfdump --debug-line` match the statements' lines and columns, checked by hand against the source.
+    - In lldb, `breakpoint set --file <name> --line <N>` on a statement inside a loop stops there on every iteration; `next` steps statement by statement through the function without stopping twice on one line.
+    - A program that fails a bounds check three calls deep, stopped in lldb at your runtime's reporting function, shows every Vortex frame by name in `bt`, and `frame select` on each shows the line that stage 9's message printed.
+    - `llvm-objdump --unwind-info` on your objects shows a frame-mode or frameless encoding for every function; for any function that shows 0x03000000, you can say from its `.cfi_*` lines which shape forced the fallback.
+    - A table, filled in with your compiler's version and the date:
+
+        | Test program | Functions | Encodings other than frame or frameless | `__debug_line` bytes | `__text` bytes |
+        | --- | --- | --- | --- | --- |
+        | stage 10 `multiply` | | | | |
+        | the bounds-failure program above | | | | |
 
 ## Key ideas
 
 !!! recap "Questions you can now answer"
 
-    - **Why is a DWARF line-number table stored as an opcode program instead of one row per address?** Because most instructions share a line with their neighbors; the program advances `address` and `line` independently and writes a row only when a `copy` opcode runs, so a long straight-line run of code costs a handful of opcodes, not one row per instruction.
-    - **What is a DIE, and why do many DIEs share one abbreviation code?** A debugging information entry: a tag plus a list of attributes describing one program construct. Its abbreviation is keyed on the tag and which attributes are present, not their values, so any two DIEs with the same shape, two parameters, two ordinary locals, share one abbreviation no matter what their names or types say.
-    - **What does call frame information add beyond the frame record from A5?** A per-instruction program, the CFI twin of the line table, that says where the return address and saved registers live at any exact instruction, not only at a function's first one; a live frame-record read only answers that question for the register file the CPU holds right now.
-    - **What is the difference between a CIE and an FDE?** A CIE holds what every function sharing one calling convention has in common; an FDE points at a CIE and carries one specific function's own prologue and epilogue as a sequence of address-indexed opcodes.
-    - **Why does Apple's `__compact_unwind` coexist with `.eh_frame` in the same object file, instead of replacing it?** Compact unwind is a fixed-size, table-lookup encoding for the small set of prologue shapes the back end knows how to compile down; it is read first because it is cheap, and an unwinder falls back to interpreting the DWARF `.eh_frame` program only for a shape compact unwind cannot express.
-    - **Why does this chapter build line tables and call frame information before variable locations?** Both depend only on facts decided once, early: which source position an instruction came from, and where the fixed set of callee-saved registers were spilled. A variable's location can change at every instruction as the register allocator and spiller move it, which needs machinery this chapter does not yet have.
+    - **Why is a DWARF line table stored as a program rather than a list of rows?** Most instructions share a line with their neighbours, so a one-byte special opcode that moves `address` and `line` together and appends a row is far smaller than a row per instruction, and it can move `line` backwards when code is reordered.
+    - **How do you decode a special opcode?** Subtract `opcode_base`; the quotient by `line_range` is the address step, and `line_base` plus the remainder is the line step.
+    - **What decides whether two DIEs share an abbreviation code?** Their tag, their children flag and their exact list of (attribute, form) pairs; never their values.
+    - **What does call frame information add to the frame record from A5?** A rule for every instruction address: where the CFA is and where each saved register lives, including callee-saved registers and the moments inside a prologue when the frame record is not yet built.
+    - **What is the difference between a CIE and an FDE?** A CIE holds what many functions share (alignment factors, return-address column, opening rules); an FDE covers one function's address range and carries the opcodes that change the rules as its prologue runs.
+    - **When does an Apple arm64 function fall back to DWARF unwind information?** When its CFI directives describe a shape the 32-bit compact encoding cannot express; the linked `__unwind_info` then holds the offset of its FDE in `__eh_frame`.
+    - **Where is the DWARF for a macOS executable?** In the object files, found through the debug map in the executable's symbol table, until `dsymutil` links it into a `.dSYM` bundle.
 
 ## Where this comes back
 
 !!! next "You will use this again in"
 
-    - [B4. Linking and loading](b4-linking-and-loading.md): *the debug map*, *what `dsymutil` gathers from separate object files*
-    - [C5. Spilling, splitting and rematerialization](c5-spilling.md): *why a spilled variable's DWARF location must change where the spill moved it*
-    - [D2. JIT compilation](d2-jit.md): *debug information for code with no object file to hold it*
-    - [D3. Reading real back ends](d3-real-backends.md): *a production compiler's actual DWARF and CFI emitters, read end to end*
-    - [E3. LLVM's allocator, scheduler and MC layer](e3-llvm-allocator-scheduler-mc.md): *how LLVM's MC layer turns `.loc` and `.cfi_*` directives, or their IR metadata equivalents, into the sections this chapter read*
+    - [B4. Linking and loading](b4-linking-and-loading.md): *what the linker keeps from each object file*, *the symbol table*
+    - [C5. Spilling, splitting and rematerialization](c5-spilling.md): *location lists*, *why a spilled variable's location changes*
+    - [D2. JIT compilation](d2-jit.md): *unwinding and debugging code that has no object file*
+    - [D3. Reading real back ends](d3-real-backends.md): *a production compiler's CFI and line-table emission*
+    - [E3. LLVM's allocator, scheduler and MC layer](e3-llvm-allocator-scheduler-mc.md): *how the MC layer turns `.loc` and `.cfi_*` into sections*
+    - [P4. Seeing inside the CPU: counters and tools](../optimize/p4-counters-and-tools.md): *profilers that attribute samples to source lines*, *unwinding a sampled stack*
 
 ## Sources and further reading
 
-Read the DWARF 5 standard's own line-number program and abbreviations sections first; both are short and every other source here assumes them. Eager's introduction is the clearest plain-language walk through the same material, written for someone reading the standard for the first time. Taylor's post on `.eh_frame` is the best explanation of why call frame information exists as its own format rather than being folded into the line table. The compact unwind header is source code, not prose, but its comments state the encoding's tradeoffs directly. AADWARF64 is the register-number mapping every AArch64 CIE and FDE in this chapter relies on without saying so.
+Read Eager's introduction first: it walks through the DIE tree, abbreviations and the line-number state machine in plain language with pictures. Then read the DWARF 5 standard's section 6.2 (line numbers), 6.4 (call frame information) and 7.5.3 (abbreviations), which are short and exact. Taylor's post is the clearest account of how `.eh_frame` differs from `.debug_frame`. The compact unwind header is source code, but its comments define every arm64 mode.
 
-[^dwarf5]: DWARF Debugging Information Format Committee, "DWARF Debugging Information Format, Version 5", 2017, sections on the line number program and the abbreviations tables, read 2026-09-24. <https://dwarfstd.org/dwarf5std.html>
-[^eager]: Michael J. Eager (ed.), "Introduction to the DWARF Debugging Format", DWARF Standards Committee, April 2012, read 2026-09-24. <https://dwarfstd.org/doc/Debugging-using-DWARF-2012.pdf>
-[^llvm-sld]: LLVM Project, "Source Level Debugging with LLVM", read 2026-09-24. <https://llvm.org/docs/SourceLevelDebugging.html>
-[^dsymutil]: LLVM Project, "dsymutil", LLVM Command Guide, the description of the debug map and `.dSYM` bundle, read 2026-09-24. <https://llvm.org/docs/CommandGuide/dsymutil.html>
-[^taylor-ehframe]: Ian Lance Taylor, ".eh_frame", 10 January 2011. <https://www.airs.com/blog/archives/460>
-[^compact-unwind]: LLVM Project, libunwind, `compact_unwind_encoding.h`, read 2026-09-24. <https://github.com/llvm/llvm-project/blob/main/libunwind/include/mach-o/compact_unwind_encoding.h>
-[^aadwarf64]: ARM, "DWARF for the Arm 64-bit Architecture (AADWARF64)", read 2026-09-24. <https://github.com/ARM-software/abi-aa/blob/main/aadwarf64/aadwarf64.rst>
+[^dwarf5]: DWARF Debugging Information Format Committee, "DWARF Debugging Information Format, Version 5", 13 February 2017: section 2.6 and 4.1 (locations, and a variable with no location), 6.2 (line number information, including 6.2.5.1 special opcodes), 6.4 (call frame information), 7.5.3 (abbreviations tables), 7.6 (LEB128), table 7.29 (call frame instruction encodings). <https://dwarfstd.org/dwarf5std.html> (PDF: <https://dwarfstd.org/doc/DWARF5.pdf>)
+[^eager]: Michael J. Eager, "Introduction to the DWARF Debugging Format", DWARF Standards Committee, April 2012. <https://dwarfstd.org/doc/Debugging-using-DWARF-2012.pdf>
+[^llvm-sld]: LLVM Project, "Source Level Debugging with LLVM", sections "Philosophy behind LLVM debugging information" and "Debug information format". <https://llvm.org/docs/SourceLevelDebugging.html>
+[^dsymutil]: LLVM Project, "dsymutil - manipulate archived DWARF debug symbol files", LLVM Command Guide, description and `--dump-debug-map`. <https://llvm.org/docs/CommandGuide/dsymutil.html>
+[^taylor-ehframe]: Ian Lance Taylor, ".eh_frame", Airs, 10 January 2011. <https://www.airs.com/blog/archives/460>
+[^compact-unwind]: LLVM Project, libunwind, `include/mach-o/compact_unwind_encoding.h`: the file comment, the arm64 modes, and the section on `__LD,__compact_unwind`. <https://github.com/llvm/llvm-project/blob/main/libunwind/include/mach-o/compact_unwind_encoding.h>
+[^aadwarf64]: Arm, "DWARF for the Arm 64-bit Architecture (AADWARF64)", section "DWARF register names". <https://github.com/ARM-software/abi-aa/blob/main/aadwarf64/aadwarf64.rst>

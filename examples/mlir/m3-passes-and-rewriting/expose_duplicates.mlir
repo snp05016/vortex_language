@@ -1,9 +1,9 @@
-// %a and %b compute the same value (x + 5) but arrive at it two different
-// ways: one folds two constants first, the other names 5 directly. CSE
-// matches operations that are already textually identical, so run alone it
-// cannot see that %a and %b agree. Canonicalize's constant folding rewrites
-// both to "arith.addi %x, 5", and only then does CSE find one addition to
-// remove. Run these two flags in the other order and %a and %b stay separate.
+// %a and %b compute the same value, x + 5, but reach it two ways: %a adds
+// a sum of two constants, %b names 5 directly. CSE merges operations that
+// are already identical (same name, operands and attributes), so on
+// its own it sees two different additions. Canonicalize folds 2 + 3 into
+// the constant 5 it already has, which makes %a identical to %b; only then
+// can CSE, running second, merge them. Swap the two flags and both stay.
 func.func @h(%x: i32) -> i32 {
   %c2 = arith.constant 2 : i32
   %c3 = arith.constant 3 : i32

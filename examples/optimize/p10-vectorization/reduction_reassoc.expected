@@ -1,3 +1,4 @@
-sum_scalar   = 4d989680
-sum_auto     = 4d989680  same_as_scalar=yes
-sum_reassoc  = 4d989681  same_as_scalar=no
+sum_scalar   320000000.0  bits 4d989680  same bits as scalar: yes
+sum_auto     320000000.0  bits 4d989680  same bits as scalar: yes
+sum_reassoc  320000032.0  bits 4d989681  same bits as scalar: no
+exact sum    320000032.0

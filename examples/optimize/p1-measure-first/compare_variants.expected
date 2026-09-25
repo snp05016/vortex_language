@@ -1,0 +1,3 @@
+first launch only: A=97 B=99
+medians: A=101 B=94 ratio A/B=1.074
+95% interval for A/B: [1.042, 1.108]

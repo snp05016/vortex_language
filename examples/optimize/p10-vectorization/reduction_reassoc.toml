@@ -1,5 +1,5 @@
 platforms = ["macos-arm64", "linux-arm64"]
 follows = [
-  "https://llvm.org/docs/Vectorizers.html",
-  "https://clang.llvm.org/docs/UsersManual.html",
+  "https://llvm.org/docs/Vectorizers.html#reductions",
+  "https://clang.llvm.org/docs/LanguageExtensions.html#extensions-to-specify-floating-point-flags",
 ]

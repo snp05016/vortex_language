@@ -1,0 +1,5 @@
+flags = ["--one-shot-bufferize=bufferize-function-boundaries test-analysis-only print-conflicts"]
+follows = [
+  "https://mlir.llvm.org/docs/Bufferization/",
+  "https://mlir.llvm.org/docs/Passes/",
+]

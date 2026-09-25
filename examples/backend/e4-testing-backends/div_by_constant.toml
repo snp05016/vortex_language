@@ -1,0 +1,4 @@
+follows = [
+  "https://llvm.org/docs/CommandGuide/FileCheck.html",
+  "https://llvm.org/docs/TestingGuide.html",
+]

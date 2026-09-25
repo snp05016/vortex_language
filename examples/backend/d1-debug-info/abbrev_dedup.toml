@@ -1,1 +1,4 @@
-follows = ["https://dwarfstd.org/dwarf5std.html"]
+follows = [
+  "https://dwarfstd.org/dwarf5std.html",
+  "https://dwarfstd.org/doc/DWARF5.pdf",
+]

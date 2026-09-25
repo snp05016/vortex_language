@@ -1,5 +1,6 @@
-platforms = ["macos-arm64", "linux-arm64"]
+platforms = ["macos-arm64"]
 follows = [
-  "https://www.airs.com/blog/archives/460",
+  "https://dwarfstd.org/doc/DWARF5.pdf",
   "https://github.com/llvm/llvm-project/blob/main/libunwind/include/mach-o/compact_unwind_encoding.h",
+  "https://www.airs.com/blog/archives/460",
 ]

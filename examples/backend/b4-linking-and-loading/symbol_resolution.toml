@@ -1,1 +1,4 @@
-follows = ["https://www.iecc.com/linker/"]
+follows = [
+  "https://www.airs.com/blog/archives/48",
+  "https://sourceware.org/binutils/docs/ld/Options.html",
+]

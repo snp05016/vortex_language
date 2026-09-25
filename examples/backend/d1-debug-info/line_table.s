@@ -1,3 +1,8 @@
+// Follows: DWARF 5, section 6.2 (line number information), and LLVM's
+// "Source Level Debugging with LLVM". A hand-written clamp(v, lo, hi):
+// each .loc names the file, line and column of the instructions after
+// it, and the assembler turns them into a __debug_line (.debug_line)
+// section. Read it back with: llvm-dwarfdump --debug-line line_table.o
     .file 1 "clamp.c"
     .globl _clamp
     .p2align 2

@@ -1,0 +1,3 @@
+follows = [
+  "https://github.com/ARM-software/abi-aa/blob/main/aaelf64/aaelf64.rst",
+]

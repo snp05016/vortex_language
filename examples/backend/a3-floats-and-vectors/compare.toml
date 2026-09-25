@@ -1,0 +1,7 @@
+# Hand-written AArch64 inside a C++ harness: built and run on arm64 only.
+platforms = ["macos-arm64", "linux-arm64"]
+follows = [
+  "https://developer.arm.com/documentation/ddi0602/2026-06/SIMD-FP-Instructions/FCMP--Floating-point-quiet-compare--scalar--",
+  "https://developer.arm.com/documentation/ddi0602/2026-06/SIMD-FP-Instructions/FCVTZS--scalar--integer---Floating-point-convert-to-signed-integer--rounding-toward-zero--scalar--",
+  "https://developer.arm.com/documentation/100076/0100/A64-Instruction-Set-Reference/Condition-Codes/Condition-code-suffixes-and-related-flags",
+]

@@ -1,5 +1,6 @@
-tile  3, k increasing: same bits
-tile  4, k increasing: same bits
-tile  5, k increasing: same bits
-tile 12, k increasing: same bits
-tile  4, k decreasing: different bits
+B =  3, k-blocks forward: same bits
+B =  4, k-blocks forward: same bits
+B =  5, k-blocks forward: same bits
+B = 12, k-blocks forward: same bits
+B =  4, j-blocks backward: same bits
+B =  4, k-blocks backward: different bits

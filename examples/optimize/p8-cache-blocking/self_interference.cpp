@@ -1,13 +1,12 @@
 // Why "the tile fits in the cache" is not the whole rule: a toy direct-mapped
-// cache, so every address maps to exactly one line and a conflict is easy to
-// see by hand. A real cache is set-associative (several lines share each
-// index, so a few colliding addresses can still coexist), which softens this
-// effect but does not remove it: the addresses that collide are decided by
-// the same arithmetic, stride modulo the cache's size. This is the toy
-// version of what Lam, Rothberg and Wolf call self-interference: a tile
-// small enough to fit the cache can still thrash it, because the *stride*
-// between its rows, not just its total size, decides how the tile lands on
-// the cache's lines.
+// cache, where every address maps to exactly one line, so a conflict is easy
+// to see by hand. A set-associative cache gives each set several lines, which
+// lets a few colliding rows coexist, but which rows collide is decided by the
+// same arithmetic, with the size of one way (sets times line size) in place of
+// the whole cache. This is the toy version of what Lam, Rothberg and Wolf call
+// self-interference: a tile small enough for the cache can still thrash it,
+// because the stride between its rows, not only its total size, decides how
+// it lands on the cache's lines.
 //
 // The toy cache: 8 lines, 4 elements (16 bytes) each, 32 elements total.
 // `line_of(address)` is the address's line index. A tile of `rows` rows,

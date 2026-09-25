@@ -1,8 +1,0 @@
-flags = [
-    "--pass-pipeline=builtin.module(func.func(tosa-to-linalg-named,tosa-to-linalg),one-shot-bufferize{bufferize-function-boundaries},func.func(convert-linalg-to-loops))",
-]
-follows = [
-    "https://mlir.llvm.org/docs/Dialects/TOSA/",
-    "https://mlir.llvm.org/docs/Bufferization/",
-    "https://mlir.llvm.org/docs/Passes/",
-]

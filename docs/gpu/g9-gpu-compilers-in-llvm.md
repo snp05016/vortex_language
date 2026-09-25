@@ -1,195 +1,427 @@
 # G9. GPU compilers inside LLVM
 
-<p class="page-intro">NVPTX, AMDGPU and SPIR-V are ordinary LLVM back ends, built on the same pipeline E1 already walked through, but a SIMT target forces three new questions onto that pipeline: which memory a pointer means, which values can differ across a warp's lanes, and which operations must never move across a branch that only some lanes take. This chapter answers each one with a small, checkable example.</p>
+<p class="page-intro">NVPTX, AMDGPU and SPIR-V are LLVM back ends built on the pipeline E1 walked through, but a target that runs one program on many lanes at once has to answer four questions a CPU back end never asks: which memory a pointer means, which values are the same in every lane, which operations must not move across a branch, and what shape the control flow must have. This chapter answers each one with an example you can run on this machine, and turns the second into the analysis a Vortex GPU path would need first.</p>
 
-<p class="vx-meta" markdown="1">Level: Advanced · Reading time: about 25 minutes · Builds on: [G8. ISAs and IRs](g8-isas-and-irs.md), [E1. The LLVM code generator pipeline](../backend/e1-llvm-codegen-pipeline.md)</p>
+<p class="vx-meta" markdown="1">Level: Advanced · Reading time: about 40 minutes · Builds on: [G8. ISAs and IRs](g8-isas-and-irs.md), [E1. The LLVM code generator pipeline](../backend/e1-llvm-codegen-pipeline.md)</p>
 
 ???+ remember "Before you start, remember"
 
-    ??? question "What are the two frameworks LLVM's `llc` uses to turn IR into machine instructions, and which one does `-O2` use by default?"
+    ??? question "What does a warp do when its lanes disagree about a branch?"
 
-        SelectionDAG, which builds a small graph per basic block and combines, legalizes and selects on it, and GlobalISel, which works directly on whole functions already in MIR form. `-O2` uses SelectionDAG by default; `-O0` uses GlobalISel.
+        It runs both sides, one after the other, with the lanes that did not choose the side currently running masked off. A branch on a value that is the same in every lane (warp-uniform) costs one pass, because every lane makes the same choice.
 
-        Introduced in [E1. The LLVM code generator pipeline](../backend/e1-llvm-codegen-pipeline.md#two-ways-in-selectiondag-and-globalisel).
+        Introduced in [G2. The SIMT execution model](g2-simt.md).
 
-    ??? question "What does a basic block never contain in its middle?"
+    ??? question "What does an address space on a kernel pointer tell the compiler?"
 
-        A branch, or a place a branch can land. Control enters a block only at its top and leaves only at its bottom.
+        Which memory the pointed-to value lives in: device memory every thread can reach, a block's shared scratchpad, a read-only constant pool, or a thread's own private storage.
 
-        Introduced in [O2. Control-flow graphs and dominance](../optimize/o2-cfg-and-dominance.md).
+        Introduced in [G3. The GPU memory hierarchy](g3-memory-hierarchy.md).
 
-    ??? question "What is a warp, and what do its threads do together?"
+    ??? question "What makes a barrier or a shuffle a convergent operation?"
 
-        A fixed-size group of threads that a GPU core issues one instruction to at a time. Every thread in the group either executes that instruction or sits it out, together with the rest of the group.
+        Its result depends on which threads execute it together. A branch that sends some lanes elsewhere changes that set, so the operation cannot be moved across the branch as freely as an ordinary instruction.
 
-        Introduced in [G4. Memory performance: coalescing and bank conflicts](g4-memory-performance.md).
+        Introduced in [G6. Synchronization, atomics and reductions](g6-synchronization.md).
 
-    ??? question "May a Vortex compiler regroup the additions in a floating-point reduction, or fuse a multiply and an add on its own?"
+    ??? question "What does a phi at the top of a block choose?"
 
-        No. Each `f32` or `f64` operation is exactly one IEEE 754 operation, rounded once, and a compiler may not reorder, reassociate or contract it unless the program asks for that.
+        The value that arrived along the edge control came in on: one incoming value per predecessor block, picked by which predecessor ran last.
 
-        Introduced in [Numbers, literals and casts, decision 56](../decisions/numbers.md#d56).
+        Introduced in [O3. SSA form: construction and destruction](../optimize/o3-ssa.md).
+
+    ??? question "Where in `llc` do virtual registers become physical ones?"
+
+        In the register allocator, which is one pass in the code generator's pass list (greedy at `-O2`, fast at `-O0`), between instruction selection and the final emission of machine code.
+
+        Introduced in [E1. The LLVM code generator pipeline](../backend/e1-llvm-codegen-pipeline.md).
 
 !!! goals "In this chapter"
 
-    - Explain what a GPU target adds to the `llc` pipeline E1 already covered, and name the three problems every LLVM-based GPU back end has to solve that an AArch64 or x86-64 back end does not.
-    - Read an address space number on an LLVM pointer type and say what decides its meaning, on NVPTX, on AMDGPU, and on a target that defines none of its own.
-    - Run a small uniformity analysis by hand, and explain why a value can be divergent even when every one of its operands is uniform.
-    - Explain why a barrier or a shuffle must never move across a branch that only some lanes take, and name the mechanism current LLVM uses to protect that guarantee.
-    - Trace one divergent branch through `StructurizeCFG`, and connect the result to SPIR-V's structured control-flow requirement.
+    - Trace one kernel from LLVM IR through `llc` to PTX, an AMDGPU code object and a SPIR-V module, and name what each back end adds to E1's pipeline and what it leaves out.
+    - Read an address-space number on an LLVM pointer and find the two things that give it meaning: the target's table and the data layout.
+    - Run uniformity analysis by hand, including the two ways a value becomes divergent although every operand it reads is uniform.
+    - Show with `opt` why an optimizer must not hoist, sink or merge a convergent call, and say what convergence-control tokens add to the `convergent` attribute.
+    - Trace a divergent branch through `StructurizeCFG`, and explain why AMDGPU runs it while SPIR-V shaders need a structurizer of their own.
 
-## One more target, on the same pipeline
+## One kernel, three back ends
 
-E1 followed a four-line integer function through `llc`: SelectionDAG or GlobalISel turns LLVM IR into `MachineInstr` objects in SSA form, a register allocator assigns physical registers, and the MC layer turns the result into bytes. Nothing about that description mentioned a target by name, because none of it is AArch64-specific. The same pipeline, the same `MachineInstr`, the same MIR text format, is what NVPTX, AMDGPU and the SPIR-V back end use too. LLVM's own back end list makes this concrete: run
+Start with the kernel LLVM's NVPTX guide uses as its tutorial: vector addition, where each thread adds one pair of elements.[^l1] Written in LLVM IR for the NVPTX back end, it differs from the CPU functions of E1 in three places. The target triple is `nvptx64-nvidia-cuda`. The function is declared with the `ptx_kernel` calling convention, which marks it as a **kernel**: a function the host launches, as opposed to a device function that only other GPU code calls. And the thread's position in the launch comes from an intrinsic, `llvm.nvvm.read.ptx.sreg.tid.x`, which reads the thread's index within its block from a special register.[^l1] Its pointer arguments carry `addrspace(1)`, which the next section explains.
 
-```text
-$ llc --version
-```
+The guide compiles that file with `llc`, naming a GPU generation with `-mcpu=sm_XX`.[^l1] `llc` runs the pipeline E1 followed: SelectionDAG builds and legalizes a graph per block, instruction selection matches it against patterns generated from the target's TableGen description, and the MC layer prints the result. What comes out is not machine code but **PTX**, NVIDIA's virtual instruction set from [G8](g8-isas-and-irs.md), as text. A second tool, NVIDIA's `ptxas` or the CUDA driver's just-in-time compiler, turns PTX into SASS, the machine code a particular GPU runs.[^l1]
 
-and read the "Registered Targets" section. On this machine (LLVM 18.1.8, observed locally, 24 September 2026) it lists only `aarch64`, `aarch64_32`, `aarch64_be`, `arm64` and `arm64_32`: the AArch64 family, and nothing else. LLVM ships NVPTX, AMDGPU and SPIR-V as separate target components, built in only when a distribution enables them; this build does not. Every example in this chapter that needs a real GPU target therefore stays with the target-independent parts of the pipeline, `opt` and IR-level passes, or compiles for AArch64 to show what stays the same across targets. Where the NVPTX or AMDGPU documentation describes something this machine cannot run, the text says so.
+One pass of E1's pipeline is missing from that list. NVPTX's pass configuration makes both of `llc`'s register-assignment hooks unreachable, and a comment in the same file says that, for this target, every register is still virtual after register allocation.[^nvptx-tm] NVPTX leaves every value in a virtual register and prints PTX that way; the physical assignment happens later, when the PTX is compiled to SASS for a real chip.
 
-What changes, going from AArch64 to a GPU target, is not the pipeline. It is three questions a GPU back end has to answer that a CPU back end never asks, because a CPU back end compiles code for one thread at a time and a GPU back end compiles one program that many threads run together, in lockstep, as a **warp**: which physical memory a pointer means (address spaces), which values are guaranteed to be the same across every thread of a warp (uniformity), and which operations must keep every thread of a warp doing the same thing at the same time, never split apart by an optimization (convergence). The rest of this chapter takes each question in turn, with a small example for each, and ends by showing that a structured-control-flow target such as SPIR-V adds a fourth, related job: rewriting arbitrary control flow into a shape it is legal to express at all.
+The other two GPU back ends end differently. AMDGPU compiles to the real instruction set of AMD's GPUs, selected with a triple such as `amdgcn-amd-amdhsa` (the guide now spells the architecture `amdgpu` and accepts `amdgcn` as a legacy alias) and a processor name, and emits an ELF **code object** that the runtime loads directly.[^l2]
+
+AMDGPU does run a register allocator, and one with more to decide than AArch64's: the hardware has **scalar general-purpose registers (SGPRs)** and **vector general-purpose registers (VGPRs)**.[^l2] A VGPR holds one value per lane; an SGPR holds one value for the whole wavefront, which is only correct for a value every lane agrees on.
+
+The SPIR-V back end emits a SPIR-V module, selected with `spirv32`, `spirv64` or the logical-addressing `spirv` triple, for an OpenCL or a Vulkan environment.[^l3] As [G8](g8-isas-and-irs.md) described, a vendor's driver then compiles that module for its own hardware.
+
+<figure class="vx-figure">
+<svg viewBox="0 0 760 390" role="img" aria-label="One LLVM IR kernel flowing through opt and llc into three GPU back ends with different outputs" aria-describedby="g9-f1-desc">
+<title id="g9-f1-title">One LLVM IR kernel, three GPU back ends</title>
+<desc id="g9-f1-desc">On the left, an LLVM IR kernel carrying a kernel calling convention, address spaces on its pointers and a thread-index intrinsic. It passes through opt and then llc, the pipeline from E1. llc forks three ways. NVPTX skips register allocation and prints PTX text, which ptxas or the driver compiles to SASS. AMDGPU structurizes control flow, allocates SGPRs and VGPRs and emits an ELF code object. SPIR-V, for shader targets, runs its own structurizer and emits a SPIR-V module for a Vulkan or OpenCL driver.</desc>
+<rect class="vx-box-strong" x="10" y="150" width="150" height="90" rx="4"/>
+<text class="vx-text" x="85" y="172" text-anchor="middle">LLVM IR kernel</text>
+<text class="vx-mono vx-text-muted" x="85" y="194" text-anchor="middle">ptx_kernel</text>
+<text class="vx-mono vx-text-muted" x="85" y="211" text-anchor="middle">ptr addrspace(1)</text>
+<text class="vx-mono vx-text-muted" x="85" y="228" text-anchor="middle">tid.x intrinsic</text>
+<line class="vx-line" x1="160" y1="195" x2="190" y2="195"/>
+<polygon class="vx-arrowhead" points="190,190 198,195 190,200"/>
+<rect class="vx-box" x="198" y="160" width="120" height="70" rx="4"/>
+<text class="vx-text" x="258" y="190" text-anchor="middle">opt</text>
+<text class="vx-text-muted" x="258" y="210" text-anchor="middle">IR passes</text>
+<line class="vx-line" x1="318" y1="195" x2="340" y2="195"/>
+<polygon class="vx-arrowhead" points="340,190 348,195 340,200"/>
+<rect class="vx-box" x="348" y="160" width="120" height="70" rx="4"/>
+<text class="vx-text" x="408" y="190" text-anchor="middle">llc</text>
+<text class="vx-text-muted" x="408" y="210" text-anchor="middle">E1's pipeline</text>
+<path class="vx-flow" d="M468 180 C 490 120, 500 70, 520 60"/>
+<polygon class="vx-arrowhead" points="516,55 524,60 516,65"/>
+<path class="vx-flow" d="M468 195 L 520 195"/>
+<polygon class="vx-arrowhead" points="516,190 524,195 516,200"/>
+<path class="vx-flow" d="M468 210 C 490 270, 500 320, 520 330"/>
+<polygon class="vx-arrowhead" points="516,325 524,330 516,335"/>
+<rect class="vx-box-accent" x="524" y="20" width="226" height="84" rx="4"/>
+<text class="vx-text" x="637" y="40" text-anchor="middle">NVPTX</text>
+<text class="vx-text-muted" x="637" y="60" text-anchor="middle">no register allocation</text>
+<text class="vx-mono" x="637" y="78" text-anchor="middle">PTX text</text>
+<text class="vx-text-muted" x="637" y="96" text-anchor="middle">then ptxas or driver: SASS</text>
+<rect class="vx-box-accent" x="524" y="153" width="226" height="84" rx="4"/>
+<text class="vx-text" x="637" y="173" text-anchor="middle">AMDGPU</text>
+<text class="vx-text-muted" x="637" y="193" text-anchor="middle">StructurizeCFG, EXEC masks</text>
+<text class="vx-text-muted" x="637" y="211" text-anchor="middle">SGPRs and VGPRs allocated</text>
+<text class="vx-mono" x="637" y="229" text-anchor="middle">ELF code object</text>
+<rect class="vx-box-accent" x="524" y="288" width="226" height="84" rx="4"/>
+<text class="vx-text" x="637" y="308" text-anchor="middle">SPIR-V</text>
+<text class="vx-text-muted" x="637" y="328" text-anchor="middle">shaders: SPIRVStructurizer</text>
+<text class="vx-mono" x="637" y="346" text-anchor="middle">SPIR-V module</text>
+<text class="vx-text-muted" x="637" y="364" text-anchor="middle">then a Vulkan or OpenCL driver</text>
+<text class="vx-text-muted" x="10" y="300">Same MachineInstr, same MC layer;</text>
+<text class="vx-text-muted" x="10" y="318">each back end adds its own passes</text>
+<text class="vx-text-muted" x="10" y="336">and ends in a different format.</text>
+</svg>
+<figcaption>Figure 1. One kernel, three back ends. Everything to the left of the fork is E1's pipeline. What each GPU back end adds, and skips, sits in its box: NVPTX never assigns physical registers, AMDGPU structurizes control flow and allocates two register files, and a SPIR-V shader target runs its own structurizer.</figcaption>
+</figure>
+
+None of the three is available on this machine. `llc --version` lists its registered targets, and the local LLVM 18.1.8 lists only the AArch64 family: `aarch64`, `aarch64_32`, `aarch64_be`, `arm64` and `arm64_32` (observed 24 September 2026). GPU back ends are separate components that a distribution builds in or leaves out. Every example in this chapter therefore runs a target-independent pass through `opt` on a small `.ll` file, or models an analysis in C++; each says which back end it stands in for. To see real PTX or AMDGPU assembly for the tutorial kernel, paste it into Compiler Explorer, as [G8](g8-isas-and-irs.md) suggests.
+
+??? check "NVPTX never assigns physical registers. What does that mean for a reader who counts the registers in `llc`'s PTX output to judge a kernel's register pressure?"
+
+    The count means little. PTX registers are virtual, as many as the code wants, so the PTX says how many values the code names, not how many physical registers the kernel will occupy. The physical assignment, and any spilling, happens when `ptxas` or the driver compiles the PTX to SASS for a specific GPU, so the number that decides occupancy ([G5](g5-occupancy.md)) is only visible after that step.
 
 ## Address spaces: which memory a pointer means
 
-Take the smallest possible reason a GPU kernel needs more than one kind of pointer: one value already sitting in the device's large, slow main memory, and one value already staged into a small, fast, on-chip scratchpad that only the threads of one thread block can see. Ordinary LLVM IR gives a pointer type nothing to tell these apart; `ptr` is `ptr`, LLVM's single opaque pointer type since IR dropped pointee types. The example below adds exactly one number to each pointer to fix that.
+A GPU kernel needs more than one kind of pointer. In the tutorial kernel, the input arrays live in the device's large main memory. A tiled kernel ([G10](g10-matmul-ladder.md)) also keeps a tile in the small on-chip scratchpad that one thread block shares. Ordinary LLVM IR has one pointer type, `ptr`, and it can carry a small integer tag: `ptr addrspace(1)` is a pointer into **address space** 1. The Language Reference defines address space 0 as the default and says that the meaning of every other number is target-specific.[^langref] The IR itself attaches nothing to the number 3; a back end does.
+
+NVPTX and AMDGPU each publish a table. The numbers happen to line up for the four memories G3 introduced, but one word does not:
+
+| Number | NVPTX name[^l1] | AMDGPU name[^l2] | What it is |
+| --- | --- | --- | --- |
+| 0 | Generic | Generic (flat) | Any of the others, decided at run time |
+| 1 | Global | Global | Device memory every thread can reach |
+| 3 | Shared | Local (LDS) | The scratchpad one thread block shares |
+| 4 | Constant | Constant | Read-only device memory |
+| 5 | Local | Private (scratch) | Memory private to one thread |
+
+"Local" names the per-thread memory on NVPTX and the shared scratchpad on AMDGPU. Both tables have more rows than these five: NVPTX adds 7 for a per-cluster shared memory, and AMDGPU defines further numbers for buffer resources and other hardware.[^l1][^l2]
+
+Address space 0, the **generic address space**, is a pointer that can point into several of the others. NVPTX provides intrinsics to convert between generic and specific pointers, and AMDGPU implements generic accesses with flat instructions that check at run time which range the address falls in.[^l1][^l2] A generic access pays for that check and a specific one does not, so back ends try to recover the specific space: NVPTX's pass configuration runs LLVM's `InferAddressSpaces` pass, which rewrites a generic access into a specific one when it can prove where the pointer came from, and SPIR-V's runs it for shader targets.[^nvptx-tm][^spirv-tm]
+
+The number also reaches passes that know nothing about GPUs, through the **data layout**, the string at the top of a module that tells target-independent passes how big each type is. One of its entries, `p[n]:<size>:<abi>`, gives the pointer size for address space `n`.[^langref] AMDGPU's table lists local pointers as 32 bits wide while global pointers are 64.[^l2] The example below keeps only that fact in its data layout and runs `instcombine` over two small functions.
 
 --8<-- "includes/examples/gpu/g9-gpu-compilers-in-llvm/addrspaces.ll.md"
 
-`ptr addrspace(1)` and `ptr addrspace(3)` are the same LLVM pointer type, `ptr`, each carrying a small integer tag: an **address space**. The IR verifier treats the number as opaque data, nothing more: `opt -S -passes=verify` accepts any pointer with any address space number, and two pointers with different numbers are never assumed to alias. What a specific number *means*, whether it is global memory, on-chip shared memory, a register-mapped constant bank, or nothing special at all, is a decision the target's back end makes, not a rule the IR itself enforces. Compile this same file for AArch64, this machine's only registered target, and every load or store in it becomes an ordinary `ldr` or `str`, addrspace 1 and addrspace 3 treated identically: AArch64 has no notion of a "shared" or "constant" address space distinct from ordinary memory, so its back end is free to treat every address space as identical, and it does. The tag is meaningful only to a back end that chooses to read it.
+The global pointer's `ptrtoint` stays a 64-bit operation. The shared pointer's becomes a 32-bit `ptrtoint` followed by a zero extension, and the index of the `getelementptr` into shared memory is truncated to 32 bits, because address arithmetic in a 32-bit address space never needs more. `instcombine` has no idea what "shared" means; it read the pointer size from the data layout.
 
-NVPTX's back end does choose to read it, and documents a fixed table: address space 1 is global memory, 3 is shared memory, 4 is constant memory, 5 is thread-local memory, and 7 names a newer per-cluster shared memory.[^l1] AMDGPU defines its own set, by name rather than by a single shared numbering: `flat`, `global`, `region`, `local` (its equivalent of shared memory, also called LDS), `constant` and `private`.[^l2] The numbers themselves are conventions specific to each target, agreed between the front end that emits the IR and the back end that consumes it; nothing in LLVM's core IR ties address space 1 to global memory in general, only NVPTX's back end and its documentation do. This is also why a kernel's entry point needs a calling convention a normal function does not: NVPTX defines `ptx_kernel` for exactly that purpose, marking which functions a host launches versus which ones only a kernel calls internally.[^l1]
+A back end supplies both halves: its own data layout string, which every target-independent pass reads, and the instruction selection that turns a load from address space 3 into the instruction for that memory. AArch64's back end gives the numbers no meaning: on this machine, `llc` compiles a load through `ptr addrspace(3)` to the same `ldr` as a load through a plain `ptr` (observed with LLVM 18.1.8).
 
-The other half of getting a value into a kernel at all is deciding which code counts as "the kernel" in the first place. A GPU program usually starts as ordinary functions calling other functions; something has to lift the one function that runs on the device out into its own compilation unit, decide its calling convention, and mark it as an entry point. LLVM's classic route does this by attribute and metadata on an existing function. MLIR's `gpu` dialect names the same job **kernel outlining**: a dedicated pass that moves the body of a parallel region into a new function inside a separate `gpu.module`, leaving a `gpu.launch_func` call behind at the call site.[^m16] Both approaches solve the same problem, drawing the boundary between host code and device code; MLIR's version is covered in depth once the GPU dialect itself is, in [M10. MLIR for GPUs](../mlir/m10-mlir-for-gpus.md).
+Kernels need one more convention: a way to say which function is the entry point. NVPTX uses the `ptx_kernel` calling convention, and AMDGPU has its own, `amdgpu_kernel`.[^l1][^l2] Something has to split a program into host code and device code before either is chosen. Clang compiles a CUDA file more than once: a host compilation, and a device compilation for each GPU architecture.[^l6] MLIR's `gpu` dialect does the split as a pass, `gpu-kernel-outlining`, which moves the body of a `gpu.launch` into a function in a separate GPU module;[^m16] [M10](../mlir/m10-mlir-for-gpus.md) takes that path in detail.
 
-??? check "Why does compiling `addrspaces.ll` on this machine's AArch64 `llc` produce ordinary `ldr`/`str` instructions instead of anything address-space-specific?"
+??? check "Delete the `target datalayout` line from `addrspaces.ll` and run the same `instcombine`. What changes in the output, and why?"
 
-    Because AArch64's back end does not define distinct physical memories for address spaces 1 and 3; Apple silicon's unified memory model has no separate on-chip shared-memory bank the way an NVIDIA SM does. An address space number is meaningful only to a back end that chooses to interpret it, and AArch64's back end chooses not to, so every address space compiles to the same load or store it would use for address space 0.
+    Nothing is narrowed any more: the shared pointer's `ptrtoint` stays 64-bit and the `getelementptr` keeps its 64-bit index. Without a `p3` entry, address space 3 has no pointer size of its own and gets the default, so `instcombine` has no reason to treat it differently from address space 1. The pass never looked at the number itself, only at what the data layout says about it.
 
-## Uniformity: same value, or one value per lane
+## Uniformity: one value per warp, or one per lane
 
-A warp executes one instruction for all of its threads at once. If every thread's copy of a value is guaranteed identical, a compiler can hold that value in a single scalar register, shared across the warp; if two threads can hold different values, the compiler needs one register's worth of storage per lane, a vector register. Deciding which case applies to which value is **uniformity analysis**, and it runs before or alongside instruction selection on every SIMT target, because it decides which kind of register a value gets.[^l4]
+Consider a value computed from the kernel's arguments alone, such as `n * 2` where `n` is the array length. Every lane of a warp computes the same number. A value computed from the thread index is different in every lane. LLVM calls the first kind **uniform** and the second **divergent**; a branch is uniform when its condition is uniform, and divergent otherwise.[^l4] **Uniformity analysis** decides, for every value and every branch in a function, which of the two it is.
 
-The seed of every divergent value is the thread's own identity: whatever intrinsic reads a lane's index within its warp returns a different number for every lane, by definition, so it starts out divergent, and nothing can make it uniform again. From there, two rules decide everything else. The first is ordinary data flow: any value computed from a divergent operand is divergent, the same way any value computed from an uninitialized one would be tainted. The second is less obvious, and it is the one worth working through by hand: a value can be divergent even when every operand feeding it is uniform, if the block that computes it is only reached by some of a divergent branch's lanes. Different lanes disagree about whether that block runs at all, so even a constant computed inside it counts as divergent, because some lanes never see it get computed.
+A GPU back end wants the answer for two reasons, both given in LLVM's description of the analysis.[^l4] A uniform value can be computed or stored once for the whole group of lanes; on AMDGPU that means an SGPR instead of a VGPR. A divergent branch has to be **linearized**, turned into straight-line code that runs both sides under masks as G2 described, while a uniform branch can stay a real jump, because the whole warp goes one way.
+
+The analysis is only as good as the target's help: it asks the target which values are never uniform (the sources of divergence) and whether branches can diverge at all. On a CPU target the answer to the second question is no, and the analysis reports every value uniform.[^ua] You can see this on this machine: `opt -disable-output -passes='print<uniformity>'` on any function prints `ALL VALUES UNIFORM`, because AArch64 has no lanes to diverge.
+
+The analysis starts from **seeds**, the values the target declares divergent (the thread-index intrinsics are the main ones), and spreads from there. Three rules decide the rest.
+
+The first is plain data flow. A value that reads a divergent operand is divergent: `c1 = tid < n` differs across lanes because `tid` does.
+
+The second rule is less obvious. Take `r = phi(a, b)`, where `a = n * 2` is computed in one arm of a branch on `c1` and `b = n * 3` in the other. Both are uniform: every lane that computes `a` gets the same number. But the phi picks `a` in the lanes that took the first arm and `b` in the lanes that took the second, so `r` holds two different values across one warp.
+
+A phi at a **join**, a block where the two paths from a divergent branch meet again, is divergent even when every incoming value is uniform. LLVM's definition says exactly this: a phi is uniform only if converged lanes choose the same incoming value, and that value is uniform.[^l4]
+
+The third concerns loops. Suppose a loop runs while `i1 < tid`. Inside the loop, `i` and `i1` are uniform: at each trip around the loop, every lane still in it holds the same count. The exit branch is divergent, though, so lanes leave on different trips, and a use of `i1` after the loop sees a different final count in each lane. LLVM calls this **temporal divergence**: the values inside the loop are uniform, but a use outside receives them from different iterations.[^l4]
 
 <figure class="vx-figure">
-<svg viewBox="0 0 640 460" role="img" aria-labelledby="g9-fig-title g9-fig-desc">
-<title id="g9-fig-title">Uniformity propagating through a divergent branch</title>
-<desc id="g9-fig-desc">Block entry computes tid, a divergent seed, base, a uniform constant, and cond, divergent because it reads tid. The branch on cond is divergent, so two lanes of the same warp can take different arms. Block then computes a_then from base alone, and block else computes a_else from base alone; both are marked divergent anyway, dashed, because each block is reached by only some of the branch's lanes. Block merge computes r as a phi of a_then and a_else, divergent because both its operands already are.</desc>
-<rect class="vx-box" x="210" y="15" width="220" height="110" rx="4"/>
-<text class="vx-text" x="320" y="35" text-anchor="middle">entry</text>
-<text class="vx-mono" x="320" y="55" text-anchor="middle">tid = thread id</text>
-<text class="vx-mono" x="320" y="72" text-anchor="middle">base = 5</text>
-<text class="vx-mono vx-text-accent" x="320" y="89" text-anchor="middle">cond = tid &lt; 2</text>
-<text class="vx-text-muted" x="320" y="107" text-anchor="middle">tid, cond: divergent · base: uniform</text>
-<path class="vx-flow" d="M270 125 C 220 155, 170 165, 135 190"/>
-<polygon class="vx-arrowhead" points="135,185 143,190 133,196"/>
-<path class="vx-flow" d="M370 125 C 420 155, 470 165, 505 190"/>
-<polygon class="vx-arrowhead" points="505,185 513,190 503,196"/>
-<rect class="vx-box-bad" x="40" y="190" width="190" height="80" rx="4"/>
-<text class="vx-text" x="135" y="212" text-anchor="middle">then</text>
-<text class="vx-mono vx-text-accent" x="135" y="233" text-anchor="middle">a_then = base * 2</text>
-<text class="vx-text-muted" x="135" y="253" text-anchor="middle">divergent: block-only</text>
-<rect class="vx-box-bad" x="410" y="190" width="190" height="80" rx="4"/>
-<text class="vx-text" x="505" y="212" text-anchor="middle">else</text>
-<text class="vx-mono vx-text-accent" x="505" y="233" text-anchor="middle">a_else = base * 3</text>
-<text class="vx-text-muted" x="505" y="253" text-anchor="middle">divergent: block-only</text>
-<path class="vx-line" d="M150 270 C 190 300, 210 310, 260 335"/>
-<polygon class="vx-arrowhead" points="260,330 268,336 258,341"/>
-<path class="vx-line" d="M490 270 C 450 300, 430 310, 380 335"/>
-<polygon class="vx-arrowhead" points="380,330 372,336 382,341"/>
-<rect class="vx-box-bad" x="210" y="335" width="220" height="90" rx="4"/>
-<text class="vx-text" x="320" y="357" text-anchor="middle">merge</text>
-<text class="vx-mono vx-text-accent" x="320" y="378" text-anchor="middle">r = phi(a_then, a_else)</text>
-<text class="vx-text-muted" x="320" y="398" text-anchor="middle">divergent: operands already are</text>
-<circle class="vx-dot" r="5">
-<animateMotion dur="6s" repeatCount="indefinite" path="M270 125 C 220 155, 170 165, 135 190 L135 230 C190 300, 210 310, 260 335 L320 335" keyPoints="0;0;1;1" keyTimes="0;0.05;0.9;1" calcMode="linear"/>
-</circle>
-<circle class="vx-dot" r="5">
-<animateMotion dur="6s" repeatCount="indefinite" path="M370 125 C 420 155, 470 165, 505 190 L505 230 C450 300, 430 310, 380 335 L320 335" keyPoints="0;0;1;1" keyTimes="0;0.05;0.9;1" calcMode="linear"/>
-</circle>
-<text class="vx-text-muted" x="320" y="445" text-anchor="middle">two lanes of one warp, taking different arms of the same divergent branch, rejoin at merge</text>
+<svg viewBox="0 0 700 600" role="img" aria-label="The worked kernel's control-flow graph with each value marked uniform or divergent and the rule that made it divergent" aria-describedby="g9-f2-desc">
+<title id="g9-f2-title">Uniformity in the worked kernel</title>
+<desc id="g9-f2-desc">Block entry computes tid, a divergent seed, n, uniform, and c1, divergent by operand. A divergent branch on c1 leads to then1, computing a, uniform, and else1, computing b, uniform. They meet at merge1, where the phi r is divergent by the join rule; c2 in merge1 is uniform. A uniform branch on c2 leads to then2, computing t, uniform, and to merge2, whose phi s stays uniform because its branch was uniform. Then block loop holds the phi i and i1, both uniform, and c3, divergent by operand because it reads tid; loop has an edge back to itself. The divergent exit leads to exit, where e reads i1 and is divergent by the loop-exit rule.</desc>
+<rect class="vx-box" x="240" y="10" width="220" height="74" rx="4"/>
+<text class="vx-text" x="250" y="28">entry</text>
+<text class="vx-mono vx-text-accent" x="350" y="28">tid  seed</text>
+<text class="vx-mono" x="350" y="48">n    uniform</text>
+<text class="vx-mono vx-text-accent" x="350" y="68">c1   operand</text>
+<line class="vx-line" x1="300" y1="84" x2="160" y2="120"/>
+<polygon class="vx-arrowhead" points="165,114 157,121 167,124"/>
+<line class="vx-line" x1="400" y1="84" x2="540" y2="120"/>
+<polygon class="vx-arrowhead" points="533,114 543,121 531,124"/>
+<text class="vx-text-accent" x="350" y="108" text-anchor="middle">divergent branch</text>
+<rect class="vx-box" x="60" y="122" width="200" height="44" rx="4"/>
+<text class="vx-text" x="70" y="148">then1</text>
+<text class="vx-mono" x="140" y="148">a  uniform</text>
+<rect class="vx-box" x="440" y="122" width="200" height="44" rx="4"/>
+<text class="vx-text" x="450" y="148">else1</text>
+<text class="vx-mono" x="520" y="148">b  uniform</text>
+<line class="vx-line" x1="160" y1="166" x2="300" y2="200"/>
+<polygon class="vx-arrowhead" points="293,194 303,201 291,204"/>
+<line class="vx-line" x1="540" y1="166" x2="400" y2="200"/>
+<polygon class="vx-arrowhead" points="407,194 397,201 409,204"/>
+<rect class="vx-box-bad" x="240" y="202" width="220" height="56" rx="4"/>
+<text class="vx-text" x="250" y="222">merge1</text>
+<text class="vx-mono vx-text-accent" x="330" y="222">r = phi  join</text>
+<text class="vx-mono" x="330" y="244">c2  uniform</text>
+<line class="vx-line" x1="400" y1="258" x2="540" y2="290"/>
+<polygon class="vx-arrowhead" points="533,284 543,291 531,294"/>
+<line class="vx-line" x1="330" y1="258" x2="330" y2="340"/>
+<polygon class="vx-arrowhead" points="325,334 330,342 335,334"/>
+<text class="vx-text-muted" x="200" y="300">uniform branch</text>
+<rect class="vx-box" x="440" y="292" width="200" height="44" rx="4"/>
+<text class="vx-text" x="450" y="318">then2</text>
+<text class="vx-mono" x="520" y="318">t  uniform</text>
+<line class="vx-line" x1="540" y1="336" x2="420" y2="352"/>
+<polygon class="vx-arrowhead" points="427,346 417,353 429,357"/>
+<rect class="vx-box" x="240" y="342" width="220" height="44" rx="4"/>
+<text class="vx-text" x="250" y="368">merge2</text>
+<text class="vx-mono" x="330" y="368">s = phi  uniform</text>
+<line class="vx-line" x1="350" y1="386" x2="350" y2="412"/>
+<polygon class="vx-arrowhead" points="345,406 350,414 355,406"/>
+<rect class="vx-box" x="240" y="414" width="220" height="74" rx="4"/>
+<text class="vx-text" x="250" y="432">loop</text>
+<text class="vx-mono" x="320" y="432">i = phi  uniform</text>
+<text class="vx-mono" x="320" y="452">i1       uniform</text>
+<text class="vx-mono vx-text-accent" x="320" y="472">c3       operand</text>
+<path class="vx-line" d="M460 440 C 520 420, 520 490, 460 470"/>
+<polygon class="vx-arrowhead" points="467,465 459,471 468,476"/>
+<text class="vx-text-muted" x="530" y="458">back edge</text>
+<line class="vx-line" x1="350" y1="488" x2="350" y2="522"/>
+<polygon class="vx-arrowhead" points="345,516 350,524 355,516"/>
+<text class="vx-text-accent" x="360" y="510">divergent exit</text>
+<rect class="vx-box-bad" x="240" y="524" width="220" height="44" rx="4"/>
+<text class="vx-text" x="250" y="550">exit</text>
+<text class="vx-mono vx-text-accent" x="310" y="550">e = i1  loop exit</text>
+<text class="vx-text-muted" x="20" y="590">Accent text: divergent, and the rule. Marked boxes: divergent with uniform operands.</text>
 </svg>
-<figcaption>Figure 1. Uniformity propagating through a divergent branch. Solid boxes hold values every lane agrees on; dashed boxes hold values that can differ per lane, either because they read a divergent operand (<code>cond</code>, from <code>tid</code>) or because their block is reached by only some of a divergent branch's lanes (<code>a_then</code>, <code>a_else</code>), a rule that then carries into <code>r</code> at the merge point regardless of what <code>r</code> itself reads.</figcaption>
+<figcaption>Figure 2. Uniformity in the worked kernel. Data flow makes <code>c1</code> and <code>c3</code> divergent. The join rule makes <code>r</code> divergent although <code>a</code> and <code>b</code> are uniform, while <code>s</code>, the same shape behind a uniform branch, stays uniform. The loop-exit rule makes <code>e</code> divergent although <code>i1</code> is uniform inside the loop.</figcaption>
 </figure>
 
-The example below builds the same four-block, six-value program in code and applies exactly those two rules, once, in program order.
+The example below builds that kernel as a table of values and branches and applies the three rules until nothing changes. A value can only move from uniform to divergent, never back, so the iteration stops.
 
 --8<-- "includes/examples/gpu/g9-gpu-compilers-in-llvm/uniformity.cpp.md"
 
-`tid` starts divergent, by the seed rule. `cond` uses `tid`, so it is divergent by the first rule: data flow. `base` uses nothing, so it stays uniform. `a_then` and `a_else` are each computed only from `base`, a uniform value, so the first rule alone would call them uniform; but each one lives in a block that only one side of the branch on `cond` reaches, so the second rule marks both of them divergent regardless. Finally `r`, the value defined where the two branches rejoin, reads `a_then` and `a_else` as its two operands (this is exactly what a phi node does: it is a value, not a control-flow construct, with one operand per predecessor block); since both operands are already divergent, `r` is divergent by the first rule again, with no separate case needed for merge points. The two rules alone are enough to explain every line of output: the second rule is what makes uniformity genuinely a property of the program's shape, not only of its data.
+Follow the output line by line. `tid` is the seed. `c1` reads it, so it is divergent by the operand rule. `a` and `b` read only `n` and stay uniform: they sit inside the arms of a divergent branch, but every lane that computes `a` computes the same `a`. `r` is the phi where those arms meet, and the branch that split them was divergent, so `r` is divergent by the join rule.
 
-??? check "In the example, `a_then` is computed only from `base`, a uniform value. Why is `a_then` divergent anyway?"
+`s` has the same shape, a phi at the join of a branch, but that branch tests `c2 = n > 4`, which is uniform, so the whole warp took one side and `s` stays uniform. Inside the loop, `i` and `i1` are uniform; `c3` reads `tid` and is divergent, which makes the loop's exit divergent, and `e`, reading `i1` after the loop, is divergent by the loop-exit rule.
 
-    Because uniformity is not only about which values feed an operation, it is about which lanes execute the operation at all. `a_then` lives inside the `then` block, which only the lanes that took the `then` side of the branch on `cond` reach. Some lanes of the warp compute `a_then`, and some never do, which is enough to make the value divergent even though every lane that does compute it would compute the same number.
+LLVM's analysis does the same thing on real IR, with two extensions this model skips. It finds joins itself, from the control-flow graph, instead of being told where they are, and it handles irreducible loops, loops with more than one entry, where the question of which lanes are converged depends on which block is treated as the loop header.[^l4] Its uniform results are guarantees; a value it cannot prove uniform is reported divergent, which costs speed but never correctness.
 
-## Convergent operations: what must never move
+??? check "Extend the kernel by hand. Add `w = a + 1` in `then1`, `u = s + r` in `merge2`, and `f = e - i1` in `exit`. Which are uniform, which divergent, and by which rule?"
 
-Some operations are not only sensitive to which lanes run them, they depend on a specific, known set of lanes running them together, at the same point in the program. A **barrier** that makes every thread of a block wait until all threads have reached it is meaningless if an optimization hoists it out of one arm of a branch and not the other: the threads that took the other arm never reach a matching barrier, and the ones that did are left waiting for threads that will never arrive. A **shuffle**, which reads a value directly out of another lane's registers, is meaningless if the compiler duplicates it into two different points in the program, because "another lane" can mean a different, wrong lane depending on which copy runs. Both operations are marked **convergent**: LLVM's `addrspaces.ll` example above declares `@barrier` with exactly this attribute, and the rule it carries is narrow and absolute, not a hint. A convergent operation must keep executing with the same set of threads that would have executed it in the unoptimized program; no general-purpose transformation is allowed to change that set, by moving the call across a branch, by duplicating it into two branches, or by sinking it into a loop that would run it a different number of times per lane.[^l5]
+    `w` is uniform: it reads only `a`, which is uniform, and a value inside a divergent arm is not divergent for that reason alone. `u` is divergent by the operand rule, because it reads `r`. `f` is divergent too, by the loop-exit rule (it reads `i1` after the loop) and by the operand rule (it reads `e`); either one is enough.
 
-Older LLVM releases expressed this with the `convergent` function attribute alone, which said only "do not touch this call," without saying which other convergent calls in the function it needed to stay grouped with. Current LLVM adds **convergence-control tokens**: intrinsic calls such as `llvm.experimental.convergence.entry` and `llvm.experimental.convergence.anchor` each produce a token value, and a convergent call carries one of these tokens in a `convergencectrl` operand bundle, naming the specific convergence region it belongs to.[^l5] This matters once a function has more than one convergent operation and more than one loop or branch nesting them differently; the attribute alone cannot say which barrier corresponds to which, while a token makes that relationship an explicit data dependency the rest of the optimizer already knows how to preserve, because respecting a value's dependencies is a rule every pass already follows.
+## Convergent operations: what an optimizer must not move
 
-## Structured control flow: what SPIR-V requires
+[G6](g6-synchronization.md) explained why a barrier or a shuffle is **convergent**: its result depends on which threads execute it together. In LLVM IR such an operation is always a call, to a function or intrinsic that carries the `convergent` attribute, and a generic pass must not change the set of threads that execute it together.[^l5] The danger is not exotic. Passes that know nothing about GPUs move calls around every day: SimplifyCFG hoists identical instructions out of both arms of a branch, loop passes sink and hoist code, the inliner copies it.
 
-A branch on a divergent condition is exactly what the `then`/`else` example above modeled: some lanes take one arm, some the other, and both arms eventually rejoin. NVPTX and AMDGPU can represent that directly, as an ordinary conditional branch in IR that the hardware executes by running both arms with the inactive lanes masked off. LLVM's own SPIR-V back end takes the same kind of IR as its input, through target triples such as `spirv64` and a logical-addressing `spirv` variant, for the OpenCL and Vulkan environments.[^l3] What it must produce is different: SPIR-V is defined as **structured control flow**. Its specification requires that every selection and every loop declare its own merge block up front, that each header block "structurally dominate" that merge block, and that the resulting regions nest, entered and exited only in the specific ways the specification lists, never by a branch that jumps into the middle of another construct or out of it early.[^k4] An arbitrary, reducible CFG, the general shape `opt` and `llc` both work with everywhere else in this book, is not automatically legal SPIR-V, and something has to turn one into the other before a SPIR-V back end can emit it.
+LLVM's documentation gives the standard example: two subgroup sums, one in each arm of a branch on a lane's own value. As written, each sum adds up the lanes that took its arm. Hoisted above the branch and merged into one call, the sum adds up every lane, a different answer.[^l5] The example below reproduces that situation with two functions of the same shape, one calling an ordinary function in each arm and one calling a convergent one.
 
-That something is `StructurizeCFG`, an LLVM pass that rewrites an arbitrary CFG into single-entry, single-exit nested regions, turning a divergent branch's control-flow choice into a data-flow one: a boolean value that says which side each lane's execution belongs to, computed once and carried through a new block the pass inserts.[^l7] Which back ends run it automatically, and under which conditions, is not settled by any one document this chapter can point to; running the pass directly, on a small example, shows what it does without needing that answer.
+--8<-- "includes/examples/gpu/g9-gpu-compilers-in-llvm/convergent.ll.md"
+
+In `@plain`, SimplifyCFG saw the same call with the same argument at the top of both arms, hoisted it into `entry`, and then removed the branch, the two empty arms and the phi, leaving two instructions. In `@wave`, the only difference is the `convergent` attribute on the callee, and SimplifyCFG left the function exactly as it was written.
+
+<figure class="vx-figure">
+<svg viewBox="0 0 700 250" role="img" aria-label="Four lanes computing two per-arm sums versus one hoisted sum" aria-describedby="g9-f3-desc">
+<title id="g9-f3-title">Why a convergent sum cannot be hoisted</title>
+<desc id="g9-f3-desc">Four lanes hold d equal to 3, minus 1, 5 and minus 2. As written, lanes 0 and 2 take the gains arm and their wave sum is 8; lanes 1 and 3 take the losses arm and their wave sum is minus 3. After hoisting, all four lanes join one wave sum, which is 5, so every lane receives 5 instead of 8 or minus 3.</desc>
+<text class="vx-text" x="20" y="24">As written: one sum per arm</text>
+<rect class="vx-box" x="20" y="40" width="70" height="36" rx="3"/><text class="vx-mono" x="55" y="63" text-anchor="middle">3</text>
+<rect class="vx-box" x="100" y="40" width="70" height="36" rx="3"/><text class="vx-mono" x="135" y="63" text-anchor="middle">-1</text>
+<rect class="vx-box" x="180" y="40" width="70" height="36" rx="3"/><text class="vx-mono" x="215" y="63" text-anchor="middle">5</text>
+<rect class="vx-box" x="260" y="40" width="70" height="36" rx="3"/><text class="vx-mono" x="295" y="63" text-anchor="middle">-2</text>
+<text class="vx-text-muted" x="20" y="96">lane 0</text><text class="vx-text-muted" x="100" y="96">lane 1</text><text class="vx-text-muted" x="180" y="96">lane 2</text><text class="vx-text-muted" x="260" y="96">lane 3</text>
+<rect class="vx-box-accent" x="20" y="120" width="310" height="44" rx="4"/>
+<text class="vx-text" x="30" y="140">gains arm, lanes 0 and 2</text>
+<text class="vx-mono" x="30" y="157">wave_sum = 3 + 5 = 8</text>
+<rect class="vx-box-accent" x="20" y="176" width="310" height="44" rx="4"/>
+<text class="vx-text" x="30" y="196">losses arm, lanes 1 and 3</text>
+<text class="vx-mono" x="30" y="213">wave_sum = -1 + -2 = -3</text>
+<text class="vx-text" x="370" y="24">Hoisted above the branch</text>
+<rect class="vx-box" x="370" y="40" width="70" height="36" rx="3"/><text class="vx-mono" x="405" y="63" text-anchor="middle">3</text>
+<rect class="vx-box" x="450" y="40" width="70" height="36" rx="3"/><text class="vx-mono" x="485" y="63" text-anchor="middle">-1</text>
+<rect class="vx-box" x="530" y="40" width="70" height="36" rx="3"/><text class="vx-mono" x="565" y="63" text-anchor="middle">5</text>
+<rect class="vx-box" x="610" y="40" width="70" height="36" rx="3"/><text class="vx-mono" x="645" y="63" text-anchor="middle">-2</text>
+<rect class="vx-box-bad" x="370" y="120" width="310" height="100" rx="4"/>
+<text class="vx-text" x="380" y="140">every lane, one call</text>
+<text class="vx-mono" x="380" y="160">wave_sum = 3 - 1 + 5 - 2 = 5</text>
+<text class="vx-text-muted" x="380" y="186">lanes 0 and 2 get 5, not 8</text>
+<text class="vx-text-muted" x="380" y="206">lanes 1 and 3 get 5, not -3</text>
+<text class="vx-text-muted" x="20" y="244">A hoist that is correct for @lane_sum changes every lane's answer for @wave_sum.</text>
+</svg>
+<figcaption>Figure 3. Why a convergent sum cannot be hoisted. With four lanes holding 3, −1, 5 and −2, the program as written computes two sums, one over each arm's lanes. Hoisting the call makes every lane join a single sum.</figcaption>
+</figure>
+
+The attribute alone has a weakness. It says that a call must not gain or lose participating threads, but not which threads it was meant to participate with, and LLVM's own documentation admits that the attribute's semantics as implemented differ from its documented semantics and remain under-specified.[^l5]
+
+Current LLVM therefore adds **convergence-control tokens**. A call to `llvm.experimental.convergence.entry` at the start of a function produces a token that stands for the set of threads that entered the function together; `llvm.experimental.convergence.loop` produces one per loop iteration; and `llvm.experimental.convergence.anchor` produces one for an implementation-defined set of threads. A convergent call names the set it belongs to with a `"convergencectrl"` operand bundle carrying one of these tokens.[^l5]
+
+The relationship becomes a use of a value, which every pass already knows how to respect. A call with a token is **controlled**; one without is **uncontrolled**, and a function may not mix the two.[^l5] The intrinsics exist in the local LLVM 18: `opt -passes=verify` accepts a function that calls `llvm.experimental.convergence.entry`.
+
+Convergence and uniformity meet here. The documentation adds that the hoist in the example becomes legal if the compiler can prove the branch condition uniform, because then the whole group takes one arm and the call already had every thread.[^l5] The better the uniformity analysis, the more freely a GPU compiler can optimize around convergent code.
+
+??? check "Suppose `@wave` branched on a kernel argument instead of on `%d`, and the compiler could prove that argument uniform. Would hoisting `@wave_sum` above the branch still be wrong?"
+
+    No. With a uniform condition every lane of the group takes the same arm, so the call in that arm already runs with all of them; hoisting it does not change who participates, and LLVM's convergence documentation allows the hoist in that case. `@wave` as written branches on `%d`, a per-lane value, which is why the call has to stay where it is.
+
+## Structured control flow: StructurizeCFG and SPIR-V
+
+A divergent branch is linearized by running both arms with lanes masked off. For an if-then-else that is straightforward, but LLVM IR allows any control-flow graph: a branch that jumps out of the middle of a loop, two loops sharing an exit, blocks entered from several directions. Masking code that shape is hard.
+
+AMDGPU's answer is to reshape the graph first. Its code generator runs, before instruction selection, a short sequence of IR passes: one that merges divergent exits into one, `FixIrreducible`, `UnifyLoopExits`, and then **`StructurizeCFG`**.[^amdgpu-tm] After those, `SIAnnotateControlFlow` annotates the divergent branches that remain with AMDGPU-specific intrinsics, skipping any branch the uniformity analysis proves uniform, so that the back end can linearize them with the **execution mask (EXEC)**, the register whose bits say which lanes are active.[^amdgpu-tm][^siacf]
+
+AMDGPU's guide shows the result for an if-then-else: save EXEC, AND it with the condition's lane mask and run the then-arm, invert within the saved mask and run the else-arm, then restore EXEC.[^l2]
+
+`StructurizeCFG` rewrites a function one single-entry, single-exit region at a time, so that every if-then-else takes one fixed shape: a branch whose true side enters the arm and whose false side skips it, with new **Flow blocks** where the paths rejoin, and the choice of which arm still has to run carried in phi nodes.[^l7] Loops get the same treatment, with every exit routed through a Flow block that holds the back edge.[^l7]
 
 --8<-- "includes/examples/gpu/g9-gpu-compilers-in-llvm/structurize.ll.md"
 
-Before the pass, `lane_select` is the same divergent-branch shape as the uniformity example: `entry` branches to `then` or `else` on a per-lane condition, and both rejoin at `merge`. After it, there is a new block, `Flow`, and the branch out of `entry` no longer goes to `then` or `else` at all; it goes to `else` or `Flow`, and `Flow` in turn holds two phi nodes and its own branch, one that decides whether to visit `then`. (The pass also flips the sense of the original comparison, `icmp sgt` becomes `icmp sle`; this is `StructurizeCFG` choosing which arm to reach directly and which to route through `Flow`, and it changes nothing about which value `lane_select` returns for a given `%lane`.) The two new phi nodes are the boolean and the partial result: one of them, `%1`, is exactly the "does this lane still need to visit `then`" value the second rule of uniformity analysis was tracking by hand a section ago, now made an explicit value in the IR instead of an implicit property of which block a lane is standing in. Every block in the rewritten function has exactly one predecessor edge that matters for reaching it structurally, and the whole shape nests: `Flow` inside `entry`'s successor, `then` inside `Flow`'s successor, both closing at `merge`. That is precisely SPIR-V's requirement, produced mechanically from a CFG that did not meet it.
+Walk through the output with four lanes whose `%lane` values are −1, 0, 2 and 5. In the original, lanes 2 and 3 (values 2 and 5) take `then` and lanes 0 and 1 take `else`. After the pass, `entry` tests the inverted condition, `icmp sle`, and sends lanes 0 and 1 to `else` while lanes 2 and 3 go to the new `Flow` block.
 
-??? check "After `StructurizeCFG` runs, does `lane_select` still return the same value as before, for every input?"
+Lanes 0 and 1 then reach `Flow` too. There two phis wait: `%0` holds the partial result, 20 for lanes that came through `else` and `undef` for the rest, and `%1` says whether a lane still has to visit `then`, false for lanes that came through `else` and true for lanes that came straight from `entry`.
 
-    Yes. The pass changes how the choice between the two arms is represented, from a branch that skips one arm entirely to a nested structure where every lane's path is bounded and a boolean phi records which result to use, but it computes the same function. Nothing about the pass is an optimization in the sense of doing less work; it is a legalization, changing the shape of the computation without changing what it computes, the same relationship instruction selection has to the IR it consumes.
+`Flow` branches on `%1`: lanes 2 and 3 run `then` and all four meet at `merge`, where the final phi picks 10 from `then` or `%0` from `Flow`. Every lane returns what it returned before: 20 for lanes 0 and 1, 10 for lanes 2 and 3. The `undef` is harmless, because a lane that receives it always passes through `then`, and the final phi replaces it with 10.
 
-## Still one pipeline
+<figure class="vx-figure">
+<svg viewBox="0 0 720 360" role="img" aria-label="lane_select before and after StructurizeCFG, with the lanes active in each block" aria-describedby="g9-f4-desc">
+<title id="g9-f4-title">lane_select before and after StructurizeCFG</title>
+<desc id="g9-f4-desc">Left, before: entry branches to then, active lanes 2 and 3, and to else, active lanes 0 and 1; both reach merge. Right, after: entry branches to else, lanes 0 and 1, or directly to Flow; else goes to Flow, where all four lanes are present and two phis record the partial result and whether a lane still needs then; Flow branches to then, lanes 2 and 3, or to merge; then goes to merge, where all four lanes finish. Under an execution mask the right-hand graph runs top to bottom, one block at a time.</desc>
+<text class="vx-text" x="20" y="22">Before</text>
+<rect class="vx-box" x="90" y="36" width="140" height="40" rx="4"/>
+<text class="vx-text" x="160" y="54" text-anchor="middle">entry</text><text class="vx-mono vx-text-muted" x="160" y="70" text-anchor="middle">lanes 0 1 2 3</text>
+<line class="vx-line" x1="130" y1="76" x2="80" y2="126"/><polygon class="vx-arrowhead" points="80,118 77,128 87,124"/>
+<line class="vx-line" x1="190" y1="76" x2="240" y2="126"/><polygon class="vx-arrowhead" points="233,124 243,128 240,118"/>
+<rect class="vx-box" x="20" y="128" width="120" height="40" rx="4"/>
+<text class="vx-text" x="80" y="146" text-anchor="middle">then</text><text class="vx-mono vx-text-muted" x="80" y="162" text-anchor="middle">lanes 2 3</text>
+<rect class="vx-box" x="180" y="128" width="120" height="40" rx="4"/>
+<text class="vx-text" x="240" y="146" text-anchor="middle">else</text><text class="vx-mono vx-text-muted" x="240" y="162" text-anchor="middle">lanes 0 1</text>
+<line class="vx-line" x1="80" y1="168" x2="130" y2="218"/><polygon class="vx-arrowhead" points="122,216 132,220 129,210"/>
+<line class="vx-line" x1="240" y1="168" x2="190" y2="218"/><polygon class="vx-arrowhead" points="191,210 188,220 198,216"/>
+<rect class="vx-box" x="90" y="220" width="140" height="40" rx="4"/>
+<text class="vx-text" x="160" y="238" text-anchor="middle">merge</text><text class="vx-mono vx-text-muted" x="160" y="254" text-anchor="middle">lanes 0 1 2 3</text>
+<text class="vx-text-muted" x="20" y="300">Two arms side by side: which one</text>
+<text class="vx-text-muted" x="20" y="318">runs first is not written down.</text>
+<text class="vx-text" x="380" y="22">After StructurizeCFG</text>
+<rect class="vx-box" x="470" y="36" width="160" height="40" rx="4"/>
+<text class="vx-text" x="550" y="54" text-anchor="middle">entry</text><text class="vx-mono vx-text-muted" x="550" y="70" text-anchor="middle">lanes 0 1 2 3</text>
+<line class="vx-line" x1="500" y1="76" x2="450" y2="100"/><polygon class="vx-arrowhead" points="455,94 446,102 457,104"/>
+<rect class="vx-box" x="380" y="102" width="130" height="40" rx="4"/>
+<text class="vx-text" x="445" y="120" text-anchor="middle">else</text><text class="vx-mono vx-text-muted" x="445" y="136" text-anchor="middle">lanes 0 1</text>
+<line class="vx-line" x1="600" y1="76" x2="600" y2="162"/><polygon class="vx-arrowhead" points="595,156 600,164 605,156"/>
+<line class="vx-line" x1="445" y1="142" x2="520" y2="164"/><polygon class="vx-arrowhead" points="513,158 522,165 511,168"/>
+<rect class="vx-box-accent" x="440" y="164" width="250" height="56" rx="4"/>
+<text class="vx-text" x="565" y="182" text-anchor="middle">Flow</text><text class="vx-mono vx-text-muted" x="565" y="198" text-anchor="middle">lanes 0 1 2 3</text>
+<text class="vx-mono" x="565" y="214" text-anchor="middle">%0 partial, %1 need then</text>
+<line class="vx-line" x1="500" y1="220" x2="450" y2="244"/><polygon class="vx-arrowhead" points="455,238 446,246 457,248"/>
+<rect class="vx-box" x="380" y="246" width="130" height="40" rx="4"/>
+<text class="vx-text" x="445" y="264" text-anchor="middle">then</text><text class="vx-mono vx-text-muted" x="445" y="280" text-anchor="middle">lanes 2 3</text>
+<line class="vx-line" x1="620" y1="220" x2="620" y2="300"/><polygon class="vx-arrowhead" points="615,294 620,302 625,294"/>
+<line class="vx-line" x1="445" y1="286" x2="520" y2="304"/><polygon class="vx-arrowhead" points="513,298 522,306 511,309"/>
+<rect class="vx-box" x="480" y="304" width="170" height="40" rx="4"/>
+<text class="vx-text" x="565" y="322" text-anchor="middle">merge</text><text class="vx-mono vx-text-muted" x="565" y="338" text-anchor="middle">lanes 0 1 2 3</text>
+</svg>
+<figcaption>Figure 4. <code>lane_select</code> before and after <code>StructurizeCFG</code>, for four lanes with <code>%lane</code> = −1, 0, 2, 5. After the pass the graph is a chain: each arm is entered or skipped from one block, and the lanes that skip an arm wait for it at a Flow block. That is the order a masked machine runs it in, with EXEC set to the listed lanes in each block.</figcaption>
+</figure>
 
-Put the three sections together, and a GPU back end's difference from E1's AArch64 walkthrough is additive, not a replacement. The same `MachineInstr` objects, the same SSA-to-physical-register handoff, the same MC layer at the end, still apply; NVPTX and AMDGPU are back ends in exactly E1's sense, described by the same kind of TableGen target description a native back end uses. What a SIMT target's description adds is: address space numbers with target-specific meaning, read by instruction selection when it decides where a load or store goes; a uniformity analysis, run early enough that later passes know which values need one register per lane and which need one register for the whole warp; and convergence tokens, threaded through any pass that might otherwise reorder, duplicate, or sink a call across control flow it should not cross. A target with a structured IR at its far end, such as SPIR-V, adds one more step before final lowering: `StructurizeCFG` or an equivalent legalization, turning whatever CFG the optimizer produced into the nested shape that target's binary format requires.
+The pass has a cost: in the rewritten function every lane passes through `Flow`, and phis carry state that a plain branch kept in the program counter. For a uniform branch that cost buys nothing, since the whole warp goes one way. `StructurizeCFG` therefore takes the uniformity analysis as an input and has an option to leave uniform regions as they are.[^l7] In the current AMDGPU pipeline that option is off; uniform branches are instead left unannotated by `SIAnnotateControlFlow`, the pass that follows.[^amdgpu-tm][^siacf]
 
-None of these four problems, address spaces, uniformity, convergence, structured control flow, is specific to CUDA, to HIP, or to any one vendor's programming model. They are what "compile one program for many lanes running together" costs any back end that takes it on, LLVM-based or not, and a compiler that targets GPUs by writing its own back end instead of going through LLVM inherits the same four problems, unsolved, on day one.
+SPIR-V has a structure requirement of its own, but it is a rule about the binary format, not about masking. The specification lets a module declare **structured control flow**: a merge instruction in a header block names the block where the branches of a selection or loop come back together, and those constructs must nest and be entered and left only in listed ways.[^k4] For modules that declare the Shader capability, the kind Vulkan consumes, the validation rules require it: every loop must be structured, and so must every conditional branch or switch, apart from a few branches that go straight to a merge block already declared.[^k4v] Kernel modules, the OpenCL kind, have no such rule.
+
+LLVM's SPIR-V back end follows the same split. For a shader subtarget it runs `InferAddressSpaces`, `LoopSimplify`, a pass that turns cross-block values into memory, a pass that merges each region's exits, and then its own `SPIRVStructurizer`, which works out the merge blocks SPIR-V needs to declare.[^spirv-tm] It does not use `StructurizeCFG`. [G8](g8-isas-and-irs.md) showed the MLIR side of the same rule: lowered to SPIR-V, even a simple `scf.if` gains an explicit merge region.
+
+## What the back ends share
+
+Put the sections side by side and a GPU back end differs from E1's AArch64 walk-through by additions, not a different pipeline. Instruction selection still runs on SelectionDAG or GlobalISel, `MachineInstr` is still the shared language, and the MC layer still prints the result.
+
+The additions are the four answers this chapter found. Address-space numbers get their meaning from the target's table and data layout, and passes like `InferAddressSpaces` try to recover specific spaces from generic pointers. Uniformity analysis, seeded by the target, tells the back end which values can live once per warp and which branches need masking. The `convergent` attribute and convergence tokens stop generic passes from changing who takes part in a barrier or a shuffle. And a structurizer, `StructurizeCFG` for AMDGPU or `SPIRVStructurizer` for SPIR-V shaders, reshapes control flow into the form the target can execute or encode.
+
+None of these is specific to CUDA, HIP or any vendor. A compiler that targets GPUs through MLIR meets them again on the way down, because MLIR's GPU lowerings end in these same LLVM back ends or in SPIR-V ([G8](g8-isas-and-irs.md)). A compiler that writes its own GPU back end meets all four with no help. For Vortex, whose GPU path [M12](../mlir/m12-vortex-gpu-path.md) weighs, the one worth building early is uniformity: it needs nothing but the IR you already have, and every later decision in this book, from coalescing to shared-memory tiling, asks which values are the same across a warp.
 
 ## For Vortex
 
 !!! vortex "Exercise"
 
-    **Pick one target you are not going to build a back end for yet, NVPTX or AMDGPU, and work through your matmul kernel's addresses and values on paper against it.** Take the naive one-thread-per-output-element mapping of
-    `multiply(a: &[f32; M, K], b: &[f32; K, N], c: &mut [f32; M, N])`
-    ([stage 10](../compiler/guide/stage-10-matrix-multiplication.md)): each thread computes its own `row` and `column` from its lane and block indices, then loops `k` from `0` to `K`, reading `a[row, k]` and `b[k, column]`, accumulating into a running sum, and finally storing that sum into `c[row, column]`.
+    **Build** a uniformity report for kernels in your compiler's IR. Given a function, a choice of which loop variables are mapped to the lanes of a warp (the thread mapping from [G4](g4-memory-performance.md)), and the block and warp shape, classify every value and every branch as uniform or divergent.
 
-    Write down, using the two rules from the uniformity section, whether each of `row`, `column`, `k`, the address computed for `a[row, k]`, the address computed for `b[k, column]`, the running sum, and the final address written into `c` is uniform or divergent across one warp of threads, and say in one sentence why for each. Then, using your chosen target's address-space table (NVPTX's or AMDGPU's), write one sentence per pointer in the kernel, `a`, `b` and `c`, naming the address space it would carry if every buffer starts in the device's main memory, and one more sentence saying what would have to change about that address space if a later version of the kernel first copied a tile of `a` or `b` into on-chip shared memory before reading it, the way [G10](g10-matmul-ladder.md) eventually will.
+    1. Seeds: the values that depend on the lane-mapped variables. A variable mapped to the block index, not the lane, is uniform within a warp.
+    2. The three rules of this chapter: operand, join (a phi or merged variable where the two sides of a divergent branch meet) and loop exit (a value used after a loop whose exit condition is divergent). Find the joins from your control-flow graph ([O2](../optimize/o2-cfg-and-dominance.md)), not from a hand-written list.
+    3. Iteration to a fixed point, so that a divergent value discovered late still reaches every use.
+    4. A remark per branch, such as "branch on `column < n` is divergent: both sides run under a mask".
 
-    **Not yet.** Do not write NVPTX, AMDGPU or LLVM IR that lowers this kernel, and do not try to install an NVPTX- or AMDGPU-enabled LLVM on this machine to test it: this exercise is about reading the two analyses this chapter introduced against a kernel you already have, not producing a new implementation. Do not decide here whether Vortex's own back end will go through LLVM at all; that choice belongs to [stage 6](../compiler/guide/stage-6-first-machine-code.md#choosing-a-back-end) and [E1](../backend/e1-llvm-codegen-pipeline.md).
+    **Not yet:** generating GPU code, structurizing control flow, a `convergent` flag on operations (Vortex has no barriers or shuffles yet) and address spaces in the type system. [M12](../mlir/m12-vortex-gpu-path.md) decides which of these Vortex builds itself and which it gets from LLVM or MLIR.
 
-    **Done when** you have a written uniform-or-divergent judgment, with a reason, for every named value in the mapping above; one sentence per pointer naming its address space under your chosen target; and one sentence identifying which of the kernel's per-thread values are the same for every thread in a whole thread block, the observation [G10](g10-matmul-ladder.md) turns into a real optimization once shared-memory tiling is on the table.
+    **Proof that it works:**
+
+    - Golden test, the stage 10 `multiply` kernel at `[f32; 64, 64]`, with `column` taken from the thread's `x` index and `row` from its `y` index in blocks 32 threads wide, so that one warp shares a `row`: `row` uniform, `column` divergent, `k` uniform, the address of `a[row, k]` uniform, the address of `b[k, column]` divergent, the running sum divergent, the address of `c[row, column]` divergent. Compare with G4's sector counts: the uniform address is the one G4 calls a broadcast.
+    - Golden test, a boundary guard `if column < n { c[row, column] = sum }`: the branch is divergent; a value computed inside the guarded block from `row` and `n` alone is uniform.
+    - Golden test, a join: the kernel from this chapter's example, written in Vortex, with `r`, `s` and `e` classified as the example prints them.
+    - Golden test, a loop whose trip count depends on `column`: the loop counter is uniform inside the loop and divergent when read after it.
+    - A soundness check: execute each test kernel on the CPU once per lane of one warp, with the lane's indices passed in as ordinary arguments, record every value each lane computes, and confirm that every value the report calls uniform had one result across all lanes that computed it in the same iteration. The report may call a value divergent that happens to agree; it may never call a value uniform that disagrees.
 
 ## Key ideas
 
-!!! recap "You can now answer"
+!!! recap "Questions you can now answer"
 
-    - **What does a GPU target add to the pipeline E1 already described?** Nothing that replaces it: the same `MachineInstr`, SSA-to-physical-register handoff and MC layer still apply. It adds target-specific meanings for address spaces, a uniformity analysis, convergence tracking, and, for a structured target, a legalization pass.
-    - **What decides what an address space number means?** The target's back end. LLVM's IR verifier treats the number as opaque; NVPTX and AMDGPU each define their own table, and a target that defines none, such as this machine's AArch64, treats every address space identically.
-    - **Why can a value be divergent even though every operand feeding it is uniform?** Because uniformity depends on which lanes execute the block that computes it, not only on the values that block reads. A value defined inside only one arm of a divergent branch is divergent by that alone.
-    - **Why must a convergent operation never be moved across a branch that only some lanes take?** Because operations such as barriers and shuffles depend on a specific set of threads executing together; moving or duplicating the call can strand some threads waiting for others that never arrive, or read a value from the wrong lane.
-    - **What does `StructurizeCFG` change, and what does it leave the same?** It changes an arbitrary CFG's shape into nested, single-entry single-exit regions, and it turns a branch's control-flow choice into a boolean value carried through a new block. It leaves the function computing the same result for the same input.
-    - **Why is SPIR-V's structured control-flow requirement a real constraint, not a style preference?** Because SPIR-V's binary format defines a selection or loop construct by its merge block, declared up front; a CFG that does not nest cleanly cannot be expressed in that format at all, whatever it computes.
+    - **What does a GPU target add to E1's pipeline?** Passes, not a new pipeline: target meanings for address spaces, a uniformity analysis, protection for convergent calls, and a structurizer. NVPTX also removes one pass, register assignment, because PTX registers are virtual.
+    - **What gives an address-space number its meaning?** The target: its published table, its data layout (which target-independent passes read) and its instruction selection. The IR only says that non-zero address spaces are target-specific.
+    - **How can a value be divergent when every operand is uniform?** At a join of a divergent branch, where lanes pick different incoming values of a phi, and after a loop with a divergent exit, where lanes leave on different iterations.
+    - **What does SimplifyCFG do with identical calls in both arms of a branch?** Hoists them and deletes the branch, unless the callee is convergent; then it leaves them, because hoisting would change which lanes take part.
+    - **What do convergence tokens add to the `convergent` attribute?** They name the set of threads a convergent call belongs to, as an ordinary value use, where the attribute alone is under-specified.
+    - **Why does AMDGPU run `StructurizeCFG`, and why doesn't SPIR-V?** AMDGPU needs nested regions to linearize divergent branches under the EXEC mask; SPIR-V shaders need declared merge blocks in the binary, which LLVM's SPIR-V back end computes with its own `SPIRVStructurizer`.
 
 ## Where this comes back
 
 !!! next "You will use this again in"
 
-    - [G10. The GPU matmul ladder](g10-matmul-ladder.md): *address spaces*, *which per-thread values are shared across a thread block*
-    - [G11. Matrix units](g11-matrix-units.md): *cooperative, warp-wide instructions that assume their inputs are already in the right per-lane or uniform place*
-    - [G6. Synchronization, atomics and reductions](g6-synchronization.md): *convergent barriers and shuffles, in depth*
-    - [M10. MLIR for GPUs](../mlir/m10-mlir-for-gpus.md): *kernel outlining as a structural pass, instead of an attribute on an existing function*
+    - [G10. The GPU matmul ladder](g10-matmul-ladder.md): *shared address space*, *uniform addresses and broadcast*
+    - [G11. Matrix units](g11-matrix-units.md): *warp-level instructions*, *convergent operations*
+    - [G13. Tile languages](g13-tile-languages.md): *lowering to LLVM IR for a GPU back end*
+    - [M10. MLIR for GPUs](../mlir/m10-mlir-for-gpus.md): *kernel outlining*, *lowering to NVVM, ROCDL and SPIR-V*
+    - [M12. Designing Vortex's GPU path](../mlir/m12-vortex-gpu-path.md): *uniformity*, *which back end to target*
 
 ## Sources and further reading
 
-[^l1]: LLVM Project, "User Guide for NVPTX Back-end". <https://llvm.org/docs/NVPTXUsage.html>
-[^l2]: LLVM Project, "User Guide for AMDGPU Backend". <https://llvm.org/docs/AMDGPUUsage.html>
-[^l3]: LLVM Project, "User Guide for SPIR-V Target". <https://llvm.org/docs/SPIRVUsage.html>
-[^l4]: LLVM Project, "Convergence And Uniformity". <https://llvm.org/docs/ConvergenceAndUniformity.html>
-[^l5]: LLVM Project, "Convergent Operation Semantics". <https://llvm.org/docs/ConvergentOperations.html>
-[^l7]: LLVM Project, "StructurizeCFG.cpp" (source). <https://raw.githubusercontent.com/llvm/llvm-project/main/llvm/lib/Transforms/Scalar/StructurizeCFG.cpp>
+Read the NVPTX guide's tutorial first, then "Convergence And Uniformity" up to its section on irreducible cycles, then the overview and examples of "Convergent Operation Semantics". The pass-pipeline source files are short and worth reading with this chapter's figures open.
+
+[^l1]: LLVM Project, "User Guide for NVPTX Back-end": "Marking Functions as Kernels", "Address Spaces", "NVPTX Intrinsics" and "Tutorial: A Simple Compute Kernel". <https://llvm.org/docs/NVPTXUsage.html>
+[^l2]: LLVM Project, "User Guide for AMDGPU Backend": "Target Triples", "Address Spaces", "Register Identifier" and the EXEC-mask example under "DWARF Extensions". <https://llvm.org/docs/AMDGPUUsage.html>
+[^l3]: LLVM Project, "User Guide for SPIR-V Target": "Target Triples". <https://llvm.org/docs/SPIRVUsage.html>
+[^l4]: LLVM Project, "Convergence And Uniformity": "Introduction", "Motivation", "Uniformity" and "Divergent Cycle Exits". <https://llvm.org/docs/ConvergenceAndUniformity.html>
+[^l5]: LLVM Project, "Convergent Operation Semantics": "Overview", "Examples of Convergent Operations", "Convergence Control Intrinsics" and "Uncontrolled Convergent Operations". <https://llvm.org/docs/ConvergentOperations.html>
+[^l6]: LLVM Project, "Compiling CUDA with clang": "Compilation Models". <https://llvm.org/docs/CompileCudaWithLLVM.html>
+[^l7]: LLVM Project, `StructurizeCFG.cpp`, the pass's header comment and its uniform-region options (main branch, read September 2026). <https://raw.githubusercontent.com/llvm/llvm-project/main/llvm/lib/Transforms/Scalar/StructurizeCFG.cpp>
+[^langref]: LLVM Project, "LLVM Language Reference Manual": "Pointer Type" and "Data Layout". <https://llvm.org/docs/LangRef.html#pointer-type>
+[^ua]: LLVM Project, `UniformityAnalysis.cpp`, the check for targets without branch divergence (main branch, read September 2026). <https://raw.githubusercontent.com/llvm/llvm-project/main/llvm/lib/Analysis/UniformityAnalysis.cpp>
+[^nvptx-tm]: LLVM Project, `NVPTXTargetMachine.cpp`, `NVPTXPassConfig` (main branch, read September 2026). <https://raw.githubusercontent.com/llvm/llvm-project/main/llvm/lib/Target/NVPTX/NVPTXTargetMachine.cpp>
+[^amdgpu-tm]: LLVM Project, `AMDGPUTargetMachine.cpp`, `GCNPassConfig::addPreISel` (main branch, read September 2026). <https://raw.githubusercontent.com/llvm/llvm-project/main/llvm/lib/Target/AMDGPU/AMDGPUTargetMachine.cpp>
+[^siacf]: LLVM Project, `SIAnnotateControlFlow.cpp`, the file comment and `isUniform` (main branch, read September 2026). <https://raw.githubusercontent.com/llvm/llvm-project/main/llvm/lib/Target/AMDGPU/SIAnnotateControlFlow.cpp>
+[^spirv-tm]: LLVM Project, `SPIRVTargetMachine.cpp`, `SPIRVPassConfig::addISelPrepare` (main branch, read September 2026). <https://raw.githubusercontent.com/llvm/llvm-project/main/llvm/lib/Target/SPIRV/SPIRVTargetMachine.cpp>
 [^k4]: Khronos Group, "SPIR-V Specification", section 2.11, "Structured Control Flow". <https://registry.khronos.org/SPIR-V/specs/unified1/SPIRV.html#StructuredControlFlow>
-[^m16]: MLIR, "'gpu' Dialect". <https://mlir.llvm.org/docs/Dialects/GPU/>
+[^k4v]: Khronos Group, "SPIR-V Specification", section 2.16.2, "Validation Rules for Shader Capabilities". <https://registry.khronos.org/SPIR-V/specs/unified1/SPIRV.html#ShaderValidation>
+[^m16]: MLIR Project, "'gpu' Dialect": `gpu.launch` and the kernel-outlining pass. <https://mlir.llvm.org/docs/Dialects/GPU/>

@@ -4,4 +4,4 @@
 --8<-- "examples/optimize/p5-microarchitecture/dependency_chain.s"
 ```
 
-<p class="vx-example-links">Follows: <a href="https://developer.apple.com/documentation/apple-silicon/tuning-your-code-s-performance-for-apple-silicon">developer.apple.com/documentation/apple-silicon/tuning-your-code-s-performance-for-apple-silicon</a>, <a href="https://github.com/ARM-software/abi-aa/blob/main/aapcs64/aapcs64.rst">github.com/ARM-software/abi-aa/blob/main/aapcs64/aapcs64.rst</a>.</p>
+<p class="vx-example-links">Follows: <a href="https://llvm.org/docs/CommandGuide/llvm-mca.html">llvm.org/docs/CommandGuide/llvm-mca.html</a>, <a href="https://github.com/ARM-software/abi-aa/blob/main/aapcs64/aapcs64.rst">github.com/ARM-software/abi-aa/blob/main/aapcs64/aapcs64.rst</a>.</p>

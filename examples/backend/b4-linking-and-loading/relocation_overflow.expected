@@ -1,4 +1,0 @@
-displacement   +134217724 bytes: fits BL imm26? yes
-displacement   +134217728 bytes: fits BL imm26? no -> needs a veneer
-displacement   -134217728 bytes: fits BL imm26? yes
-displacement   -134217732 bytes: fits BL imm26? no -> needs a veneer

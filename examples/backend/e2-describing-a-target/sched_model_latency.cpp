@@ -1,55 +1,57 @@
-// A toy scheduling model: one opcode-to-latency table, walked by a single
-// generic function that computes when each instruction in a straight-line
-// dependency chain becomes ready. TableGen's scheduling model description
-// plays the same role for a real target: a shared, target-independent
-// scheduling pass asks "how many cycles does this opcode take", and each
-// subtarget answers from its own table instead of its own code.
-// Follows: LLVM TableGen Backends, "Instruction Scheduling Models".
-// https://llvm.org/docs/TableGen/BackEnds.html
+// A toy scheduling model with LLVM's two levels of indirection. Each
+// instruction names a scheduling class ("an integer multiply writes its
+// result"), which is shared by every processor. Each processor model then
+// gives each class a latency. The code that computes when results are ready
+// never names a processor; changing the model changes only the table.
+// The latencies are invented for the illustration, not taken from a chip.
+// Follows: LLVM 18.1.8 TargetSchedule.td (SchedWrite, WriteRes, Latency).
 
 #include <array>
 #include <iostream>
 #include <string_view>
 
-enum class Op { Load, Mul, Add, Store };
+enum Write { WriteLoad, WriteMul, WriteAlu, WriteStore, NumWrites };
 
 struct Instr {
-    Op opcode;
-    std::string_view name;
+    std::string_view text;
+    Write write;
+    int waits_for;  // index of the instruction whose result it reads, or -1
 };
 
-// A chain: each instruction consumes the previous one's result, so none
-// can start before the one before it finishes. Opcode order is fixed;
-// only the latency table below changes between the two models.
-constexpr std::array<Instr, 4> kChain = {{
-    {Op::Load, "load"},
-    {Op::Mul, "mul"},
-    {Op::Add, "add"},
-    {Op::Store, "store"},
+// A dependent chain: each instruction reads the previous one's result.
+constexpr std::array<Instr, 4> kBlock = {{
+    {"ldr x1, [x0]", WriteLoad, -1},
+    {"mul x2, x1, x1", WriteMul, 0},
+    {"add x3, x2, #1", WriteAlu, 1},
+    {"str x3, [x0, #8]", WriteStore, 2},
 }};
 
-// Two subtarget models, indexed by Op: Load, Mul, Add, Store latencies.
-constexpr std::array<unsigned, 4> kGenericLatency = {4, 3, 1, 1};
-constexpr std::array<unsigned, 4> kFastMulLatency = {4, 1, 1, 1};
+struct Model {
+    std::string_view name;
+    std::array<int, NumWrites> latency;  // indexed by Write
+};
 
-unsigned latency(const std::array<unsigned, 4>& model, Op op) {
-    return model[static_cast<unsigned>(op)];
-}
+constexpr Model kSlowMul = {"model A", {4, 3, 1, 1}};
+constexpr Model kFastMul = {"model B", {4, 1, 1, 1}};
 
-void schedule(std::string_view label, const std::array<unsigned, 4>& model) {
-    std::cout << label << '\n';
-    unsigned ready = 0;
-    for (const auto& instr : kChain) {
-        unsigned start = ready;
-        unsigned finish = start + latency(model, instr.opcode);
-        std::cout << "  " << instr.name << ": start " << start << ", finish "
-                  << finish << '\n';
-        ready = finish;
+// No issue limit: an instruction starts as soon as the result it reads is
+// ready. Real models also bound issue width and unit use (IssueWidth, WriteRes).
+void schedule(const Model& m) {
+    std::cout << m.name << '\n';
+    std::array<int, kBlock.size()> ready{};
+    int last = 0;
+    for (std::size_t i = 0; i < kBlock.size(); ++i) {
+        const Instr& in = kBlock[i];
+        int start = in.waits_for < 0 ? 0 : ready[in.waits_for];
+        ready[i] = start + m.latency[in.write];
+        last = ready[i] > last ? ready[i] : last;
+        std::cout << "  " << in.text << ": start " << start << ", ready "
+                  << ready[i] << '\n';
     }
-    std::cout << "  total: " << ready << " cycles\n";
+    std::cout << "  block: " << last << " cycles\n";
 }
 
 int main() {
-    schedule("generic model", kGenericLatency);
-    schedule("fast-multiply model", kFastMulLatency);
+    schedule(kSlowMul);
+    schedule(kFastMul);
 }

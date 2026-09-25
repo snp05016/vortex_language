@@ -1,0 +1,29 @@
+module attributes {gpu.container_module} {
+  func.func @saxpy(%arg0: f32, %arg1: memref<1000xf32>, %arg2: memref<1000xf32>) {
+    %c1 = arith.constant 1 : index
+    %c4 = arith.constant 4 : index
+    %c256 = arith.constant 256 : index
+    %c1000 = arith.constant 1000 : index
+    gpu.launch_func  @saxpy_kernel::@saxpy_kernel blocks in (%c4, %c1, %c1) threads in (%c256, %c1, %c1)  args(%c1000 : index, %arg1 : memref<1000xf32>, %arg2 : memref<1000xf32>, %arg0 : f32)
+    return
+  }
+  gpu.module @saxpy_kernel {
+    gpu.func @saxpy_kernel(%arg0: index, %arg1: memref<1000xf32>, %arg2: memref<1000xf32>, %arg3: f32) kernel attributes {gpu.known_block_size = array<i32: 256, 1, 1>, gpu.known_grid_size = array<i32: 4, 1, 1>} {
+      %0 = gpu.block_id  x
+      %1 = gpu.thread_id  x
+      %2 = gpu.block_dim  x
+      %3 = arith.muli %0, %2 : index
+      %4 = arith.addi %3, %1 : index
+      %5 = arith.cmpi ult, %4, %arg0 : index
+      scf.if %5 {
+        %6 = memref.load %arg1[%4] : memref<1000xf32>
+        %7 = memref.load %arg2[%4] : memref<1000xf32>
+        %8 = arith.mulf %arg3, %6 : f32
+        %9 = arith.addf %8, %7 : f32
+        memref.store %9, %arg2[%4] : memref<1000xf32>
+      }
+      gpu.return
+    }
+  }
+}
+

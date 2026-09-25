@@ -1,7 +1,7 @@
-# Runs StructurizeCFG directly, the pass that legalizes an arbitrary
-# reducible CFG into SPIR-V's required structured form.
+# Runs StructurizeCFG on its own, the pass AMDGPU's code generator runs
+# before instruction selection.
 flags = ["-passes=structurizecfg"]
 follows = [
   "https://raw.githubusercontent.com/llvm/llvm-project/main/llvm/lib/Transforms/Scalar/StructurizeCFG.cpp",
-  "https://llvm.org/docs/SPIRVUsage.html",
+  "https://raw.githubusercontent.com/llvm/llvm-project/main/llvm/lib/Target/AMDGPU/AMDGPUTargetMachine.cpp",
 ]

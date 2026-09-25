@@ -1,0 +1,15 @@
+; ModuleID = 'signed_zero.ll'
+source_filename = "signed_zero.ll"
+
+define float @plus_zero(float %x) {
+  %s = fadd float %x, 0.000000e+00
+  ret float %s
+}
+
+define float @plus_zero_nsz(float %x) {
+  ret float %x
+}
+
+define float @plus_neg_zero(float %x) {
+  ret float %x
+}

@@ -1,0 +1,7 @@
+warp tile  frag loads  ops   macs/element  accumulators/lane
+1 x 1       1024       512   4.00           2
+1 x 2        768       512   5.33           4
+2 x 2        512       512   8.00           8
+2 x 4        384       512  10.67          16
+4 x 4        256       512  16.00          32
+8 x 8        128       512  32.00         128

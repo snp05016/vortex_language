@@ -4,17 +4,21 @@
 // every node's degree is already 3 or more, so simplify cannot remove a node
 // by the plain rule (degree < k) before doing something about that.
 //
-// Chaitin: when stuck, pick the highest-degree node and spill it outright.
-// Briggs: when stuck, push the highest-degree node onto the stack anyway
-// (an "optimistic" spill candidate) and keep going; only mark it a real
-// spill if, at select time, none of the k colors remain free.
+// A real allocator chooses the node to give up on by weighing its degree
+// against its spill cost. Every node here costs the same to spill, so the
+// choice reduces to the highest degree.
+//
+// Chaitin: when stuck, spill the chosen node outright and never color it.
+// Briggs: when stuck, push the chosen node onto the stack anyway (a
+// "potential spill") and keep going; it becomes an "actual spill" only if,
+// at select time, none of the k colors is free.
 //
 // Follows: Chaitin, "Register allocation & spilling via graph coloring",
-// SIGPLAN 1982, section 3; Briggs, Cooper, Torczon, "Improvements to graph
-// coloring register allocation", TOPLAS 1994, section 3.
+// SIGPLAN 1982; Briggs, Cooper, Torczon, "Improvements to graph coloring
+// register allocation", TOPLAS 1994, as summarized by George and Appel,
+// "Iterated register coalescing", TOPLAS 1996, sections 2 and 5.1.
 
-#include <algorithm>
-#include <array>
+#include <utility>
 #include <print>
 #include <set>
 #include <string>

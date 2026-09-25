@@ -1,10 +1,16 @@
-writing RL_LO (bits 0..8)
-  R: partly defined
-  RH: unaffected
-  RL: partly defined
-  RL_HI: unaffected
-writing RH (bits 16..32)
-  R: partly defined
-  RL: unaffected
-  RL_HI: unaffected
-  RL_LO: unaffected
+units: 3
+  R = {u0, u1, u2}
+  RH = {u0}
+  RL = {u1, u2}
+  RL_HI = {u1}
+  RL_LO = {u2}
+write RL_LO
+  R: partly changed
+  RH: untouched
+  RL: partly changed
+  RL_HI: untouched
+write RL
+  R: partly changed
+  RH: untouched
+  RL_HI: fully redefined
+  RL_LO: fully redefined

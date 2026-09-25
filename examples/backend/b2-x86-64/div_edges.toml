@@ -1,0 +1,6 @@
+# A64 inline assembly: runs on both arm64 platforms, skipped on x86-64.
+# SDIV and MSUB are listed in the A64 base-instruction index below.
+platforms = ["macos-arm64", "linux-arm64"]
+follows = [
+  "https://developer.arm.com/documentation/ddi0602/2026-06/Base-Instructions",
+]

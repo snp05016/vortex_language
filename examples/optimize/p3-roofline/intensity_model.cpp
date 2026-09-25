@@ -1,43 +1,44 @@
-// Follows: Williams, Waterman, Patterson, "Roofline: An Insightful Visual
-// Performance Model for Floating-Point Programs and Multicore
-// Architectures", CACM 52(4), 2009, section 5 ("Tying the 3Cs to
-// Operational Intensity").
+// Follows: Williams, Waterman and Patterson, "Roofline: An Insightful
+// Visual Performance Model for Multicore Architectures", CACM 52(4), 2009,
+// section 3 (operational intensity counts DRAM traffic) and section 5
+// (compulsory misses set the least traffic).
 //
-// A static model of operational intensity (flops per byte of DRAM traffic)
-// for a square matmul C = A*B of dimension n, at a few tile sizes. This
-// counts flops and an ESTIMATE of DRAM bytes from the loop structure; it is
-// a teaching model, not a hardware measurement, and it prints no timing.
+// Counts the flops of C = A * B for n x n f32 matrices and estimates the
+// bytes that cross between the last cache and DRAM for three kinds of
+// schedule. The byte counts come from a model with stated assumptions;
+// nothing here is measured.
 #include <cstdio>
 #include <initializer_list>
 
-// One fused multiply-add per inner-loop step, counted as two flops (a
-// multiply and an add), matching the paper's convention (section 3).
-long long flop_count(long long n) { return 2LL * n * n * n; }
+constexpr long long elem = 4; // bytes in one f32
 
-// Bytes moved for a schedule that re-reads the n*n panel of B from DRAM
-// once for every group of t rows of C (n/t times in all), while A and C
-// are each read or written once. t = 1 is the naive, unblocked loop; t = n
-// reads B exactly once, which is the least any correct schedule can do
-// (the paper's "compulsory" traffic, section 5).
-long long bytes_moved(long long n, long long t) {
-    if (t < 1) t = 1;
-    if (t > n) t = n;
-    return (n * n * n / t) * 4 /* B, re-read n/t times */
-         + 2LL * n * n * 4 /* A and C, touched once each */;
+// One multiply-add per innermost step, counted as two flops.
+long long flops(long long n) { return 2 * n * n * n; }
+
+// Assumption: a block of B stays in cache while t rows of C use it and is
+// then evicted, so all of B crosses from DRAM n / t times; A and C cross
+// once each. t = 1 is the plain loop on a cache that cannot keep B from
+// one row of C to the next. t = n moves every byte once: the compulsory
+// traffic, which no schedule can go below.
+long long dram_bytes(long long n, long long t) {
+    return (n / t) * n * n * elem + 2 * n * n * elem;
 }
 
-double intensity(long long n, long long t) {
-    return static_cast<double>(flop_count(n)) / static_cast<double>(bytes_moved(n, t));
+void table(long long n) {
+    std::printf("n = %lld: %lld flops, working set %lld KiB\n", n, flops(n),
+                3 * n * n * elem / 1024);
+    for (long long t : {1LL, 4LL, 16LL, 32LL, n}) {
+        char name[32];
+        if (t == 1) std::snprintf(name, sizeof name, "naive");
+        else if (t == n) std::snprintf(name, sizeof name, "compulsory");
+        else std::snprintf(name, sizeof name, "tiled, t = %lld", t);
+        long long b = dram_bytes(n, t);
+        std::printf("  %-15s %13lld bytes %9.3f flops/byte\n", name, b,
+                    static_cast<double>(flops(n)) / static_cast<double>(b));
+    }
 }
 
 int main() {
-    const long long n = 64; // Vortex's stage-10 matmul kernel size
-
-    std::printf("n = %lld, flops = %lld\n", n, flop_count(n));
-    std::printf("%-10s %10s %10s %12s\n", "schedule", "tile", "bytes", "flops/byte");
-    std::printf("%-10s %10s %10lld %12.3f\n", "naive", "-", bytes_moved(n, 1), intensity(n, 1));
-    for (long long t : {4LL, 8LL, 16LL, 32LL}) {
-        std::printf("%-10s %10lld %10lld %12.3f\n", "tiled", t, bytes_moved(n, t), intensity(n, t));
-    }
-    std::printf("%-10s %10s %10lld %12.3f\n", "compulsory", "n", bytes_moved(n, n), intensity(n, n));
+    table(64);   // the stage 10 kernel's size
+    table(2048); // large enough that the working set outgrows the caches
 }

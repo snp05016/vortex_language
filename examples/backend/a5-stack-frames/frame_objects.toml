@@ -1,0 +1,4 @@
+follows = [
+  "https://llvm.org/docs/LangRef.html#alloca-instruction",
+  "https://llvm.org/docs/LangRef.html#function-attributes",
+]

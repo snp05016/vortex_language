@@ -1,0 +1,37 @@
+#map = affine_map<(d0, d1, d2) -> (0, d1, d2)>
+#map1 = affine_map<(d0, d1, d2) -> (d0, d1, d2)>
+module {
+  func.func @matmul_clamp(%arg0: tensor<1x8x16xf32>, %arg1: tensor<1x16x4xf32>) -> tensor<1x8x4xf32> {
+    %cst = arith.constant 3.40282347E+38 : f32
+    %c8 = arith.constant 8 : index
+    %c1 = arith.constant 1 : index
+    %c0 = arith.constant 0 : index
+    %cst_0 = arith.constant 0.000000e+00 : f32
+    %0 = tensor.empty() : tensor<1x8x4xf32>
+    %1 = tensor.empty() : tensor<1x8x4xf32>
+    %2 = scf.for %arg2 = %c0 to %c8 step %c1 iter_args(%arg3 = %1) -> (tensor<1x8x4xf32>) {
+      %extracted_slice = tensor.extract_slice %arg0[0, %arg2, 0] [1, 1, 16] [1, 1, 1] : tensor<1x8x16xf32> to tensor<1x1x16xf32>
+      %extracted_slice_1 = tensor.extract_slice %0[0, %arg2, 0] [1, 1, 4] [1, 1, 1] : tensor<1x8x4xf32> to tensor<1x1x4xf32>
+      %3 = linalg.fill ins(%cst_0 : f32) outs(%extracted_slice_1 : tensor<1x1x4xf32>) -> tensor<1x1x4xf32>
+      %4 = linalg.batch_matmul ins(%extracted_slice, %arg1 : tensor<1x1x16xf32>, tensor<1x16x4xf32>) outs(%3 : tensor<1x1x4xf32>) -> tensor<1x1x4xf32>
+      %extracted_slice_2 = tensor.extract_slice %arg3[0, %arg2, 0] [1, 1, 4] [1, 1, 1] : tensor<1x8x4xf32> to tensor<1x1x4xf32>
+      %5 = linalg.generic {indexing_maps = [#map, #map1], iterator_types = ["parallel", "parallel", "parallel"]} ins(%4 : tensor<1x1x4xf32>) outs(%extracted_slice_2 : tensor<1x1x4xf32>) {
+      ^bb0(%in: f32, %out: f32):
+        %6 = arith.minimumf %in, %cst : f32
+        %7 = arith.maximumf %6, %cst_0 : f32
+        linalg.yield %7 : f32
+      } -> tensor<1x1x4xf32>
+      %inserted_slice = tensor.insert_slice %5 into %arg3[0, %arg2, 0] [1, 1, 4] [1, 1, 1] : tensor<1x1x4xf32> into tensor<1x8x4xf32>
+      scf.yield %inserted_slice : tensor<1x8x4xf32>
+    }
+    return %2 : tensor<1x8x4xf32>
+  }
+  module attributes {transform.with_named_sequence} {
+    transform.named_sequence @__transform_main(%arg0: !transform.any_op {transform.readonly}) {
+      %0 = transform.structured.match ops{["linalg.generic"]} in %arg0 : (!transform.any_op) -> !transform.any_op
+      %transformed, %loops:2 = transform.structured.fuse %0 [1, 1, 0] : (!transform.any_op) -> (!transform.any_op, !transform.any_op, !transform.any_op)
+      transform.yield 
+    }
+  }
+}
+

@@ -1,20 +1,22 @@
 // SAXPY (y = a*x + y) as a single-source CUDA program: the kernel and the
-// host code that launches it live in one .cu file, compiled by nvcc. HIP's
-// version of this file is the same shape with hip* names in place of cuda*
-// and hipLaunchKernelGGL or the <<<...>>> syntax it also accepts.
+// host code that launches it live in one .cu file, and nvcc separates the
+// two when it compiles it. HIP's version has the same shape, with hip* in
+// place of cuda* and either the same <<<...>>> launch or hipLaunchKernelGGL.
 #include <cuda_runtime.h>
 
 __global__ void saxpy(int n, float a, const float* x, float* y) {
-    // Every thread reads its own coordinates from built-in variables; no
-    // argument tells it which element to touch.
+    // No argument says which element is this thread's: it computes its
+    // index from built-in variables.
     int i = blockIdx.x * blockDim.x + threadIdx.x;
+    // The launch counts whole blocks, so it rounds up and creates more
+    // threads than elements; the extra ones must do nothing.
     if (i < n) {
         y[i] = a * x[i] + y[i];
     }
 }
 
 int main() {
-    const int n = 1 << 16;
+    const int n = 1000;
     float *x, *y;
     cudaMallocManaged(&x, n * sizeof(float));
     cudaMallocManaged(&y, n * sizeof(float));
@@ -24,7 +26,7 @@ int main() {
     }
 
     const int threads_per_block = 256;
-    const int blocks = (n + threads_per_block - 1) / threads_per_block;
+    const int blocks = (n + threads_per_block - 1) / threads_per_block;  // 4
     saxpy<<<blocks, threads_per_block>>>(n, 2.0f, x, y);
     cudaDeviceSynchronize();
 

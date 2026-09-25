@@ -1,6 +1,28 @@
-expr: 2 + 3 * 4
-  result: 14
-expr: x * 3 + (4 - 1)
-  t0 = x * 3
-  t1 = t0 + 3
-  result: t1
+2+3*4
+  (folded to 14)
+x*8+(4-1)
+  ldr r0, [x]
+  lsl r0, r0, #3
+  add r0, r0, #3
+  result in r0
+a*b+(c*d+(e*f+g*h))
+  ldr r0, [a]
+  ldr r1, [b]
+  mul r0, r0, r1
+  ldr r1, [c]
+  ldr r2, [d]
+  mul r1, r1, r2
+  ldr r2, [e]
+  str r0, [t0]
+  ldr r0, [f]
+  mul r2, r2, r0
+  ldr r0, [g]
+  str r1, [t1]
+  ldr r1, [h]
+  mul r0, r0, r1
+  add r2, r2, r0
+  ldr r0, [t1]
+  add r0, r0, r2
+  ldr r1, [t0]
+  add r1, r1, r0
+  result in r1

@@ -1,88 +1,93 @@
+// Which archive members does a traditional Unix linker pull in, and why
+// does the order of archives on the command line matter?
+//
+// The linker keeps a set of undefined symbols and visits the inputs left to
+// right. An object file is always included. An archive is searched only at
+// its own position: a member is pulled in when it defines a symbol that is
+// undefined right now, and the search of that archive repeats until it
+// pulls nothing more. An archive is never revisited for needs created later.
+//
+// Follows: Ian Lance Taylor, "Linkers part 11" (archives), and the GNU ld
+// manual's description of -l and --start-group.
+
 #include <cstdio>
-#include <map>
 #include <set>
 #include <string>
 #include <vector>
 
-// Models the part of static linking that chooses which archive members to
-// pull in: symbol resolution across separately compiled pieces, not fixups
-// inside one file (b3's two_pass_fixups.cpp is that other half).
-//
-// A linker starts with the object files the user named directly; each has
-// symbols it defines and symbols it only references (undefined). An archive
-// (a .a file, "a table of contents" over many .o members) is searched only
-// for members that define a symbol still undefined: a member never pulled in
-// for a symbol nobody needs. Because pulling in one member can introduce new
-// undefined references, the search runs to a fixed point, not just once.
-//
-// Follows: Levine, "Linkers and Loaders", the chapters on archives and on
-// symbol resolution (https://www.iecc.com/linker/).
-
 struct Member {
     std::string name;
     std::set<std::string> defines;
-    std::set<std::string> references;
+    std::set<std::string> uses;
 };
 
-int main() {
-    // The objects named directly on the link line: already "pulled in".
-    std::set<std::string> defined = {"main"};
-    std::set<std::string> undefined = {"multiply", "print"};
+struct Input {
+    std::string name;
+    std::vector<Member> members;  // an object file is an archive of one,
+    bool archive;                 // but it is included unconditionally
+};
 
-    // An archive, searched only on demand, in this order. extra.o is listed
-    // before iolib.o, the member that needs it: a linker that scanned the
-    // archive only once, left to right, would reach extra.o while "flush"
-    // is still not wanted, skip it, and later fail to resolve "flush" at
-    // all. Running the scan to a fixed point (pass 2 here) is what lets
-    // archive order be imperfect and still link.
-    std::vector<Member> archive = {
-        {"extra.o", {"flush"}, {}},
-        {"mathlib.o", {"multiply"}, {}},
-        {"iolib.o", {"print"}, {"flush"}},
-    };
-    std::vector<bool> pulled(archive.size(), false);
+void add(const Member &m, std::set<std::string> &defined,
+         std::set<std::string> &undefined) {
+    for (const auto &s : m.defines) {
+        defined.insert(s);
+        undefined.erase(s);
+    }
+    for (const auto &s : m.uses)
+        if (!defined.count(s))
+            undefined.insert(s);
+}
 
-    int pass = 0;
-    bool progress = true;
-    while (progress) {
-        progress = false;
-        ++pass;
-        for (std::size_t i = 0; i < archive.size(); ++i) {
-            if (pulled[i])
-                continue;
-            const Member &m = archive[i];
-            bool needed = false;
-            for (const auto &sym : m.defines)
-                if (undefined.count(sym))
-                    needed = true;
-            if (!needed)
-                continue;
+void link(const std::vector<Input> &line) {
+    std::printf("link:");
+    for (const auto &in : line)
+        std::printf(" %s", in.name.c_str());
+    std::printf("\n");
 
-            pulled[i] = true;
-            progress = true;
-            std::printf("pass %d: pulling %s (defines", pass, m.name.c_str());
-            for (const auto &sym : m.defines) {
-                std::printf(" %s", sym.c_str());
-                undefined.erase(sym);
-                defined.insert(sym);
-            }
-            std::printf(")\n");
-            for (const auto &sym : m.references)
-                if (!defined.count(sym))
-                    undefined.insert(sym);
+    std::set<std::string> defined, undefined;
+    for (const auto &in : line) {
+        if (!in.archive) {
+            add(in.members[0], defined, undefined);
+            continue;
         }
-
-        std::printf("undefined after pass %d:", pass);
-        if (undefined.empty()) {
-            std::printf(" (none)\n");
-        } else {
-            for (const auto &sym : undefined)
-                std::printf(" %s", sym.c_str());
-            std::printf("\n");
+        std::vector<bool> pulled(in.members.size(), false);
+        for (int pass = 1, progress = 1; progress; ++pass) {
+            progress = 0;
+            for (std::size_t i = 0; i < in.members.size(); ++i) {
+                if (pulled[i])
+                    continue;
+                bool wanted = false;
+                for (const auto &s : in.members[i].defines)
+                    wanted = wanted || undefined.count(s) > 0;
+                if (!wanted)
+                    continue;
+                pulled[i] = true;
+                progress = 1;
+                add(in.members[i], defined, undefined);
+                std::printf("  %s pass %d: pull %s\n", in.name.c_str(), pass,
+                            in.members[i].name.c_str());
+            }
         }
     }
 
-    std::printf(undefined.empty() ? "link successful\n"
-                                   : "link failed: unresolved symbols\n");
-    return 0;
+    std::printf("  undefined at the end:");
+    for (const auto &s : undefined)
+        std::printf(" %s", s.c_str());
+    std::printf(undefined.empty() ? " (none)\n  link succeeds\n"
+                                  : "\n  link fails\n");
+}
+
+int main() {
+    const Input main_o{"main.o", {{"main.o", {"main"}, {"parse", "show"}}}, false};
+    // pad.o comes first, so the need that show.o creates for "pad" is only
+    // met on a second pass over the same archive.
+    const Input libtext{"libtext.a",
+                        {{"pad.o", {"pad"}, {}},
+                         {"show.o", {"show"}, {"pad"}},
+                         {"trim.o", {"trim"}, {}}},
+                        true};
+    const Input libparse{"libparse.a", {{"parse.o", {"parse"}, {"trim"}}}, true};
+
+    link({main_o, libtext, libparse});  // parse.o needs trim too late
+    link({main_o, libparse, libtext});  // every need arrives before its archive
 }

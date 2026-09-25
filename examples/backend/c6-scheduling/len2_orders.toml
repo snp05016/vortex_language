@@ -1,0 +1,8 @@
+# Hand-written AArch64 inside a C++ harness: built and run on arm64 only.
+platforms = ["macos-arm64", "linux-arm64"]
+# Keep the C++ reference free of fused multiply-adds.
+flags = ["-ffp-contract=off"]
+follows = [
+  "https://developer.arm.com/documentation/ddi0602/2026-06/Base-Instructions",
+  "https://doi.org/10.1145/12276.13312",
+]

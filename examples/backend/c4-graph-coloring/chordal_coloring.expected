@@ -1,15 +1,5 @@
 MCS order: a b e c d
-Reverse-MCS coloring:
-  d: color 0
-  c: color 1
-  e: color 2
-  b: color 0
-  a: color 1
+greedy in MCS order: a=0 b=1 e=2 c=0 d=1
   colors used: 3
-Arbitrary-order coloring (a, e, b, d, c):
-  a: color 0
-  e: color 1
-  b: color 2
-  d: color 0
-  c: color 3
+greedy in order a, d, b, c, e: a=0 d=0 b=1 c=2 e=3
   colors used: 4

@@ -1,11 +1,10 @@
 module {
-  func.func @patch_then_reread(%arg0: memref<8xf32, strided<[?], offset: ?>>, %arg1: memref<4xf32, strided<[?], offset: ?>>) -> (memref<8xf32>, memref<8xf32, strided<[?], offset: ?>>) {
+  func.func @patch_then_reread(%arg0: memref<8xf32>, %arg1: memref<4xf32>) -> (memref<8xf32>, memref<8xf32>) {
     %alloc = memref.alloc() {alignment = 64 : i64} : memref<8xf32>
-    memref.copy %arg0, %alloc : memref<8xf32, strided<[?], offset: ?>> to memref<8xf32>
+    memref.copy %arg0, %alloc : memref<8xf32> to memref<8xf32>
     %subview = memref.subview %alloc[0] [4] [1] : memref<8xf32> to memref<4xf32, strided<[1]>>
-    memref.copy %arg1, %subview : memref<4xf32, strided<[?], offset: ?>> to memref<4xf32, strided<[1]>>
-    %cast = memref.cast %alloc : memref<8xf32> to memref<8xf32, strided<[?], offset: ?>>
-    return %alloc, %arg0 : memref<8xf32>, memref<8xf32, strided<[?], offset: ?>>
+    memref.copy %arg1, %subview : memref<4xf32> to memref<4xf32, strided<[1]>>
+    return %alloc, %arg0 : memref<8xf32>, memref<8xf32>
   }
 }
 

@@ -1,0 +1,5 @@
+flags = ["-ffp-contract=off"]
+follows = [
+  "https://www.cs.utexas.edu/~flame/pubs/blis3_ipdps14.pdf",
+  "https://www.cs.utexas.edu/~flame/pubs/blis1_toms_rev3.pdf",
+]

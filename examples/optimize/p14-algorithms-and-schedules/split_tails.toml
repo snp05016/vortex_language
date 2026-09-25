@@ -1,0 +1,4 @@
+follows = [
+  "https://halide-lang.org/docs/tutorial/lesson_05_scheduling_1.html",
+  "https://github.com/exo-lang/exo/blob/main/docs/primitives/loop_ops.md",
+]

@@ -1,82 +1,94 @@
-// A reusable "bits gate": before any rung of the ladder is timed, its
-// output must be compared, byte for byte, against the naive kernel. This
-// checks two rungs from the ladder's own table: interchanging i and j
-// (bits stay identical, because it never touches how one C element's sum
-// is built) and reducing across k with a tree instead of left to right
-// (bits differ, because addition is not associative).
+// A bits gate for a ladder of 8x8 matrix products. Every variant is
+// compared with rung 0, element by element, as 32-bit patterns: `==` is
+// not enough, because it calls +0.0 and -0.0 equal. Built with
+// -ffp-contract=off, so each * and + rounds once unless a variant asks
+// for std::fma on purpose.
 #include <array>
-#include <iomanip>
-#include <iostream>
-#include <span>
+#include <bit>
+#include <cmath>
+#include <cstdint>
+#include <cstdio>
 
-bool same_bits(std::span<const float> lhs, std::span<const float> rhs) {
-    if (lhs.size() != rhs.size()) return false;
-    for (std::size_t i = 0; i < lhs.size(); ++i) {
-        if (lhs[i] != rhs[i]) return false;
-    }
-    return true;
-}
+constexpr int n = 8;
+using Matrix = std::array<float, n * n>;  // row r, column c at r * n + c
+using Rung = Matrix (*)(const Matrix&, const Matrix&);
 
-// A 2x2 matrix product, once with rows outer and once with columns outer.
-// Only the order across C elements changes; each element's own sum still
-// runs k = 0, 1 in order.
-std::array<float, 4> matmul_ij(const std::array<float, 4>& a,
-                                const std::array<float, 4>& b, bool rows_outer) {
-    std::array<float, 4> c{};
-    auto at = [](const std::array<float, 4>& m, int r, int col) { return m[r * 2 + col]; };
-    auto run = [&](int i, int j) {
-        float sum = 0.0f;
-        for (int k = 0; k < 2; ++k) sum += at(a, i, k) * at(b, k, j);
-        c[i * 2 + j] = sum;
-    };
-    if (rows_outer) {
-        for (int i = 0; i < 2; ++i)
-            for (int j = 0; j < 2; ++j) run(i, j);
-    } else {
-        for (int j = 0; j < 2; ++j)
-            for (int i = 0; i < 2; ++i) run(i, j);
-    }
+float at(const Matrix& m, int r, int c) { return m[r * n + c]; }
+
+Matrix rung0(const Matrix& a, const Matrix& b) {  // naive ijk
+    Matrix c{};
+    for (int i = 0; i < n; ++i)
+        for (int j = 0; j < n; ++j) {
+            float sum = 0.0f;
+            for (int k = 0; k < n; ++k) sum += at(a, i, k) * at(b, k, j);
+            c[i * n + j] = sum;
+        }
     return c;
 }
 
-// One C element's dot product, summed left to right (what every rung up
-// to the vectorizer does) and summed as a pairwise tree (what a
-// dot-product-shaped, k-vectorized reduction would do instead).
-float dot_sequential(const std::array<float, 4>& a, const std::array<float, 4>& b) {
-    float sum = 0.0f;
-    for (int k = 0; k < 4; ++k) sum += a[k] * b[k];
-    return sum;
+Matrix rung2(const Matrix& a, const Matrix& b) {  // ikj: order across elements
+    Matrix c{};
+    for (int i = 0; i < n; ++i)
+        for (int k = 0; k < n; ++k)
+            for (int j = 0; j < n; ++j) c[i * n + j] += at(a, i, k) * at(b, k, j);
+    return c;
 }
 
-float dot_tree(const std::array<float, 4>& a, const std::array<float, 4>& b) {
-    float left = a[0] * b[0] + a[1] * b[1];
-    float right = a[2] * b[2] + a[3] * b[3];
-    return left + right;
+Matrix rung6b(const Matrix& a, const Matrix& b) {  // zero-started panels of 4
+    Matrix c{};
+    for (int i = 0; i < n; ++i)
+        for (int j = 0; j < n; ++j)
+            for (int k0 = 0; k0 < n; k0 += 4) {
+                float acc = 0.0f;
+                for (int k = k0; k < k0 + 4; ++k) acc += at(a, i, k) * at(b, k, j);
+                c[i * n + j] += acc;  // one add per panel, not one per product
+            }
+    return c;
+}
+
+Matrix rung7(const Matrix& a, const Matrix& b) {  // fused multiply-add
+    Matrix c{};
+    for (int i = 0; i < n; ++i)
+        for (int j = 0; j < n; ++j) {
+            float sum = 0.0f;
+            for (int k = 0; k < n; ++k) sum = std::fma(at(a, i, k), at(b, k, j), sum);
+            c[i * n + j] = sum;
+        }
+    return c;
+}
+
+Matrix first_term(const Matrix& a, const Matrix& b) {  // "0 + x is x"
+    Matrix c{};
+    for (int i = 0; i < n; ++i)
+        for (int j = 0; j < n; ++j) {
+            float sum = at(a, i, 0) * at(b, 0, j);
+            for (int k = 1; k < n; ++k) sum += at(a, i, k) * at(b, k, j);
+            c[i * n + j] = sum;
+        }
+    return c;
+}
+
+void gate(const char* input, const char* name, const Matrix& ref, const Matrix& got) {
+    int bits = 0, values = 0;
+    for (int e = 0; e < n * n; ++e) {
+        bits += std::bit_cast<std::uint32_t>(ref[e]) != std::bit_cast<std::uint32_t>(got[e]);
+        values += ref[e] != got[e];
+    }
+    if (bits == 0) std::printf("%-6s %-22s identical\n", input, name);
+    else std::printf("%-6s %-22s differs in %d of %d (== sees %d)\n", input, name, bits, n * n, values);
 }
 
 int main() {
-    const std::array<float, 4> a{1.0f, 2.0f, 3.0f, 4.0f};
-    const std::array<float, 4> b{5.0f, 6.0f, 7.0f, 8.0f};
-    auto c_rows_outer = matmul_ij(a, b, true);
-    auto c_cols_outer = matmul_ij(a, b, false);
-    bool interchange_ok = same_bits(c_rows_outer, c_cols_outer);
-    std::cout << "gate: interchange (i,j swapped): "
-              << (interchange_ok ? "PASS" : "FAIL") << " (bits "
-              << (interchange_ok ? "identical" : "differ") << ")\n";
-
-    // A classic case where left-to-right and tree summation disagree: a
-    // large term all but swallows a small one, and which small term
-    // survives depends on grouping.
-    const std::array<float, 4> d{1.0e8f, 1.0f, -1.0e8f, 1.0f};
-    const std::array<float, 4> ones{1.0f, 1.0f, 1.0f, 1.0f};
-    float seq = dot_sequential(d, ones);
-    float tree = dot_tree(d, ones);
-    bool reduction_ok = (seq == tree);
-    std::cout << "gate: k-reduction (tree vs sequential sum): "
-              << (reduction_ok ? "PASS" : "FAIL") << " (bits "
-              << (reduction_ok ? "identical" : "differ") << ")\n";
-    std::cout << std::fixed << std::setprecision(1);
-    std::cout << "  sequential = " << seq << "\n";
-    std::cout << "  tree       = " << tree << "\n";
-    return 0;
+    Matrix a{}, b{}, neg_zero{}, ones{};
+    for (int e = 0; e < n * n; ++e) {
+        a[e] = static_cast<float>((e * 37) % 23 - 11) / 7.0f;  // sevenths: mostly inexact in binary
+        b[e] = static_cast<float>((e * 29) % 19 - 9) / 3.0f;
+        neg_zero[e] = -0.0f;
+        ones[e] = 1.0f;
+    }
+    const struct { const char* name; Rung run; } ladder[] = {
+        {"2 interchange ikj", rung2}, {"6b zero-started panels", rung6b},
+        {"7 fused multiply-add", rung7}, {"x start at first term", first_term}};
+    for (const auto& r : ladder) gate("mixed", r.name, rung0(a, b), r.run(a, b));
+    for (const auto& r : ladder) gate("zeros", r.name, rung0(neg_zero, ones), r.run(neg_zero, ones));
 }

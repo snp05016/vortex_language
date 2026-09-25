@@ -1,0 +1,4 @@
+follows = [
+  "https://people.csail.mit.edu/jrk/halide-pldi13.pdf",
+  "https://halide-lang.org/docs/tutorial/lesson_08_scheduling_2.html",
+]

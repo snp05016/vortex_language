@@ -1,5 +1,10 @@
-uniform: every lane takes branch 0               1 pass(es)
-parity: lane_id % 2                              2 pass(es)
-4-way switch: lane_id % 4                        4 pass(es)
-every lane its own branch: lane_id              32 pass(es)
-boundary guard: lane_id < 6 (6 of 32 in range)   2 pass(es)
+10-instruction arms                issued useful   slots
+uniform: every lane takes arm 0        10    320     320
+parity: lane % 2                       20    320     640
+halves: lane < 16                      20    320     640
+4-way switch: lane % 4                 40    320    1280
+32-way switch: lane                   320    320   10240
+guard: if (lane < 6), no else          10     60     320
+4-instruction loop body            issued useful   slots
+16 trips in every lane                 64   2048    2048
+lane l makes l trips                  124   1984    3968

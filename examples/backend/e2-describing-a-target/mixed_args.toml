@@ -1,6 +1,4 @@
-# The chapter shows this next to the assembly llc -O2 emits for it: a and c
-# (integers) land in x0/x1, b and d (floats) in s0/s1, exactly as AAPCS64's
-# two independent argument counters (A4) predict.
 follows = [
-  "https://github.com/ARM-software/abi-aa/blob/main/aapcs64/aapcs64.rst",
+  "https://github.com/llvm/llvm-project/blob/llvmorg-18.1.8/llvm/lib/Target/AArch64/AArch64CallingConvention.td",
+  "https://llvm.org/docs/MIRLangRef.html",
 ]

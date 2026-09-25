@@ -1,0 +1,6 @@
+schedule  blurx evals    blurx storage   same out
+root             1088             1088        yes
+inline           3072                0        yes
+sliding          1088               96        yes
+tiles            1280               80        yes
+out has 1024 points

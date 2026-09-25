@@ -1,12 +1,11 @@
-// A live interval is the cheap summary a linear scan allocator (C3) works
-// with: for each name, just [first definition, last use], on a single
-// numbering of the instructions. It is an approximation of the exact
-// per-instruction liveness that instruction_liveness.cpp computes: exact
-// liveness can say a name is dead in the middle and reborn later (the name
-// is reused for something unrelated), but an interval cannot represent a
-// gap, so it claims the name is live all the way through. That gap is a
-// "hole": an instruction inside the interval where the name is neither
-// live-in nor live-out.
+// A live interval, in Poletto and Sarkar's sense, is one range of
+// instruction numbers [first, last] outside which a name is never live. It
+// is the summary a linear scan allocator (C3) works with, and it is
+// conservative: a name can be dead in the middle of its interval. Here the
+// name x is reused for a second, unrelated value, so x is dead at
+// instruction 2 although its interval covers it. Wimmer and Mossenbock call
+// such a gap a lifetime hole and keep an interval as a list of ranges so the
+// allocator can see it.
 //   0: x = 1
 //   1: y = x + 1
 //   2: z = 5
@@ -14,11 +13,11 @@
 //   4: w = x + z
 //   5: store out1, y
 //   6: store out2, w
-// x's two live ranges are [0, 1] and [3, 4]; its interval is [0, 4], with
-// instruction 2 as a hole.
+// x's two live ranges are [0, 1] and [3, 4]; its interval is [0, 4].
 //
-// Follows: Wimmer and Mössenböck, "Optimized Interval Splitting in a Linear
-// Scan Register Allocator", VEE 2005. https://doi.org/10.1145/1064979.1064998
+// Follows: Poletto and Sarkar, "Linear Scan Register Allocation", TOPLAS
+// 1999, section 3; Wimmer and Mossenbock, "Optimized Interval Splitting in
+// a Linear Scan Register Allocator", VEE 2005.
 
 #include <algorithm>
 #include <print>
@@ -64,9 +63,8 @@ int main() {
     return std::pair{first, last};
   };
 
-  // The conservative interval: first definition to last use, over every name
-  // that appears (names may repeat, as x does; a real allocator would rename
-  // apart, which is exactly what building SSA (O3) does before this point).
+  // In straight-line code the interval runs from a name's first mention to
+  // its last; with loops it must come from liveness (see loop_liveness.cpp).
   std::set<std::string> names;
   for (const auto &ins : code) {
     for (const auto &d : ins.defs) names.insert(d);

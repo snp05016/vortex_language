@@ -1,6 +1,9 @@
-var   path-exploration visits   blocks marked live-in   matches fixed point
-x0                         5  {1,2,3,4}     yes
-i1                         6  {2,3,4}       yes
-acc1                       4  {2,3}         yes
-combined fixed point: 18 block visits over its passes
-path exploration, summed over all three variables: 15 visits
+block   fixed point   two-pass, pass 1   two-pass, pass 2   path exploration
+entry   -             -                  -                  -
+header  x0            x0                 x0                 x0
+pos     x0 i1 acc1    i1 acc1            x0 i1 acc1         x0 i1 acc1
+neg     x0 i1 acc1    x0 i1 acc1         x0 i1 acc1         x0 i1 acc1
+latch   x0 i1         i1                 x0 i1              x0 i1
+exit    -             -                  -                  -
+fixed point: 3 passes, the last one only confirming
+all three agree: yes

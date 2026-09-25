@@ -1,4 +1,0 @@
-follows = [
-  "https://llvm.org/docs/LangRef.html#alloca-instruction",
-  "https://github.com/ARM-software/abi-aa/blob/main/aapcs64/aapcs64.rst",
-]

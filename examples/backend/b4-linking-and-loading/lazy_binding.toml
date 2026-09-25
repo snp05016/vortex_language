@@ -1,1 +1,4 @@
-follows = ["https://maskray.me/blog/all-about-procedure-linkage-table"]
+follows = [
+  "https://github.com/ARM-software/abi-aa/blob/main/sysvabi64/sysvabi64.rst",
+  "https://maskray.me/blog/2021-09-19-all-about-procedure-linkage-table",
+]

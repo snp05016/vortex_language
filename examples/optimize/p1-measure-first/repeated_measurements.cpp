@@ -1,61 +1,62 @@
-// A worked example, not a real measurement: a fixed, synthetic trace of ten
-// invocation costs, in arbitrary ticks, standing in for what a benchmark
-// harness would hand you. The point is the arithmetic that turns many noisy
-// readings into a summary worth publishing, not the numbers themselves.
+// Fifteen made-up launch times, in arbitrary ticks: a worked example of the
+// arithmetic, not a measurement. Thirteen launches ran undisturbed; two were
+// interrupted. The program prints what each common summary makes of them.
 //
-// Follows: Kalibera & Jones, "Rigorous Benchmarking in Reasonable Time"
-// (percentile bootstrap confidence interval for a summary statistic) and
-// Georges, Buytaert & Eeckhout, "Statistically Rigorous Java Performance
-// Evaluation" (report a distribution, not a single best run).
+// Follows: Hoefler and Belli, "Scientific Benchmarking of Parallel Computing
+// Systems", section 3.1.3 (the confidence interval of the median from ranks,
+// after Le Boudec). The bootstrap interval is the textbook percentile method.
 #include <algorithm>
+#include <cmath>
+#include <cstdint>
 #include <cstdio>
-#include <random>
 #include <vector>
 
-// Percentile bootstrap: resample the trace with replacement `resamples`
-// times, compute the statistic on each resample, and take the 2.5th and
-// 97.5th percentiles of the results as a 95% interval. The PRNG is seeded
-// so the interval is exactly reproducible, not just "close enough".
-template <typename Statistic>
-std::pair<double, double> bootstrapCI(const std::vector<int>& trace,
-                                       Statistic statistic,
-                                       int resamples,
-                                       unsigned seed) {
-    std::mt19937 rng(seed);
-    std::uniform_int_distribution<std::size_t> pick(0, trace.size() - 1);
-    std::vector<double> replicates;
-    replicates.reserve(static_cast<std::size_t>(resamples));
+double median(std::vector<double> v) {
+    std::sort(v.begin(), v.end());
+    std::size_t n = v.size();
+    return n % 2 ? v[n / 2] : (v[n / 2 - 1] + v[n / 2]) / 2.0;
+}
 
-    std::vector<int> resample(trace.size());
-    for (int r = 0; r < resamples; ++r) {
-        for (std::size_t i = 0; i < trace.size(); ++i) resample[i] = trace[pick(rng)];
-        replicates.push_back(statistic(resample));
+// A 64-bit linear congruential generator, written out so that every standard
+// library produces the same resamples (std::uniform_int_distribution does not).
+struct Lcg {
+    std::uint64_t state;
+    std::size_t below(std::size_t n) {
+        state = state * 6364136223846793005u + 1442695040888963407u;
+        return static_cast<std::size_t>((state >> 33) % n);
     }
-    std::sort(replicates.begin(), replicates.end());
-    std::size_t lo = static_cast<std::size_t>(0.025 * static_cast<double>(replicates.size()));
-    std::size_t hi = static_cast<std::size_t>(0.975 * static_cast<double>(replicates.size()));
-    return {replicates[lo], replicates[hi]};
-}
-
-double median(std::vector<int> values) {
-    std::sort(values.begin(), values.end());
-    std::size_t n = values.size();
-    if (n % 2 == 1) return values[n / 2];
-    return (values[n / 2 - 1] + values[n / 2]) / 2.0;
-}
+};
 
 int main() {
-    const std::vector<int> trace = {104, 98, 231, 101, 97, 305, 99, 103, 96, 275};
+    const std::vector<double> t = {104, 98, 231, 101, 97, 99, 103, 96,
+                                   275, 100, 102, 99, 105, 98, 101};
+    const std::size_t n = t.size();
+    std::vector<double> sorted = t;
+    std::sort(sorted.begin(), sorted.end());
 
-    int best = *std::min_element(trace.begin(), trace.end());
     double mean = 0;
-    for (int t : trace) mean += t;
-    mean /= static_cast<double>(trace.size());
-    double med = median(trace);
+    for (double x : t) mean += x;
+    mean /= static_cast<double>(n);
+    std::printf("n=%zu min=%.0f median=%.0f mean=%.1f max=%.0f\n", n, sorted[0],
+                median(t), mean, sorted[n - 1]);
 
-    auto [lo, hi] = bootstrapCI(
-        trace, [](const std::vector<int>& sample) { return median(sample); }, 2000, 12345u);
+    // From ranks: no assumption about the shape of the distribution, and no
+    // random numbers. Ranks are 1-based, as in the paper.
+    const double z = 1.96, root = std::sqrt(static_cast<double>(n));
+    auto lo = static_cast<std::size_t>(std::floor((n - z * root) / 2));
+    auto hi = static_cast<std::size_t>(std::ceil(1 + (n + z * root) / 2));
+    std::printf("ranks %zu..%zu: median in [%.0f, %.0f]\n", lo, hi,
+                sorted[lo - 1], sorted[hi - 1]);
 
-    std::printf("n=%zu best=%d mean=%.1f median=%.1f ci95=[%.1f, %.1f]\n",
-                trace.size(), best, mean, med, lo, hi);
+    // Bootstrap: resample the launches with replacement, take the median of
+    // each resample, and read off the 2.5th and 97.5th percentiles.
+    Lcg rng{2026};
+    std::vector<double> medians, resample(n);
+    for (int b = 0; b < 2000; ++b) {
+        for (auto& x : resample) x = t[rng.below(n)];
+        medians.push_back(median(resample));
+    }
+    std::sort(medians.begin(), medians.end());
+    std::printf("bootstrap, 2000 resamples: median in [%.0f, %.0f]\n",
+                medians[50], medians[1949]);
 }

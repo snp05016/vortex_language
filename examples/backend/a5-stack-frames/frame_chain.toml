@@ -1,0 +1,6 @@
+# Keep a frame record in every function on every platform, so the chain exists.
+flags = ["-fno-omit-frame-pointer"]
+follows = [
+  "https://github.com/ARM-software/abi-aa/blob/main/aapcs64/aapcs64.rst",
+  "https://gcc.gnu.org/onlinedocs/gcc/Return-Address.html",
+]

@@ -4,4 +4,4 @@
 --8<-- "examples/backend/b2-x86-64/sub_sysv.s"
 ```
 
-<p class="vx-example-links">Follows: <a href="https://gitlab.com/x86-psABIs/x86-64-ABI">gitlab.com/x86-psABIs/x86-64-ABI</a>, <a href="https://sourceware.org/binutils/docs/as/Type.html">sourceware.org/binutils/docs/as/Type.html</a>, <a href="https://sourceware.org/binutils/docs/as/Size.html">sourceware.org/binutils/docs/as/Size.html</a>.</p>
+<p class="vx-example-links">Follows: <a href="https://gitlab.com/x86-psABIs/x86-64-ABI">gitlab.com/x86-psABIs/x86-64-ABI</a>, <a href="https://sourceware.org/binutils/docs/as/i386_002dVariations.html">sourceware.org/binutils/docs/as/i386_002dVariations.html</a>, <a href="https://sourceware.org/binutils/docs/as/Type.html">sourceware.org/binutils/docs/as/Type.html</a>, <a href="https://sourceware.org/binutils/docs/as/Size.html">sourceware.org/binutils/docs/as/Size.html</a>.</p>

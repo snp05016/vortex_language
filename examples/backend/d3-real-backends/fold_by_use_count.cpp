@@ -1,123 +1,105 @@
-// A one-pass, backward lowering, in the style Cranelift's instruction
-// selector blog post describes: use counts are computed once, then a single
-// pass from the end of the program to its start decides, at each
-// instruction, whether the value it produces was folded into whatever
-// consumed it. A value can only fold into its single consumer: if two
-// instructions read it, it must be computed once and kept around.
+// Backward lowering with register-use counts, in the style of Cranelift's
+// 2020 instruction selector: walk the function from its last instruction to
+// its first, let each instruction's lowering absorb (fold) its operands'
+// producers where the target allows, and count only the uses that still need
+// a value in a register. A pure instruction whose count is still zero when
+// the walk reaches it is never emitted: every consumer already absorbed it.
 //
-// Different problem from the Vortex exercise: a four-instruction toy IR
-// (input, shl, add, load), not Vortex's own address computation.
+// Different problem from the Vortex exercise: a six-opcode toy IR with an
+// AArch64-flavoured shifted-register add and scaled-index load.
 #include <iostream>
-#include <map>
-#include <set>
 #include <string>
 #include <vector>
 
 namespace {
 
 struct Instr {
-  int id;
-  std::string op;         // "input", "shl", "add", "load"
-  std::vector<int> args;  // operand ids, in def order
-  long imm = 0;            // shift amount, for "shl"
+  std::string op;         // "input", "shl", "add", "mul", "load", "ret"
+  std::vector<int> args;  // operand value numbers (v0, v1, ...)
+  int imm = 0;            // shift amount, for "shl"
 };
 
-// Counts how many times each instruction's result is read as an operand
-// elsewhere in the program. Computed once, ahead of the lowering pass,
-// exactly as Cranelift's isel notes describe.
-std::map<int, int> use_counts(const std::vector<Instr> &prog) {
-  std::map<int, int> counts;
-  for (const auto &ins : prog)
-    for (int a : ins.args) counts[a]++;
-  return counts;
+std::string v(int n) { return "v" + std::to_string(n); }
+
+// Loads may trap and "ret" leaves the function, so both are always lowered;
+// inputs are the function's parameters and exist whether used or not.
+bool always_lowered(const Instr &i) {
+  return i.op == "load" || i.op == "ret" || i.op == "input";
 }
 
-const Instr &find(const std::vector<Instr> &prog, int id) {
-  for (const auto &ins : prog)
-    if (ins.id == id) return ins;
-  throw std::runtime_error("no such id");
-}
+void lower(const std::string &title, const std::vector<Instr> &f) {
+  std::vector<int> reg_uses(f.size(), 0);
+  std::vector<std::string> out(f.size());
+  // Reading an operand as a register counts a use; folding it does not.
+  auto use = [&](int n) { reg_uses[n]++; return v(n); };
+  auto is_shl = [&](int n) { return f[n].op == "shl"; };
 
-// One backward pass over the program. Every "load" is a root (it may read
-// memory, so it is always kept). Walking from the last instruction to the
-// first lets the pass decide about an instruction's producer before it
-// reaches that producer, which is what makes folding a single pass instead
-// of a separate later cleanup.
-std::vector<std::string> lower(const std::vector<Instr> &prog) {
-  auto counts = use_counts(prog);
-  std::set<int> folded_away;
-  std::map<int, std::string> lines; // keyed by id, printed in program order
-
-  for (auto it = prog.rbegin(); it != prog.rend(); ++it) {
-    const Instr &ins = *it;
-    if (folded_away.count(ins.id)) continue; // consumed by a later fold
-
-    if (ins.op == "load") {
-      const Instr &addr = find(prog, ins.args[0]);
-      bool fused = false;
-      if (addr.op == "add" && counts[addr.id] == 1) {
-        for (int operand_id : addr.args) {
-          const Instr &operand = find(prog, operand_id);
-          if (operand.op == "shl" && counts[operand.id] == 1) {
-            int base_id = (operand_id == addr.args[0]) ? addr.args[1]
-                                                         : addr.args[0];
-            lines[ins.id] = "v" + std::to_string(ins.id) + " = load [v" +
-                             std::to_string(base_id) + " + v" +
-                             std::to_string(operand.args[0]) + " << " +
-                             std::to_string(operand.imm) + "]";
-            folded_away.insert(addr.id);
-            folded_away.insert(operand.id);
-            fused = true;
-            break;
-          }
-        }
+  for (int n = static_cast<int>(f.size()) - 1; n >= 0; --n) {
+    const Instr &i = f[n];
+    // Every consumer of v<n> comes later in the function, so by now all of
+    // them have been lowered and reg_uses[n] is final.
+    if (!always_lowered(i) && reg_uses[n] == 0) continue;
+    const auto &a = i.args;
+    if (i.op == "input") {
+      out[n] = v(n) + " = input";
+    } else if (i.op == "ret") {
+      out[n] = "ret " + use(a[0]);
+    } else if (i.op == "shl") {
+      out[n] = v(n) + " = " + use(a[0]) + " << " + std::to_string(i.imm);
+    } else if (i.op == "mul") {  // no shifted form: both operands in registers
+      out[n] = v(n) + " = mul " + use(a[0]) + ", " + use(a[1]);
+    } else if (i.op == "add") {  // absorb a shift into "add rd, rn, rm, lsl #k"
+      if (is_shl(a[1])) {
+        const Instr &s = f[a[1]];
+        out[n] = v(n) + " = add " + use(a[0]) + ", " + use(s.args[0]) +
+                 ", lsl #" + std::to_string(s.imm);
+      } else {
+        out[n] = v(n) + " = add " + use(a[0]) + ", " + use(a[1]);
       }
-      if (!fused)
-        lines[ins.id] = "v" + std::to_string(ins.id) + " = load [v" +
-                         std::to_string(addr.id) + "]";
-    } else if (ins.op == "shl") {
-      lines[ins.id] = "v" + std::to_string(ins.id) + " = v" +
-                       std::to_string(ins.args[0]) + " << " +
-                       std::to_string(ins.imm);
-    } else if (ins.op == "add") {
-      lines[ins.id] = "v" + std::to_string(ins.id) + " = v" +
-                       std::to_string(ins.args[0]) + " + v" +
-                       std::to_string(ins.args[1]);
-    } else { // "input"
-      lines[ins.id] = "v" + std::to_string(ins.id) + " = input";
+    } else if (i.op == "load") {  // absorb add(base, shl(idx)) into [base + idx << k]
+      const Instr &addr = f[a[0]];
+      if (addr.op == "add" && is_shl(addr.args[1])) {
+        const Instr &s = f[addr.args[1]];
+        out[n] = v(n) + " = load [" + use(addr.args[0]) + " + " +
+                 use(s.args[0]) + " << " + std::to_string(s.imm) + "]";
+      } else {
+        out[n] = v(n) + " = load [" + use(a[0]) + "]";
+      }
     }
   }
 
-  std::vector<std::string> out;
-  for (const auto &ins : prog) {
-    auto found = lines.find(ins.id);
-    if (found != lines.end()) out.push_back(found->second);
-  }
-  return out;
-}
-
-void run(const std::string &title, const std::vector<Instr> &prog) {
   std::cout << title << ":\n";
-  for (const auto &line : lower(prog)) std::cout << "  " << line << "\n";
+  std::string skipped;
+  for (std::size_t n = 0; n < f.size(); ++n) {
+    if (!out[n].empty()) std::cout << "  " << out[n] << "\n";
+    else skipped += " " + v(static_cast<int>(n));
+  }
+  std::cout << "  not emitted:" << skipped << "\n";
 }
 
-} // namespace
+}  // namespace
 
 int main() {
-  // v0 = base, v1 = index, v2 = index << 2, v3 = base + v2, v4 = load [v3].
-  // v2 and v3 are each read exactly once, by the next instruction, so both
-  // fold into a single addressing mode on the load.
-  std::vector<Instr> single_use = {
-      {0, "input", {}, 0}, {1, "input", {}, 0}, {2, "shl", {1}, 2},
-      {3, "add", {0, 2}, 0}, {4, "load", {3}, 0}};
-  run("index used once", single_use);
+  // v2 = v1 << 2 and v3 = v0 + v2 feed only the load's address.
+  std::vector<Instr> base = {{"input", {}}, {"input", {}}, {"shl", {1}, 2},
+                             {"add", {0, 2}}, {"load", {3}}};
 
-  // Same shape, but v2 (the shift) is also read directly by a second load.
-  // Its use count is 2, so it can no longer fold into the first load's
-  // address: it has to be materialized once and shared.
-  std::vector<Instr> shared_use = {
-      {0, "input", {}, 0},   {1, "input", {}, 0}, {2, "shl", {1}, 2},
-      {3, "add", {0, 2}, 0}, {4, "load", {3}, 0}, {5, "load", {2}, 0}};
-  run("index used twice", shared_use);
+  auto one = base;
+  one.push_back({"ret", {4}});
+  lower("shift feeds one load", one);
+
+  // v2 now has a second consumer, an add, which can also absorb the shift:
+  // two uses, zero register uses, so the shift is still never computed.
+  auto two = base;
+  two.push_back({"add", {4, 2}});
+  two.push_back({"ret", {5}});
+  lower("second consumer also folds it", two);
+
+  // A mul cannot absorb a shift, so it needs v2 in a register: v2 is emitted
+  // once, and the load still repeats the shift inside its address for free.
+  auto three = base;
+  three.push_back({"mul", {4, 2}});
+  three.push_back({"ret", {5}});
+  lower("second consumer needs a register", three);
   return 0;
 }

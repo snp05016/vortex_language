@@ -1,5 +1,5 @@
+flags = ["-ffp-contract=off"]
 follows = [
-  "https://www.cs.utexas.edu/~flame/pubs/GotoTOMS_revision.pdf",
-  "https://www.cs.utexas.edu/~flame/pubs/blis1_toms_rev3.pdf",
   "https://github.com/flame/blis/blob/master/docs/KernelsHowTo.md",
+  "https://www.cs.utexas.edu/~flame/pubs/GotoTOMS_revision.pdf",
 ]

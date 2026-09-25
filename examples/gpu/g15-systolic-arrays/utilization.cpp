@@ -1,14 +1,13 @@
-// Utilization of a fixed K x K systolic array multiplying an N x N matrix
-// that does not divide evenly by K.
+// How much of a fixed K x K array does useful work on an N x N product?
 //
-// A K x K output-stationary array only computes K x K products. A bigger
-// product is covered by tiling N into ceil(N/K) tiles per side and running
-// one K x K multiply per tile pair; the array is loaded with the same K,
-// whether or not N is a multiple of it. Tiles that fall outside the N x N
-// matrix still occupy cells and cycles: they are padded with zeros. Their
-// utilization is the fraction of cell-cycles that did useful work.
+// The array covers the N x N result in K x K tiles, ceil(N / K) per side.
+// Tiles on the far edges overrun the matrix and are padded with zeros: the
+// padded cells occupy the array for as long as the real ones but add nothing.
+// Both sides pad, so the useful fraction is an area: N*N / (padded*padded).
+// (For an output-stationary array the padded dimensions are the two output
+// dimensions; for a weight-stationary one, the two dimensions of the weight
+// tile. The ratio is the same for a square matrix.)
 
-#include <cstddef>
 #include <print>
 
 struct Case {
@@ -17,16 +16,17 @@ struct Case {
 };
 
 int main() {
-  // 64 is the side of Vortex's own stage-10 matmul kernel (decision 43's
-  // row-major [f32; 64, 64]); the others show a size that never divides
-  // evenly, and the K = N case, where nothing is wasted.
-  const Case cases[] = {{64, 64}, {64, 16}, {64, 24}, {10, 4}};
+  // 64: the [f32; 64, 64] kernel of the GPU ladder. 600 on 256 and 512: the
+  // case Jouppi et al. (ISCA 2017, section 7) use to explain why a larger
+  // TPU matrix unit could be slower.
+  const Case cases[] = {{64, 64}, {64, 16}, {64, 24}, {10, 4}, {600, 256}, {600, 512}};
 
-  std::println("{:>4} {:>4} {:>6} {:>8} {:>10}", "n", "k", "tiles", "padded", "util %");
+  std::println("{:>4} {:>4} {:>10} {:>10} {:>8}", "n", "k", "tiles", "padded", "util %");
   for (const auto &c : cases) {
-    const int tiles = (c.n + c.k - 1) / c.k;       // ceil(n / k)
-    const int padded = tiles * c.k;                 // padded side length
+    const int per_side = (c.n + c.k - 1) / c.k; // ceil(n / k)
+    const int padded = per_side * c.k;
     const double util = 100.0 * (double(c.n) * c.n) / (double(padded) * padded);
-    std::println("{:>4} {:>4} {:>6} {:>8} {:>9.1f}%", c.n, c.k, tiles, padded, util);
+    std::println("{:>4} {:>4} {:>6} x {:<1} {:>10} {:>7.1f}%", c.n, c.k, per_side, per_side,
+                 padded, util);
   }
 }

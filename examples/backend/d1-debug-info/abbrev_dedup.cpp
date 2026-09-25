@@ -1,67 +1,58 @@
 // Follows: DWARF Debugging Information Format, Version 5, section 7.5.3
-// (the abbreviations table), https://dwarfstd.org/dwarf5std.html
+// (abbreviations tables), https://dwarfstd.org/dwarf5std.html
 //
-// Models why DWARF gives each debugging information entry (DIE) an
-// abbreviation code instead of writing its tag and attribute list out in
-// full. Two DIEs with the same tag and the same set of attributes (even
-// if the attribute values differ) can share one abbreviation; only the
-// values change per DIE. This builds a tiny DIE tree for a two-function
-// toy program and counts how many distinct shapes it actually needs.
+// Assigns abbreviation codes to a list of debugging information entries
+// (DIEs) the way a DWARF producer does. An abbreviation records a tag,
+// whether the entry has children, and its (attribute, form) pairs; every
+// DIE with exactly that shape reuses the code, whatever its values are.
+// The first seven DIEs are the ones clang -g -O0 wrote for clamp.c in
+// this chapter (compile-unit and subprogram attribute lists shortened).
 #include <cstdio>
 #include <map>
 #include <string>
+#include <tuple>
 #include <vector>
 
-enum class Tag { CompileUnit, Subprogram, Parameter, Variable };
-
-// A DIE's "shape" is its tag plus which attributes it carries. Two DIEs
-// with the same shape can reuse one abbreviation; DWARF does not care
-// that their attribute values (a name, a type, a location) differ.
 struct Shape {
-    Tag tag;
-    bool has_name;
-    bool has_type;
-    bool has_location;
+    std::string tag;
+    bool children;
+    std::vector<std::string> attrs;  // "attribute:form", in order
     bool operator<(const Shape& o) const {
-        return std::tie(tag, has_name, has_type, has_location) <
-               std::tie(o.tag, o.has_name, o.has_type, o.has_location);
+        return std::tie(tag, children, attrs) < std::tie(o.tag, o.children, o.attrs);
     }
 };
 
 struct Die {
-    std::string label;  // for printing only; not part of the shape
+    std::string what;  // the values: never part of the shape
     Shape shape;
 };
 
 int main() {
-    // One compile unit, two functions, each with a parameter and a
-    // local variable: eight DIEs from four distinct shapes.
+    const std::vector<std::string> var = {"location:exprloc", "name:strx1",
+                                          "decl_file:data1", "decl_line:data1",
+                                          "type:ref4"};
+    const std::vector<std::string> gone = {"name:strx1", "decl_file:data1",
+                                           "decl_line:data1", "type:ref4"};
+    const std::vector<std::string> fn = {"low_pc:addrx", "high_pc:data4", "name:strx1",
+                                         "type:ref4"};
     std::vector<Die> dies = {
-        {"compile_unit",       {Tag::CompileUnit, true, false, false}},
-        {"fn average3",        {Tag::Subprogram,  true, true,  true}},
-        {"  param a",          {Tag::Parameter,   true, true,  true}},
-        {"  local sum",        {Tag::Variable,    true, true,  true}},
-        {"fn clamp",           {Tag::Subprogram,  true, true,  true}},
-        {"  param value",      {Tag::Parameter,   true, true,  true}},
-        {"  local result",     {Tag::Variable,    true, true,  true}},
-        {"  local unused_tmp", {Tag::Variable,    true, false, false}},
+        {"compile_unit clamp.c", {"compile_unit", true, {"name:strx1", "stmt_list:sec_offset"}}},
+        {"subprogram clamp", {"subprogram", true, fn}},
+        {"formal_parameter v", {"formal_parameter", false, var}},
+        {"formal_parameter lo", {"formal_parameter", false, var}},
+        {"formal_parameter hi", {"formal_parameter", false, var}},
+        {"variable r", {"variable", false, var}},  // same list, other tag
+        {"base_type int", {"base_type", false, {"name:strx1", "encoding:data1", "byte_size:data1"}}},
+        // Two entries clamp.c did not have:
+        {"variable t (optimized out)", {"variable", false, gone}},
+        {"subprogram zero (no children)", {"subprogram", false, fn}},
     };
 
-    std::map<Shape, int> abbrev_of_shape;
-    std::vector<int> abbrev_of_die;
+    std::map<Shape, int> code_of;  // the abbreviation table being built
     for (const Die& d : dies) {
-        auto it = abbrev_of_shape.find(d.shape);
-        if (it == abbrev_of_shape.end()) {
-            int code = static_cast<int>(abbrev_of_shape.size()) + 1;
-            it = abbrev_of_shape.emplace(d.shape, code).first;
-        }
-        abbrev_of_die.push_back(it->second);
+        auto [it, is_new] = code_of.try_emplace(d.shape, int(code_of.size()) + 1);
+        std::printf("[%d]%s %s\n", it->second, is_new ? " new " : "     ", d.what.c_str());
     }
-
-    for (std::size_t i = 0; i < dies.size(); ++i) {
-        std::printf("abbrev %d  %s\n", abbrev_of_die[i], dies[i].label.c_str());
-    }
-    std::printf("%zu DIEs, %zu distinct abbreviations\n",
-                dies.size(), abbrev_of_shape.size());
+    std::printf("%zu DIEs, %zu abbreviations\n", dies.size(), code_of.size());
     return 0;
 }

@@ -1,4 +1,8 @@
-gate: interchange (i,j swapped): PASS (bits identical)
-gate: k-reduction (tree vs sequential sum): FAIL (bits differ)
-  sequential = 1.0
-  tree       = 0.0
+mixed  2 interchange ikj      identical
+mixed  6b zero-started panels differs in 27 of 64 (== sees 27)
+mixed  7 fused multiply-add   differs in 28 of 64 (== sees 28)
+mixed  x start at first term  identical
+zeros  2 interchange ikj      identical
+zeros  6b zero-started panels identical
+zeros  7 fused multiply-add   identical
+zeros  x start at first term  differs in 64 of 64 (== sees 0)

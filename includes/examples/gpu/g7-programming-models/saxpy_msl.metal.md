@@ -4,4 +4,4 @@
 --8<-- "examples/gpu/g7-programming-models/saxpy_msl.metal"
 ```
 
-<p class="vx-example-links">Follows: <a href="https://developer.apple.com/documentation/metal/performing-calculations-on-a-gpu">developer.apple.com/documentation/metal/performing-calculations-on-a-gpu</a>.</p>
+<p class="vx-example-links">Follows: <a href="https://developer.apple.com/documentation/metal/performing-calculations-on-a-gpu">developer.apple.com/documentation/metal/performing-calculations-on-a-gpu</a>, <a href="https://developer.apple.com/documentation/metal/calculating-threadgroup-and-grid-sizes">developer.apple.com/documentation/metal/calculating-threadgroup-and-grid-sizes</a>.</p>

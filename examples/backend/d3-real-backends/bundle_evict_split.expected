@@ -1,0 +1,18 @@
+A [0,20) weight 2/20
+  take r0
+C [4,16) weight 2/12
+  take r1
+B [2,12) weight 24/10
+  evict A from r0
+  take r0
+A [0,20) weight 2/20
+  split at 4: A1 hinted r1, A2 requeued
+A2 [4,20) weight 1/16
+  conflicts from its first position: stack slot
+D [13,18) weight 4/5
+  take r0
+A1 [0,4) weight 1/4
+  take r1
+r0: B D
+r1: C A1
+stack: A2

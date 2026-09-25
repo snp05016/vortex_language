@@ -1,0 +1,10 @@
+misses per 1000 multiply-adds, toy cache 4 KiB, 2-way, 32-byte lines
+         |       N = 128 |       N = 129 |       N = 136
+         |  tiled copied |  tiled copied |  tiled copied
+ untiled |    130      - |    130      - |    127      -
+   B = 8 |     94     32 |     85     66 |     32     32
+  B = 12 |    191     30 |    151     37 |     31     31
+  B = 16 |    144     17 |    154     29 |     18     17
+  B = 24 |    136     17 |    152     24 |     19     15
+  B = 32 |    136     32 |    152     43 |     38     32
+  B = 48 |    134    127 |    147    130 |    128    132

@@ -1,158 +1,183 @@
 # P8. Cache blocking
 
-<p class="page-intro">Tiling a loop nest so the data it reuses stays in a cache instead of falling out of it before the reuse happens, and choosing a tile size from cache facts instead of guessing.</p>
+<p class="page-intro">Tiling a loop nest so that the data it reuses is still in a cache when the reuse comes, choosing the tile size from cache facts, and checking that choice against the two things capacity alone does not see: how the tile's rows land in the cache's sets, and how many pages they span. For Vortex, this is the fourth rung of the matrix-multiplication ladder, and the first one whose best parameter depends on the machine.</p>
 
-<p class="vx-meta" markdown="1">Level: Intermediate · Reading time: about 25 minutes · Builds on: [P2. The memory hierarchy](p2-memory-hierarchy.md), [P7. Loop transformations](p7-loop-transformations.md)</p>
+<p class="vx-meta" markdown="1">Level: Intermediate · Reading time: about 40 minutes · Builds on: [P2. The memory hierarchy](p2-memory-hierarchy.md), [P7. Loop transformations](p7-loop-transformations.md)</p>
 
 ???+ remember "Before you start, remember"
 
-    ??? question "What turns reuse into locality?"
+    ??? question "What is the difference between reuse and locality?"
 
-        Reuse belongs to the computation: the same data used by more than one iteration. Locality is reuse the cache manages to keep: the second use arrives before the cache has thrown the data out. A transformation cannot create or destroy reuse, only move uses closer together or further apart in time.
+        Reuse belongs to the computation: the same data is used by more than one iteration. Locality is reuse the cache manages to keep: the second use arrives before the data has been evicted. A loop transformation cannot create reuse, only move the uses closer together or further apart in time.
 
         Introduced in [P7. Loop transformations](p7-loop-transformations.md#the-same-work-in-a-different-order).
 
     ??? question "When may a band of loops be tiled?"
 
-        When the band is fully permutable: every dependence inside it is lexicographically positive, and each one is either already carried by a loop outside the band or free of negative entries. Matrix multiplication's one dependence, `(=, =, <)` on `c`, qualifies for all three loops.
+        When the band is fully permutable: every dependence is lexicographically positive and, within the band, either carried by an outer loop or free of negative entries. Matrix multiplication's one dependence, `(=, =, <)` on `c`, lets all three loops be tiled.
 
         Introduced in [P7. Loop transformations](p7-loop-transformations.md#strip-mining-and-tiling).
 
-    ??? question "What would make a tiled matrix multiplication print different bits than the naive one?"
+    ??? question "Why can two addresses evict each other while most of the cache is empty?"
 
-        Running its accumulation blocks out of order: if the blocks along `k` do not run from low to high, an element of `c` sums the same products in a different order, and floating-point addition is not associative.
+        An address may live only in the one set its middle bits choose. If more addresses that map to one set are in use than the set has ways, they evict each other: a conflict miss, not a capacity miss.
 
-        Introduced in [P7. Loop transformations](p7-loop-transformations.md#putting-them-in-order).
+        Introduced in [P2. The memory hierarchy](p2-memory-hierarchy.md#sets-and-associativity).
 
-    ??? question "How many bytes does one cache line hold on the owner's M4 Pro, and how many `f32` values is that?"
+    ??? question "What is a TLB's reach?"
 
-        128 bytes, reported by `sysctl hw.cachelinesize`: room for 32 `f32` values.
+        The number of entries times the page size: the amount of memory whose translations the TLB can hold at once. The owner's M4 Pro uses 16 KiB pages.
 
-        Introduced in [P7. Loop transformations](p7-loop-transformations.md#the-same-work-in-a-different-order).
+        Introduced in [P2. The memory hierarchy](p2-memory-hierarchy.md#the-tlb-caching-translations-not-data).
 
 !!! goals "In this chapter"
 
-    - Explain why a loop nest that reuses more data than a cache can hold still misses, even when every individual access is legal and in order.
-    - Turn a cache budget into a tile size with a footprint formula, and check the formula against a sweep.
-    - Recognize self-interference: why a tile that is small enough for a cache can still thrash it, and what a compiler can do about the stride that causes it.
-    - Choose an order for nested tiles that keeps Vortex's matrix multiplication bit-identical to the naive kernel.
-    - State what a tile-size choice still owes the reader: a measurement, not a claim.
+    - Measure a loop's reuse distance by hand, and explain why a kernel whose data fits in L2 can still miss L1 on every reuse.
+    - Tile the stage 10 kernel so that one block of `b` is reused by every row, and keep its bits identical to the untiled kernel.
+    - Turn a cache budget into a block size with a footprint model, and say what the model cannot see.
+    - Recognize self-interference and critical strides, and predict them from a matrix's row length and a cache's set count.
+    - Explain why copying a block into a contiguous buffer removes self-interference and TLB pressure, and what it costs.
 
 ## A loop that reuses more than it keeps
 
-Take three 512 × 512 matrices of `f32`, `a`, `b` and `c`, and the ikj kernel from [P7](p7-loop-transformations.md#making-the-stage-10-nest-perfect): for each row `i`, for each `k`, add `a[i, k]` times the whole row `b[k, :]` into the whole row `c[i, :]`. Each matrix is 512 × 512 × 4 bytes = 1 MiB.
+Take three 512 × 512 matrices of `f32`, `a`, `b` and `c`, and the ikj kernel from [P7](p7-loop-transformations.md#making-the-stage-10-nest-perfect): for each row `i`, for each `k`, add `a[i, k]` times row `k` of `b` into row `i` of `c`. Each matrix is 512 × 512 × 4 bytes = 1 MiB. P7 chose this order because it walks `b` and `c` along rows, one cache line after another. It did not ask whether a line, once fetched, is still there when it is needed again.
 
-Follow one element of `b` through the loop. `b[0, 0]` is read once while `i` is 0 and `k` is 0. It is not read again until `i` becomes 1, and by then the kernel has walked every other `k` for `i = 0`, touching a whole row of `b` and a whole row of `c` at each one: on the order of hundreds of thousands of other reads and writes lie between the two uses of `b[0, 0]`. That gap, measured in intervening accesses, is the pair's **reuse distance**. A cache turns reuse into locality only when the reused data survives for the whole distance, and 1 MiB does not survive in a cache with a 128 KiB budget: `sysctl hw.perflevel0.l1dcachesize` reports exactly that for the P-core L1d on the owner's Apple M4 Pro, checked on 2026-09-24. The whole matrix `b` is far larger than the cache well before `i` reaches 1, so `b[0, 0]` is gone by the time it is needed again, and the kernel fetches it from a slower level every single time: a working set that outlives its own cache.
+Follow one element, `b[0, 0]`. It is read at `i = 0, k = 0`, and next at `i = 1, k = 0`. In between, the kernel reads every row of `b`, once. The number of distinct cache lines a program touches between two uses of the same data is that pair's **reuse distance**. In a fully associative cache that evicts the least recently used line, the second use hits exactly when the reuse distance is smaller than the number of lines the cache holds: every line touched in between is more recent, and only the oldest line leaves.
 
-The three matrices together, 3 MiB, fit the same machine's L2 (16 MiB, shared by four P-cores, from `sysctl hw.perflevel0.l2cachesize hw.perflevel0.cpusperl2`, same date). So it is not that the problem is too big. It is that the reuse distance, at this loop order, is longer than the smaller, faster cache can bridge, even though the total data the loop ever touches fits the larger, slower one. [P7](p7-loop-transformations.md) chose the order that walks memory unit-stride; this chapter changes how much of that order runs before doubling back, so that the data revisited is still where it was left.
+Here is the count by hand, on the owner's Apple M4 Pro, whose cache line is 128 bytes (`sysctl hw.cachelinesize`) and whose performance-core L1 data cache is 131,072 bytes (`sysctl hw.perflevel0.l1dcachesize`), both read on 2026-09-24.
+
+| Between the two uses of | Lines of `b` | Lines of `c` | Lines of `a` | Reuse distance | L1d lines |
+| --- | --- | --- | --- | --- | --- |
+| `b[0, 0]`, from `i = 0` to `i = 1` | 512 rows × 16 | 16 | 16 | about 8,224 | 1,024 |
+| `c[0, 0]`, from `k = 0` to `k = 1` | 16 | 16 | 1 | about 33 | 1,024 |
+
+A row of 512 `f32` values is 2,048 bytes, 16 lines. The reuse of `c` fits with room to spare, so row `i` of `c` stays in L1 while `k` runs. The reuse of `b` is eight times too long: by the time `i` moves on, all of `b` has passed through a cache an eighth its size, and every element of `b` comes from further away, on every row. The kernel's working set, the data it touches over a stretch of time ([P2](p2-memory-hierarchy.md#the-hierarchy-several-sizes-several-speeds)), is the whole of `b` over one row step.
+
+The three matrices together, 3 MiB, fit in the same machine's 16 MiB L2 (`sysctl hw.perflevel0.l2cachesize`, shared by the four cores of a cluster according to `hw.perflevel0.cpusperl2`). So the problem is not that the data is too big. It is that the loop order makes the reuse distance of `b` longer than the fastest cache. [P3](p3-roofline.md#operational-intensity-flops-per-byte-of-dram-traffic) measured the same thing as traffic: the naive schedule re-reads `b` once per row of `c`, while the compulsory floor reads each array once.
+
+Blocking is an old fix, and it has been measured. On the Core 2 in Drepper's paper, blocking a `double` matrix multiplication took it to 17.3% of the original loop's cycles, against 23.4% for a transposed copy of one operand; Drepper sets rounding effects aside when he reorders the additions.[^drepper] In siboehm's 1024 × 1024 `f32` tutorial on an Intel i7-6700, built with `-ffast-math`, adding L1 tiling to the reordered loop took it from 89 ms to 70 ms.[^boehm] Neither number says anything about your machine. What they say is that blocking pays on real hardware, by amounts that depend on the machine and on what the loop already does well.
 
 ## Tiling shortens the distance
 
-**Tiling**, introduced in [P7](p7-loop-transformations.md#strip-mining-and-tiling) as strip-mining combined with permutation, is the transformation that does this: it turns one long sweep of the reduction dimension into several short ones, and moves the same amount of surrounding work inside each short sweep before advancing. For matrix multiplication, tiling `i`, `j` and `k` by `T` replaces the 512-long sweep of `k` for one row with `⌈512 / T⌉` sweeps of length `T`, each paired with a `T`-row, `T`-column block of the output.
+Tiling, from [P7](p7-loop-transformations.md#strip-mining-and-tiling), strip-mines loops and moves the strip loops outward. The question is which loops, and which order. Lam, Rothberg and Wolf study the blocked form of this kernel that strip-mines `k` and `j` by a **block size** `B` and moves both strip loops outside `i`.[^lrw91] One step of the two outer loops fixes a `B` × `B` block of `b`, and the inner three loops run every row `i` against it:
+
+```text
+for k0 in 0, B, 2B, ...            one block of k
+  for j0 in 0, B, 2B, ...          one block of j
+    for i in 0 .. N                every row
+      for k in k0 .. k0 + B
+        for j in j0 .. j0 + B
+          c[i, j] += a[i, k] * b[k, j]
+```
+
+Within one block step, each element of the `b` block is used once for every `i`, `N` times in all. Between two of those uses, the loop touches the rest of the block, `B` elements of row `i` of `c` and `B` elements of row `i` of `a`. Lam, Rothberg and Wolf describe the same condition: the block of `b` and a `B`-long row of `c` must fit in the cache, with `a[i, k]` held in a register.[^lrw91]
 
 <figure class="vx-figure">
-<svg viewBox="0 0 760 340" role="img" aria-label="A C tile held resident while A and B tiles stream past it" aria-describedby="p8-f1-desc">
-<title id="p8-f1-title">A C tile held resident while A and B tiles stream past it</title>
-<desc id="p8-f1-desc">Three 3 by 3 grids of tiles: A, indexed by i and k, at the lower left; B, indexed by k and j, at the upper right; C, indexed by i and j, at the lower right, directly under B and beside A. The (i0, j0) tile of C is outlined and stays highlighted throughout. For k_t equal to 0, then 1, then 2 in turn, the (i0, k_t) tile of A and the (k_t, j0) tile of B light up together, then hand off to the next k_t. Two arrows show data flowing from the current A tile and the current B tile into the resident C tile.</desc>
-<defs><marker id="p8-f1-head" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path class="vx-arrowhead" d="M0 0 L10 5 L0 10 z"/></marker></defs>
-<text class="vx-text" x="40" y="18">One tile of C stays put; the tiles that feed it stream through</text>
-<text class="vx-text" x="40" y="190">A (i &#215; k)</text>
-<text class="vx-text" x="220" y="28">B (k &#215; j)</text>
-<text class="vx-text" x="220" y="190">C (i &#215; j)</text>
-<text class="vx-text-muted" x="61" y="196" text-anchor="middle">k0</text>
-<text class="vx-text-muted" x="103" y="196" text-anchor="middle">k1</text>
-<text class="vx-text-muted" x="145" y="196" text-anchor="middle">k2</text>
-<text class="vx-text-muted" x="34" y="226" text-anchor="end">i0</text>
-<text class="vx-text-muted" x="34" y="268" text-anchor="end">i1</text>
-<text class="vx-text-muted" x="34" y="310" text-anchor="end">i2</text>
-<text class="vx-text-muted" x="214" y="66" text-anchor="end">k0</text>
-<text class="vx-text-muted" x="214" y="108" text-anchor="end">k1</text>
-<text class="vx-text-muted" x="214" y="150" text-anchor="end">k2</text>
-<text class="vx-text-muted" x="241" y="36" text-anchor="middle">j0</text>
-<text class="vx-text-muted" x="283" y="36" text-anchor="middle">j1</text>
-<text class="vx-text-muted" x="325" y="36" text-anchor="middle">j2</text>
-<rect class="vx-box" x="40" y="200" width="42" height="42"/>
-<rect class="vx-box" x="82" y="200" width="42" height="42"/>
-<rect class="vx-box" x="124" y="200" width="42" height="42"/>
-<rect class="vx-box" x="40" y="242" width="42" height="42"/>
-<rect class="vx-box" x="82" y="242" width="42" height="42"/>
-<rect class="vx-box" x="124" y="242" width="42" height="42"/>
-<rect class="vx-box" x="40" y="284" width="42" height="42"/>
-<rect class="vx-box" x="82" y="284" width="42" height="42"/>
-<rect class="vx-box" x="124" y="284" width="42" height="42"/>
-<rect class="vx-box" x="220" y="40" width="42" height="42"/>
-<rect class="vx-box" x="262" y="40" width="42" height="42"/>
-<rect class="vx-box" x="304" y="40" width="42" height="42"/>
-<rect class="vx-box" x="220" y="82" width="42" height="42"/>
-<rect class="vx-box" x="262" y="82" width="42" height="42"/>
-<rect class="vx-box" x="304" y="82" width="42" height="42"/>
-<rect class="vx-box" x="220" y="124" width="42" height="42"/>
-<rect class="vx-box" x="262" y="124" width="42" height="42"/>
-<rect class="vx-box" x="304" y="124" width="42" height="42"/>
-<rect class="vx-box" x="220" y="200" width="42" height="42"/>
-<rect class="vx-box" x="262" y="200" width="42" height="42"/>
-<rect class="vx-box" x="304" y="200" width="42" height="42"/>
-<rect class="vx-box" x="220" y="242" width="42" height="42"/>
-<rect class="vx-box" x="262" y="242" width="42" height="42"/>
-<rect class="vx-box" x="304" y="242" width="42" height="42"/>
-<rect class="vx-box" x="220" y="284" width="42" height="42"/>
-<rect class="vx-box" x="262" y="284" width="42" height="42"/>
-<rect class="vx-box" x="304" y="284" width="42" height="42"/>
-<line class="vx-line" x1="166" y1="221" x2="216" y2="221" marker-end="url(#p8-f1-head)"/>
-<line class="vx-line" x1="241" y1="166" x2="241" y2="196" marker-end="url(#p8-f1-head)"/>
-<rect class="vx-box-strong" x="220" y="200" width="42" height="42"/>
-<g class="vx-seq" style="--vx-i: 0; --vx-n: 3">
-<rect class="vx-box-accent" x="40" y="200" width="42" height="42"/>
-<rect class="vx-box-accent" x="220" y="40" width="42" height="42"/>
+<svg viewBox="0 0 700 420" role="img" aria-label="One block of b stays in cache while every row of a and c passes by it">
+<rect class="vx-box" x="40" y="220" width="40" height="40"/>
+<rect class="vx-box" x="80" y="220" width="40" height="40"/>
+<rect class="vx-box" x="120" y="220" width="40" height="40"/>
+<rect class="vx-box" x="160" y="220" width="40" height="40"/>
+<rect class="vx-box" x="40" y="260" width="40" height="40"/>
+<rect class="vx-box" x="80" y="260" width="40" height="40"/>
+<rect class="vx-box" x="120" y="260" width="40" height="40"/>
+<rect class="vx-box" x="160" y="260" width="40" height="40"/>
+<rect class="vx-box" x="40" y="300" width="40" height="40"/>
+<rect class="vx-box" x="80" y="300" width="40" height="40"/>
+<rect class="vx-box" x="120" y="300" width="40" height="40"/>
+<rect class="vx-box" x="160" y="300" width="40" height="40"/>
+<rect class="vx-box" x="40" y="340" width="40" height="40"/>
+<rect class="vx-box" x="80" y="340" width="40" height="40"/>
+<rect class="vx-box" x="120" y="340" width="40" height="40"/>
+<rect class="vx-box" x="160" y="340" width="40" height="40"/>
+<text class="vx-text" x="40" y="405">a (rows i, columns k)</text>
+<rect class="vx-box" x="240" y="30" width="40" height="40"/>
+<rect class="vx-box" x="280" y="30" width="40" height="40"/>
+<rect class="vx-box" x="320" y="30" width="40" height="40"/>
+<rect class="vx-box" x="360" y="30" width="40" height="40"/>
+<rect class="vx-box" x="240" y="70" width="40" height="40"/>
+<rect class="vx-box" x="280" y="70" width="40" height="40"/>
+<rect class="vx-box" x="320" y="70" width="40" height="40"/>
+<rect class="vx-box" x="360" y="70" width="40" height="40"/>
+<rect class="vx-box" x="240" y="110" width="40" height="40"/>
+<rect class="vx-box" x="280" y="110" width="40" height="40"/>
+<rect class="vx-box" x="320" y="110" width="40" height="40"/>
+<rect class="vx-box" x="360" y="110" width="40" height="40"/>
+<rect class="vx-box" x="240" y="150" width="40" height="40"/>
+<rect class="vx-box" x="280" y="150" width="40" height="40"/>
+<rect class="vx-box" x="320" y="150" width="40" height="40"/>
+<rect class="vx-box" x="360" y="150" width="40" height="40"/>
+<text class="vx-text" x="410" y="50">b (rows k, columns j)</text>
+<rect class="vx-box" x="240" y="220" width="40" height="40"/>
+<rect class="vx-box" x="280" y="220" width="40" height="40"/>
+<rect class="vx-box" x="320" y="220" width="40" height="40"/>
+<rect class="vx-box" x="360" y="220" width="40" height="40"/>
+<rect class="vx-box" x="240" y="260" width="40" height="40"/>
+<rect class="vx-box" x="280" y="260" width="40" height="40"/>
+<rect class="vx-box" x="320" y="260" width="40" height="40"/>
+<rect class="vx-box" x="360" y="260" width="40" height="40"/>
+<rect class="vx-box" x="240" y="300" width="40" height="40"/>
+<rect class="vx-box" x="280" y="300" width="40" height="40"/>
+<rect class="vx-box" x="320" y="300" width="40" height="40"/>
+<rect class="vx-box" x="360" y="300" width="40" height="40"/>
+<rect class="vx-box" x="240" y="340" width="40" height="40"/>
+<rect class="vx-box" x="280" y="340" width="40" height="40"/>
+<rect class="vx-box" x="320" y="340" width="40" height="40"/>
+<rect class="vx-box" x="360" y="340" width="40" height="40"/>
+<text class="vx-text" x="240" y="405">c (rows i, columns j)</text>
+<text class="vx-text-muted" x="100.0" y="212" text-anchor="middle">k0</text>
+<text class="vx-text-muted" x="340.0" y="22" text-anchor="middle">j0</text>
+<text class="vx-text-muted" x="232" y="94.0" text-anchor="end">k0</text>
+<rect class="vx-box-strong" x="320" y="70" width="40" height="40"/>
+<g class="vx-seq" style="--vx-i: 0; --vx-n: 8">
+<rect class="vx-box-accent" x="80" y="220.0" width="40" height="20.0"/>
+<rect class="vx-box-accent" x="320" y="220.0" width="40" height="20.0"/>
 </g>
-<g class="vx-seq" style="--vx-i: 1; --vx-n: 3">
-<rect class="vx-box-accent" x="82" y="200" width="42" height="42"/>
-<rect class="vx-box-accent" x="220" y="82" width="42" height="42"/>
+<g class="vx-seq" style="--vx-i: 1; --vx-n: 8">
+<rect class="vx-box-accent" x="80" y="240.0" width="40" height="20.0"/>
+<rect class="vx-box-accent" x="320" y="240.0" width="40" height="20.0"/>
 </g>
-<g class="vx-seq" style="--vx-i: 2; --vx-n: 3">
-<rect class="vx-box-accent" x="124" y="200" width="42" height="42"/>
-<rect class="vx-box-accent" x="220" y="124" width="42" height="42"/>
+<g class="vx-seq" style="--vx-i: 2; --vx-n: 8">
+<rect class="vx-box-accent" x="80" y="260.0" width="40" height="20.0"/>
+<rect class="vx-box-accent" x="320" y="260.0" width="40" height="20.0"/>
 </g>
-<rect class="vx-box-strong" x="420" y="70" width="14" height="14"/>
-<text class="vx-text" x="440" y="81">C tile (i0, j0): resident for the whole k sweep</text>
-<rect class="vx-box-accent" x="420" y="110" width="14" height="14"/>
-<text class="vx-text" x="440" y="121">A tile (i0, k_t) and B tile (k_t, j0):</text>
-<text class="vx-text" x="440" y="137">stream through, one k_t at a time</text>
+<g class="vx-seq" style="--vx-i: 3; --vx-n: 8">
+<rect class="vx-box-accent" x="80" y="280.0" width="40" height="20.0"/>
+<rect class="vx-box-accent" x="320" y="280.0" width="40" height="20.0"/>
+</g>
+<g class="vx-seq" style="--vx-i: 4; --vx-n: 8">
+<rect class="vx-box-accent" x="80" y="300.0" width="40" height="20.0"/>
+<rect class="vx-box-accent" x="320" y="300.0" width="40" height="20.0"/>
+</g>
+<g class="vx-seq" style="--vx-i: 5; --vx-n: 8">
+<rect class="vx-box-accent" x="80" y="320.0" width="40" height="20.0"/>
+<rect class="vx-box-accent" x="320" y="320.0" width="40" height="20.0"/>
+</g>
+<g class="vx-seq" style="--vx-i: 6; --vx-n: 8">
+<rect class="vx-box-accent" x="80" y="340.0" width="40" height="20.0"/>
+<rect class="vx-box-accent" x="320" y="340.0" width="40" height="20.0"/>
+</g>
+<g class="vx-seq" style="--vx-i: 7; --vx-n: 8">
+<rect class="vx-box-accent" x="80" y="360.0" width="40" height="20.0"/>
+<rect class="vx-box-accent" x="320" y="360.0" width="40" height="20.0"/>
+</g>
+<rect class="vx-box-strong" x="450" y="250" width="14" height="14"/>
+<text class="vx-text" x="472" y="261">block of b (k0, j0): B &#215; B,</text>
+<text class="vx-text" x="472" y="278">kept while i runs 0 to N &#8722; 1</text>
+<rect class="vx-box-accent" x="450" y="300" width="14" height="14"/>
+<text class="vx-text" x="472" y="311">row i of a and of c, B elements each:</text>
+<text class="vx-text" x="472" y="328">used once per block, then passed by</text>
 </svg>
-<figcaption>Figure 1. Tiling the stage 10 kernel at the granularity of macro-tiles. The (i0, j0) tile of <code>c</code> is written once and read back every step, so it is worth keeping resident. The matching tiles of <code>a</code> and <code>b</code> change every step of the outer <code>k</code>-tile loop, so only one of each needs to be resident at a time.</figcaption>
+<figcaption>Figure 1. The blocked loop <code>for k0, for j0, for i, for k, for j</code>, one block step. The block of <code>b</code> at <code>(k0, j0)</code> stays put while <code>i</code> sweeps every row; each row reads <code>B</code> elements of <code>a</code> and updates <code>B</code> elements of <code>c</code>, then the next row takes its place. Between two uses of an element of <code>b</code> lie only one row step: about <code>B &#215; B + 2B</code> elements, not the whole matrix.</figcaption>
 </figure>
 
-The tile of `c` at `(i0, j0)` is read and written on every one of the three `k`-tile steps in the figure, so it is worth the cache's while to keep it. The matching tiles of `a` and `b` change every step, so the cache only ever needs the current one. Within one step, that step's work is exactly what the register-blocked kernel from [P7](p7-loop-transformations.md#unroll-and-jam-and-register-blocks) does at a smaller grain: this chapter's tiles are sized for a cache, P7's `mr` × `nr` blocks for a register file, and [P12](p12-fast-gemm.md) nests both.
+Count the new reuse distance for `B = 16` at `N = 512`. A block row of 16 `f32` values is 64 bytes, inside one 128-byte line, so the block of `b` spans 16 lines, and the segments of `a` and `c` one line each: about 18 lines, against 8,224 before. The reuse now fits in L1 many times over.
 
-??? check "The three matrices in the example above are 512 × 512. Would tiling change anything at N = 32, where the whole problem is 3 × 32 × 32 × 4 = 12,288 bytes?"
-
-    No. 12,288 bytes is under the 128 KiB L1d budget on its own, so every element's reuse distance already fits comfortably inside the fastest cache. Tiling shortens a reuse distance that is otherwise too long; it has nothing to shorten here.
-
-## Choosing a size from cache facts
-
-Tiling matrix multiplication touches a `T`-row, `T`-column tile of `c`, a `T`-row, `T`-column tile of `a`, and a `T`-row, `T`-column tile of `b`: three `T` × `T` blocks of `f32`, `12 T²` bytes. Set that at or under a budget and solve for `T`:
-
-$$
-12\,T^2 \le \text{budget} \quad\Longrightarrow\quad T \le \sqrt{\text{budget} / 12}
-$$
-
-Checked against the same L1d budget as above, 131,072 bytes, the bound gives `T ≤ 104.5`: at `T = 104` the three tiles cost 12 × 104² = 129,792 bytes, 99.0% of the budget; at `T = 105` they cost 132,300 bytes, over it. The model is a starting point, not the last word, because it assumes the tile is the only thing in the cache: nothing shares it with the tile in this accounting, not the loop's own stack slots, not another core's traffic through a shared L2, not whatever the hardware prefetcher decided to bring in early. The example below builds the formula, then sweeps a range of tile sizes and checks each one's footprint directly, the way a reader should check any model against the thing it models.
-
---8<-- "includes/examples/optimize/p8-cache-blocking/working_set.cpp.md"
-
-The same formula, read against the L2 budget (16,777,216 bytes), allows a tile past a thousand rows and columns on a side: a single level of tiling cannot use both budgets at once, because a `T` chosen for L2 is already too large for L1. [P12](p12-fast-gemm.md) nests two tiles, one sized for each level, and a third for the registers.
-
-[P7](p7-loop-transformations.md#what-llvm-does-with-these) found no pass named for tiling in LLVM's mainline pipeline. Polly, an out-of-tree LLVM component built on the polyhedral model ([P9](p9-polyhedral-model.md)), is where that transformation lives instead: its own project page states that it performs "classical loop transformations, especially tiling and loop fusion", with "native support for handling full/partial tile separation" when it generates code for a tiled loop's edge cases.[^polly]
-
-??? check "A reader doubles every matrix dimension without changing the tile size T. Does the footprint formula's answer for T change?"
-
-    No. `12 T²` depends only on the tile side `T`, not on the matrix dimensions `N`. A larger matrix needs more tiles, and the outer loops run longer, but each tile's footprint, and so the largest `T` a given cache budget allows, stays the same.
+The price is paid elsewhere: row `i` of `c` is now visited once per block of `k`, so `c` is re-read `N / B` times, where the ikj kernel read it once. Lam, Rothberg and Wolf count the total: with no interference in the cache, the blocked loop reads about 2N³/B + N² words from memory, against 2N³ + N² for the unblocked loop in the worst case, a cache too small to hold even one row.[^lrw91] Doubling `B` halves the dominant term, so a larger block is better, up to the point where the block stops fitting.
 
 ## Keeping the order, keeping the bits
 
-[P7](p7-loop-transformations.md#strip-mining-and-tiling) established that tiling a fully permutable band is legal, and that matrix multiplication's `(=, =, <)` dependence qualifies every loop for it. Legal is not yet identical: the same page's summary table names the one way tiling can still change Vortex's bits, "accumulation blocks run out of order." Tiling is strip-mining plus permutation, so it introduces no new dependence, but it does introduce a new loop, over tiles, and that loop must itself respect the old one's direction. The `i`-tiles and `j`-tiles may run in any order, because each covers a disjoint set of `c` elements. The `k`-tiles carry the one dependence there is, so they must run from low to high, exactly like the un-tiled `k` loop did.
-
-Extending [P7's step 4](p7-loop-transformations.md#making-the-stage-10-nest-perfect) with one tile loop over `k` makes this concrete:
+Here is the stage 10 kernel from [P7](p7-loop-transformations.md#making-the-stage-10-nest-perfect), after its step 4, blocked by hand with `B = 16`:
 
 ```vortex
 // items: valid
@@ -162,12 +187,15 @@ fn multiply(a: &[f32; 64, 64], b: &[f32; 64, 64], c: &mut [f32; 64, 64]) {
             c[row, column] = 0.0;
         }
     }
-    for k_tile in 0..4 {
-        let k_start = k_tile * 16;
-        for k in k_start..k_start + 16 {
+    for k_block in 0..4 {
+        let k_start = k_block * 16;
+        for column_block in 0..4 {
+            let column_start = column_block * 16;
             for row in 0..64 {
-                for column in 0..64 {
-                    c[row, column] += a[row, k] * b[k, column];
+                for k in k_start..k_start + 16 {
+                    for column in column_start..column_start + 16 {
+                        c[row, column] += a[row, k] * b[k, column];
+                    }
                 }
             }
         }
@@ -175,27 +203,51 @@ fn multiply(a: &[f32; 64, 64], b: &[f32; 64, 64], c: &mut [f32; 64, 64]) {
 }
 ```
 
-`k_tile` runs 0, 1, 2, 3: increasing, as every element of `c` needs. Nothing here yet limits how much of `a`, `b` or `c` is touched inside one `k_tile` step, since `row` and `column` still run over the whole matrix; a full tiling adds bands for them too, strip-mined the same way and moved outside `k_tile`, which the example below checks for a range of sizes including ones that do not divide the matrix evenly.
+Two changes separate it from P7's step 4. The zeroing moved out of the `row` loop, one more fission, so that the multiply-add loops form a perfect nest of three. Then `k` and `column` were strip-mined and their strip loops moved outside `row`. Both are legal for the reason P7 gives: the band is fully permutable, since the only dependence is on `c[row, column]` along `k`.[^wl91]
+
+Legal is not yet identical. [P7's table](p7-loop-transformations.md#putting-them-in-order) names the one way tiling can change Vortex's bits: accumulation blocks run out of order. Each element of `c` receives its products from every `k_block` in turn, so `k_block` must run from low to high, as the untiled `k` did. The order of `column_block` is free, because each column block owns a disjoint set of elements of `c`. A tile loop over a reduction inherits the reduction's direction; a tile loop over independent outputs does not. The example checks both, and also a block size that does not divide the matrix, whose last block on each axis is shorter: an **edge tile**.
 
 --8<-- "includes/examples/optimize/p8-cache-blocking/tiled_matmul.cpp.md"
 
-The last line of that example's output is the failure case: the same tiling, with its `k`-tiles visited from high to low. Strip-mining `k` is still legal there; only the new loop's own order is not. Every `c` element ends up with the same set of products, summed in a different order, and the output shows what [P7](p7-loop-transformations.md#what-a-vortex-transformation-must-also-keep) already argued in general: a Vortex compiler that tiles a reduction must prove, or otherwise guarantee, that the reduction's own tiles run in the reduction's own order.
+In the backward case every element of `c` sums the same products, in a different order, and floating-point addition is not associative, so the rounded results differ ([decision 56](../decisions/numbers.md#d56)).
 
-??? check "A reader tiles only i and j, leaving k as one untiled sweep. Does the k order question in this section still apply?"
+Vortex asks one more thing of a tiling pass, the same thing it asks of interchange. Tiling reorders iterations, so if a bounds check in the nest could fail, the tiled program would reach a different failing iteration first and report a different error line, which [O1](o1-optimizer-contract.md#vortexs-list) counts as a change in behavior. The same holds for a `print` inside the nest. In the kernel above every index comes from a `for` over `0..64` into an extent of 64, so the range facts of [O8](o8-loops.md) prove that no check can fail. A pass that cannot prove it must refuse.
 
-    No, or rather it is settled before it arises: with k untiled there is only one k loop, and it already runs from low to high as written. The new question only comes from adding a loop over k-tiles; tiling i and j alone adds loops over disjoint blocks of c, which may run in any order.
+??? check "A reader tiles only `row` and `column`, leaving `k` as one untiled loop inside each tile. Does the order of the tile loops matter for the bits?"
+
+    No. Both new tile loops run over disjoint blocks of `c`, and every element still receives all of its products from the one untiled `k` loop, in increasing order. Only a tile loop over `k`, the loop that carries the accumulation, has an order to keep.
+
+## Choosing a block size from cache facts
+
+The simplest model counts the blocked loop's working set and sets it at or under a cache's capacity. For the loop above, that is the block of `b` and a row segment of `c`: `B² + B` elements. A looser count keeps a `B` × `B` tile of each of `a`, `b` and `c`, `3B²` elements, which holds whatever loop order runs inside the tile. Solve either for the largest `B` under a budget.
+
+A worked example: the M4 Pro's L1d holds 131,072 bytes, 32,768 `f32` values. For `B² + B ≤ 32,768`, `B = 180` gives 32,580 and `B = 181` gives 32,942, so the model allows 180. The three-tile count allows 104. The same arithmetic, for the 4 KiB toy cache used later in this chapter and for the M4 Pro's L2:
+
+--8<-- "includes/examples/optimize/p8-cache-blocking/working_set.cpp.md"
+
+Lam, Rothberg and Wolf quote the classic result behind this model: with a local memory of `C` words that software controls fully, the best block for matrix multiplication is roughly `√C`, and the same holds for a fully associative cache with least-recently-used replacement.[^lrw91] Real caches are neither. Two corrections from practice point the same way.
+
+Lam, Rothberg and Wolf find that, across matrix sizes, the best fixed block for their direct-mapped caches used a small fraction of the cache, typically under 10%, and that trying to use the whole cache was wrong.[^lrw91]
+
+Goto and van de Geijn keep the block their inner kernel reuses from L1 below half of that cache, because set associativity and the replacement policy limit how much of the cache one block can occupy.[^goto08]
+
+Both models see capacity only. They know nothing of the cache's sets, of the matrix's row length, of the hardware prefetcher, or of another core's traffic through a shared L2. They give an upper bound to test, not an answer.
+
+The L2 row of the table allows blocks over a thousand elements on a side, larger than the whole 512 × 512 example. One block size cannot serve two cache levels at once: a block chosen for L2 does not fit L1. [P12](p12-fast-gemm.md) nests one level of blocking for each cache and a third for the registers.
+
+??? check "A reader doubles N without changing the cache. Does the model's largest B change?"
+
+    No. `B² + B` depends only on `B`. A larger matrix needs more blocks, so the outer loops run longer, but the working set of one block step is the same, and so is the largest `B` that fits a given budget. Whether that `B` is still a good choice depends on the row length, which the next section takes up.
 
 ## Fitting is not enough: self-interference
 
-Suppose a tile clears the footprint formula's bound with room to spare, and the kernel still misses more than expected. Lam, Rothberg and Wolf name the reason: a real cache is not one pool a tile either fits or does not.[^lrw91] It is built from a fixed number of **lines**, and an address does not choose freely among them: which line an address can occupy is decided by a handful of its middle bits, so any two addresses that share those bits compete for the same lines, no matter how much of the rest of the cache sits empty. Lam, Rothberg and Wolf call this **self-interference**: it depends on tile size and on the matrix's own stride, and choosing a tile size from "use the whole cache" reasoning, total capacity alone, is the wrong rule.[^lrw91]
+Lam, Rothberg and Wolf divide the misses a blocked loop suffers beyond the unavoidable ones into two kinds.[^lrw91] **Cross-interference** is between different arrays: a line of `c` evicts a line of the `b` block. **Self-interference** is within one array: two rows of the same block of `b` land in the same set and evict each other. Self-interference is the kind that depends on the matrix's row length, and it is the one that makes a block that fits the capacity model thrash.
 
-A direct-mapped cache, one line per index, makes the effect easiest to see, because two addresses that share an index cannot both stay: the second evicts the first. Most real caches soften this by giving each index several lines, called **ways** (an *n*-way set-associative cache can hold *n* colliding addresses before it must evict one), but the addresses that compete are decided by the same arithmetic either way; a set-associative cache buys headroom, not immunity.
-
-The toy cache below has 8 lines of 4 elements each, direct-mapped for clarity, so an address's line is `(address / 4) mod 8`. A tile of 8 rows, `stride` elements apart, is checked at three strides:
+Start with the smallest case, a direct-mapped toy cache of 8 lines of 4 elements, where an element's line is `(address / 4) mod 8`. A tile of 8 rows, `stride` elements apart, is checked at four strides:
 
 --8<-- "includes/examples/optimize/p8-cache-blocking/self_interference.cpp.md"
 
-At stride 32, every row's address is a multiple of the toy cache's whole size, so every row maps to line 0: 8 rows sharing one line, each new row evicting the row before it, even though the whole 8-row tile is a quarter of the cache's capacity. One element added to the stride, 33, already spreads the same 8 rows across two lines instead of one.
+At stride 32 every row starts at a multiple of the cache's whole size, 32 elements, so every row maps to line 0: 8 rows share one line, each evicting the one before, although the tile is a quarter of the cache. Stride 33 is one element longer and spreads the rows over only two lines. Stride 20 gives every row its own line.
 
 <figure class="vx-figure">
 <svg viewBox="0 0 760 320" role="img" aria-label="How eight rows land on the toy cache's eight lines, at three strides" aria-describedby="p8-f2-desc">
@@ -253,77 +305,172 @@ At stride 32, every row's address is a multiple of the toy cache's whole size, s
 <figcaption>Figure 2. The three strides from <code>self_interference.cpp</code>, and how the toy cache's 8 lines share 8 rows at each one. Stride 32, a multiple of the whole toy cache, sends every row to line 0. Stride 20 sends each row to a line of its own.</figcaption>
 </figure>
 
-Real strides are not toy numbers, but the arithmetic is the same, and Drepper's warning about matrix code carries the same shape: a stride that is a multiple, or a near-multiple, of the cache's own size is the one to watch, because it is exactly the stride that makes many rows share few lines.[^drepper] A **critical stride** is a stride that does this. A row-major matrix's row length is the stride between two of its rows ([decision 43](../decisions/arrays.md#d43)), so a matrix whose row length happens to be a multiple of the cache's size is worth checking for interference before trusting a tile's footprint alone.
+A set-associative cache changes the arithmetic in one place. An address chooses a set, not a line, so the rows that collide are those whose addresses differ by a multiple of the number of sets times the line size: the size of one **way**, the capacity divided by the associativity. Up to one row per way can share a set before they evict each other. A **critical stride** is a row length that is a multiple, or a near multiple, of that way size, so that many rows of a block fall into few sets.
 
-Two responses do not require guessing at the hardware's associativity. One is in this chapter's own scope: choose tile sizes and loop bounds that avoid known-bad strides, or verify with a sweep, as the exercise below asks. The other belongs to [P12](p12-fast-gemm.md): copy, or **pack**, the tile into a small contiguous buffer before working on it. A packed buffer's stride is whatever the packing code chooses, not whatever the source matrix happened to have, and it also turns a scattered walk of a strided tile into a handful of long, prefetcher-friendly reads. Goto and van de Geijn build their whole design around this: packing avoids both self-interference and translation lookaside buffer (TLB) misses, at the cost of the copy itself.[^goto08] On the owner's M4 Pro, `sysctl hw.pagesize` reports a 16 KiB page (checked 2026-09-24), which sets how far apart two addresses can be before they risk needing a second TLB entry: the same kind of arithmetic as a cache line, at a coarser grain.
+Drepper measured one on a real machine. On his test machine, reading list elements spaced a multiple of 4,096 bytes apart cost about 10 cycles per element once more than eight elements were in use, against about 3 cycles when they fit in L1d; from that he read off an 8-way, 32 KiB L1d, whose way is 4,096 bytes.[^drepper-sets]
 
-??? check "A matrix has 1,024 columns of f32 (4,096 bytes per row) and the toy cache's line size in this section is 4 elements (16 bytes). Is 1,024 columns a critical stride for that toy cache's 8 lines?"
+Lam, Rothberg and Wolf show the same shape for blocked matrix multiplication: the largest block without self-interference, which they call the **critical blocking factor**, changes sharply with small changes in the matrix size, and on a direct-mapped cache the interference is worst when the matrix dimension is a multiple of the cache size.[^lrw91] Associativity helps without curing it: in their model, with a block size chosen for each matrix size, a 4-way cache lowered the average miss rate by over 30% and halved its spread across matrix sizes, and they conclude that neither associativity nor longer lines removes the variation.[^lrw91]
 
-    Yes. 4,096 / 16 = 256 lines' worth of stride, and 256 is a multiple of 8, so every row of the matrix maps to the same one of the 8 lines: the worst case in the figure above, at a realistic size instead of a toy one.
+??? check "The toy cache of the next example has 64 sets of 2 ways and 32-byte lines. At N = 128 `f32` values per row, how large can a block of `b` be, in rows, before its own rows start evicting each other?"
+
+    One way is 64 × 32 = 2,048 bytes, and a row is 512 bytes, so rows `k` and `k + 4` fall into the same sets. A block of `B` rows puts about `B / 4` rows on each group of sets, and 2 ways hold 2 of them. So `B = 8` fits and `B = 12` does not, whatever the capacity model says.
+
+## A sweep against the model
+
+The capacity model said `B ≤ 31` for a 4 KiB cache. The example below checks it with a **cache simulator**: a program that plays the kernel's addresses through a model of a cache and counts misses. It is not the M4, but its output is the same on every machine, and every miss can be traced. It runs the untiled ikj kernel and the blocked loop at three sizes: `N = 128`, whose 512-byte rows are a critical stride for the toy cache; `N = 129`, rows of 516 bytes, four of which come to 16 bytes past a way; and `N = 136`, rows of 544 bytes, four of which come to four lines past a way.
+
+--8<-- "includes/examples/optimize/p8-cache-blocking/miss_sweep.cpp.md"
+
+Read the `N = 136` column first. The untiled kernel misses about once per 8 multiply-adds: one new line of `b` for every 8 `f32` values. Blocking with `B` from 16 to 24 cuts that to about a seventh. At `B = 32`, the size the capacity model calls the largest that fits, the misses double, and at `B = 48`, whose block alone is over twice the cache, blocking stops helping. The best blocks use between a quarter and three fifths of the cache, well short of all of it.
+
+Now the `N = 128` column. No block size brings the misses below 94, and `B = 12` is worse than not tiling at all: exactly the collision the last check question counted. The three matrices also start at multiples of the way size, so the rows of `a` and `c` a row step touches land on the block's sets as well, cross-interference on top of self-interference. `N = 129` is almost as bad, because a near multiple of the way size collides too. The capacity model gave the same answer for all three sizes.
+
+<figure class="vx-figure">
+<svg viewBox="0 0 720 360" role="img" aria-label="Simulated misses against block size B for three cases: N 128 tiled, N 136 tiled, N 128 copied, with the capacity model&#39;s limit at B 31">
+<text class="vx-text" x="80" y="22">Misses per 1,000 multiply-adds, toy cache (4 KiB, 2-way), from miss_sweep.cpp</text>
+<line class="vx-line" x1="80" y1="300.0" x2="630" y2="300.0"/>
+<line class="vx-line" x1="80" y1="300.0" x2="80" y2="60.0"/>
+<text class="vx-text-muted" x="72" y="304.0" text-anchor="end">0</text>
+<text class="vx-text-muted" x="72" y="244.0" text-anchor="end">50</text>
+<text class="vx-text-muted" x="72" y="184.0" text-anchor="end">100</text>
+<text class="vx-text-muted" x="72" y="124.0" text-anchor="end">150</text>
+<text class="vx-text-muted" x="72" y="64.0" text-anchor="end">200</text>
+<text class="vx-text-muted" x="168" y="318.0" text-anchor="middle">8</text>
+<text class="vx-text-muted" x="212" y="318.0" text-anchor="middle">12</text>
+<text class="vx-text-muted" x="256" y="318.0" text-anchor="middle">16</text>
+<text class="vx-text-muted" x="344" y="318.0" text-anchor="middle">24</text>
+<text class="vx-text-muted" x="432" y="318.0" text-anchor="middle">32</text>
+<text class="vx-text-muted" x="608" y="318.0" text-anchor="middle">48</text>
+<text class="vx-text-muted" x="355" y="338.0" text-anchor="middle">block size B</text>
+<line class="vx-line" x1="80" y1="144" x2="630" y2="144" stroke-dasharray="2 4"/>
+<text class="vx-text-muted" x="498" y="138">untiled</text>
+<line class="vx-line" x1="421" y1="300.0" x2="421" y2="60.0" stroke-dasharray="6 4"/>
+<text class="vx-text-muted" x="427" y="66">model: B &#8804; 31 fits</text>
+<polyline class="vx-line" points="168,187 212,71 256,127 344,137 432,137 608,139"/>
+<rect class="vx-box-bad" x="163" y="182" width="10" height="10"/>
+<rect class="vx-box-bad" x="207" y="66" width="10" height="10"/>
+<rect class="vx-box-bad" x="251" y="122" width="10" height="10"/>
+<rect class="vx-box-bad" x="339" y="132" width="10" height="10"/>
+<rect class="vx-box-bad" x="427" y="132" width="10" height="10"/>
+<rect class="vx-box-bad" x="603" y="134" width="10" height="10"/>
+<polyline class="vx-line" points="168,262 212,263 256,278 344,277 432,254 608,146"/>
+<circle class="vx-dot" cx="168" cy="262" r="5"/>
+<circle class="vx-dot" cx="212" cy="263" r="5"/>
+<circle class="vx-dot" cx="256" cy="278" r="5"/>
+<circle class="vx-dot" cx="344" cy="277" r="5"/>
+<circle class="vx-dot" cx="432" cy="254" r="5"/>
+<circle class="vx-dot" cx="608" cy="146" r="5"/>
+<polyline class="vx-line" points="168,262 212,264 256,280 344,280 432,262 608,148"/>
+<rect class="vx-box-strong" x="163" y="257" width="10" height="10"/>
+<rect class="vx-box-strong" x="207" y="259" width="10" height="10"/>
+<rect class="vx-box-strong" x="251" y="275" width="10" height="10"/>
+<rect class="vx-box-strong" x="339" y="275" width="10" height="10"/>
+<rect class="vx-box-strong" x="427" y="257" width="10" height="10"/>
+<rect class="vx-box-strong" x="603" y="143" width="10" height="10"/>
+<rect class="vx-box-bad" x="471" y="55" width="10" height="10"/>
+<text class="vx-text" x="488" y="64">N = 128, tiled</text>
+<circle class="vx-dot" cx="476" cy="80" r="5"/>
+<text class="vx-text" x="488" y="84">N = 136, tiled</text>
+<rect class="vx-box-strong" x="471" y="95" width="10" height="10"/>
+<text class="vx-text" x="488" y="104">N = 128, copied</text>
+</svg>
+<figcaption>Figure 3. The table from <code>miss_sweep.cpp</code> drawn as three curves. At N = 136 (circles) the misses fall to about a seventh of the untiled count between B = 16 and B = 24, rise at B = 32, just past the capacity model&#8217;s limit, and return to the untiled count at B = 48. At N = 128 (dashed squares) tiling never gets far below the untiled count, and at B = 12 it is worse. Copying the block (solid squares) brings N = 128 back to the N = 136 curve.</figcaption>
+</figure>
+
+## Copying the block, and the TLB
+
+The `copied` columns do one more thing: before each block step, they copy the `B` × `B` block of `b` into a small contiguous buffer and run the inner loops on the copy. The buffer's row length is `B`, chosen by the code, not `N`, chosen by the program, so the block's rows sit next to each other and cannot collide with one another until the buffer outgrows the cache. At `N = 128`, `B = 16` drops from 144 misses to 17, the same as at `N = 136`.
+
+This is Lam, Rothberg and Wolf's **copy optimization**. Copying removes self-interference within the block altogether, and the copy's cost is small when the copied data is reused many times; in their model, with the block copied, the miss count barely moves as the block grows from a quarter of the cache to all of it.[^lrw91] Their closing advice is to pair blocking with copying whenever it applies, and otherwise to choose the largest block without self-interference.[^lrw91] The simulator shows the limit as well: at `B = 48` the copied block is larger than the cache, and copying no longer helps.
+
+Goto and van de Geijn give copying, which they call **packing**, a second job. A block of a larger matrix is not contiguous, so addressing it needs many more TLB entries than its size requires; packing it into a contiguous buffer lets it be addressed with the fewest entries.[^goto08]
+
+A worked case on the M4 Pro, with its 16 KiB pages (`sysctl hw.pagesize`, 2026-09-24): in a 4096 × 4096 `f32` matrix each row is 16,384 bytes, exactly one page, so a 64 × 64 block touches 64 pages. Packed, the same block is 64 × 64 × 4 = 16,384 bytes: a single page, if the buffer is aligned to one. The block size is then bounded by the TLB's reach as well as by the cache ([P2](p2-memory-hierarchy.md#the-tlb-caching-translations-not-data)). [P12](p12-fast-gemm.md) builds its whole kernel around packed blocks.
+
+??? check "Why might copying the row segment of `c` into a buffer too be a poor trade, even though it would remove more interference?"
+
+    Each element of the `b` block is reused `N` times once copied, so the copy's cost is spread over `N` uses. Each element of a `c` segment is reused only `B` times before the loop moves on, and it must be copied back afterwards. Lam, Rothberg and Wolf find that the second copy's overhead can outweigh the misses it saves.[^lrw91]
+
+## What compilers do with tile sizes
+
+[P7](p7-loop-transformations.md#what-llvm-does-with-these) found no tiling pass in LLVM's default pipelines. Polly, LLVM's polyhedral optimizer ([P9](p9-polyhedral-model.md)), is where LLVM's tiling lives: its home page says it performs "classical loop transformations, especially tiling and loop fusion".[^polly]
+
+MLIR's `affine-loop-tile` pass takes either explicit tile sizes or a cache size in KiB and chooses sizes itself. In LLVM 18 its model divides the band's memory footprint by the cache size and uses the `n`-th root of that excess factor, for an `n`-deep band, as the tile size, adjusted down to a divisor of each trip count; the source comments call the model approximate, with a TODO to improve it.[^mlir-tiling] Here it tiles the same multiplication at two sizes for a 32 KiB cache:
+
+--8<-- "includes/examples/optimize/p8-cache-blocking/tile_for_cache.mlir.md"
+
+The steps of the outer loops are the chosen sizes: 1, 1 and 2 for the 64 × 64 case, and 2, 2 and 4 for 256 × 256. Run on the owner's machine with `mlir-opt` 18.1.8 on 2026-09-24, the 256 × 256 case gets 1, 1 and 2 for a 512 KiB cache and 4, 4 and 4 for an 8 KiB cache: under this model the tiles grow as the cache shrinks, the opposite of what a capacity model predicts. A tile-size model is a program like any other, and a sweep is how you find out what it does.
 
 ## For Vortex
 
 !!! vortex "Exercise"
 
-    **Build** a tile-size chooser and a tiling pass for nests your compiler already recognizes as legal to tile ([P7](p7-loop-transformations.md#strip-mining-and-tiling)'s fully-permutable-band test), for square tiles over constant-bound, affine-subscript loops.
+    **Build** loop tiling for perfect nests your compiler already handles in [P7](p7-loop-transformations.md#for-vortex): constant bounds, affine subscripts, and a band that the dependence test from [P6](p6-dependence-analysis.md) finds fully permutable.
 
-    1. A footprint formula for the nest being tiled, taking the number of arrays touched per tile and their element size, and a place to plug in a cache budget: read the budget from the host at compile time, the way [P2](p2-memory-hierarchy.md) covers, not as a constant written into the compiler.
-    2. A chooser that solves the formula for the largest tile at or under the budget, the way `working_set.cpp` does by search, and reports its answer and the budget it used in a remark.
-    3. A tiling transformation for one band at a time: strip-mine each loop in the band by the chosen size, move the strip loops outside, and keep every reduction's tile loop in the reduction's own direction, refusing (with a remark) any nest where that cannot be guaranteed.
-    4. Edge tiles: a matrix whose extent does not divide the tile size evenly needs a final, shorter tile on each axis, not a crash or a silently dropped row or column.
+    1. A tiling transformation for one band: strip-mine the chosen loops by given sizes and move their strip loops outward in a given order, with edge tiles when a size does not divide a trip count. Every tile loop over a loop that carries a floating-point accumulation runs in that loop's direction.
+    2. The same gate as interchange: no check in the band can fail (use the range facts from [O8](o8-loops.md), or refuse), and the band calls no `print`.
+    3. Tile sizes from the command line first. Then a chooser: the footprint of one tile step for the band's own arrays and loop order, set at or under a cache budget that also comes from the command line, never a size written into the compiler.
+    4. A critical-stride warning: given a line size and a way size on the command line, a missed remark when rows of a tile would fall into the same sets, naming the array and its row length.
+    5. A remark for every decision: the band, the sizes and the budget used, or the reason for refusing, such as "not tiled: `print` in the nest".
 
-    **Not yet:** packing ([P12](p12-fast-gemm.md)), a second tile size for a second cache level ([P12](p12-fast-gemm.md)), and a search over tile sizes instead of a formula ([P15](p15-choosing-parameters.md)).
+    **Not yet:** copying or packing ([P12](p12-fast-gemm.md)), a second level of tiles for a second cache ([P12](p12-fast-gemm.md)), a search over sizes instead of a model ([P15](p15-choosing-parameters.md)), threads over tiles ([P13](p13-multithreading.md)), and bands with bounds that are not constant.
 
     **Proof that it works:**
 
-    - Differential tests: byte-identical output, tiled against untiled, for the stage 10 kernel at several tile sizes, including at least one that does not divide the matrix dimension.
-    - A golden test that a k-tile loop is only ever emitted in increasing order, and that a hand-constructed "decreasing" variant is rejected by whatever check your pass relies on to guarantee this (or is never reachable through the pass's own code paths, if the pass only ever emits one order).
-    - A footprint check: for a chosen tile size and a stated budget, assert the computed footprint is at or under the budget, for at least one budget where the naive T (the whole matrix) would not be.
-    - A measurement of the tiled and untiled kernels across a small sweep of tile sizes, following [P1](p1-measure-first.md), with the machine, compiler version and date, looking for the kind of spike a critical stride would cause.
+    - Differential tests: byte-identical output, tiled against untiled, for the stage 10 kernel at several sizes, and for a 3 × 5 matrix times a 5 × 7 one tiled by 4, whose every axis has an edge tile.
+    - Golden refusal tests: a nest that prints, and a nest whose index can run out of bounds, are left alone with a remark; the out-of-bounds program reports the same error line with tiling on and off.
+    - A golden test that the tile loop over `k` in the stage 10 kernel runs in increasing order, and a unit test of your chooser against `working_set.cpp`: for budgets of 4,096 and 131,072 bytes and the blocked ikj loop, it must allow 31 and 180.
+    - A measurement of the untiled and tiled kernels across a sweep of sizes, following the method below and [P1](p1-measure-first.md), with the machine, compiler version and date.
 
 ## Measuring the effect
 
 No speedup is claimed here: measure your own, following [P1](p1-measure-first.md).
 
-1. Build the naive and tiled C++ kernels with `-O2 -ffp-contract=off`, and confirm they produce identical bits before timing anything, as `tiled_matmul.cpp` does.
-2. Sweep the tile size from 8 to 256, at a matrix size the tile does not divide evenly, and again at one it does.
-3. Run the same sweep at two matrix sizes with row lengths one element apart (N and N + 1, as in the self-interference section), and look for a spike at the size whose row length is a critical stride for your cache.
-4. Time many separate runs and report the median with a confidence interval, never the best run.
+1. Write the ikj kernel and the blocked kernel in C++, built with `-O2 -ffp-contract=off`, and check that they produce identical bits before timing anything, as `tiled_matmul.cpp` does.
+2. Sweep `B` from 8 to 256 at a matrix size far larger than L1, such as N = 1024, and again at N = 1025 and N = 1040.
+3. Find your L1d's way size before reading the results: time a walk over a few elements spaced `d` bytes apart for growing `d`, as Drepper did, and look for the spacing at which the time jumps once there are more elements than ways.[^drepper-sets] `sysctl` reports the size and the line, not the associativity.
+4. Time many separate runs and report the median with a confidence interval, never the best run. Compute GFLOP/s as 2N³ / t for a time t in nanoseconds.
 
-| Tile size | N | Median time | 95% interval | GFLOP/s |
-| --- | --- | --- | --- | --- |
-| | | | | |
-| | | | | |
+| Kernel | N | B | Median time | 95% interval | GFLOP/s |
+| --- | --- | --- | --- | --- | --- |
+| ikj, untiled | | | | | |
+| blocked | | | | | |
+| blocked | | | | | |
+| blocked, block of `b` copied | | | | | |
 
-Record the machine, compiler version, flags and date with the table.
+Record the machine, compiler version, flags and date with the table. If the best `B` differs between N = 1024 and N = 1040, you have found a critical stride.
 
 ## Key ideas
 
 !!! recap "Questions you can now answer"
 
-    - **What does tiling change that plain loop reordering does not?** How much of a reduction runs before the loop returns to data it already used, so that the return finds the data still in cache.
-    - **Where does a tile-size formula come from?** Count the bytes a tile of each array touched costs, in terms of the tile's side, and solve for the largest side at or under a cache budget.
-    - **Why is fitting the footprint not enough?** A cache is built from a fixed number of lines; addresses that share a line's index compete for it regardless of how much of the rest of the cache is empty. This is self-interference.
-    - **What is a critical stride?** A stride, such as a matrix's row length, that is a multiple (or near-multiple) of the cache's size, so that many rows collide on the same few lines.
-    - **What must a k-tile loop keep, that an i-tile or j-tile loop need not?** Increasing order: it carries the one dependence the nest has, so it must run in the direction the un-tiled loop did.
-    - **What fixes self-interference without guessing the hardware's associativity?** Avoiding known-bad strides and sizes, or copying (packing) the tile into a buffer whose stride the compiler chooses.
+    - **What is a reuse distance, and when does a reuse hit?** The number of distinct lines touched between two uses; in a fully associative LRU cache the reuse hits when that number is smaller than the cache's line count.
+    - **Why does the ikj kernel at N = 512 miss L1 on `b` although its data fits in L2?** Each element of `b` is reused only after all of `b` has passed through L1, a reuse distance eight times the L1d on the M4 Pro.
+    - **What does the blocked loop keep in cache?** One `B` × `B` block of `b`, reused by every row, plus a `B`-long segment of `c`; `a[i, k]` stays in a register.
+    - **Which tile loop has an order to keep?** The one over `k`, which carries the accumulation into `c`; the tile loops over rows and columns may run in any order.
+    - **Why is the capacity model an upper bound and not an answer?** It sees only capacity; rows whose spacing is a near multiple of the way size collide in a few sets and evict each other while most of the cache is empty.
+    - **What does copying a block buy?** A row length chosen by the code, so no self-interference within the block, and a contiguous block that needs the fewest TLB entries; it costs one copy per block, worth it when the block is reused many times.
 
 ## Where this comes back
 
 !!! next "You will use this again in"
 
-    - [P9. The polyhedral model](p9-polyhedral-model.md): *tile*, *fully permutable band*, *schedule*
-    - [P12. Anatomy of a fast GEMM](p12-fast-gemm.md): *tile-size formula*, *packing*, *two cache levels*
-    - [P13. Multithreading](p13-multithreading.md): *tile*, parallelizing over independent tiles
-    - [P15. Choosing parameters: models or search](p15-choosing-parameters.md): *tile-size formula*, comparing a model's choice with a sweep
-    - [M6. Loops: affine and scf](../mlir/m6-affine-and-scf.md): *tile*, *fully permutable band*
-    - [G10. The GPU matmul ladder](../gpu/g10-matmul-ladder.md): *tile*, shared-memory tiling as the GPU analog of a cache tile
+    - [P9. The polyhedral model](p9-polyhedral-model.md): *tiling as a schedule*, *fully permutable band*
+    - [P12. Anatomy of a fast GEMM](p12-fast-gemm.md): *packing*, *one level of blocking per cache*, *TLB reach*
+    - [P13. Multithreading](p13-multithreading.md): *independent tiles*, *shared L2*
+    - [P15. Choosing parameters: models or search](p15-choosing-parameters.md): *a model's choice against a sweep*
+    - [M6. Loops: affine and scf](../mlir/m6-affine-and-scf.md): *affine-loop-tile*
+    - [G10. The GPU matmul ladder](../gpu/g10-matmul-ladder.md): *a block kept in fast memory while rows stream past*
 
 ## Sources and further reading
 
-For the cache-conflict argument in depth, read Lam, Rothberg and Wolf; for the packing that avoids it, read Goto and van de Geijn.
+Read Lam, Rothberg and Wolf first: sections 1 to 3 give the blocked loop, the interference model and the critical blocking factor, and section 6 the copy optimization, in eleven pages. Then read section 6.2.1 of Drepper for a blocked kernel measured on real hardware, and section 4.2 of Goto and van de Geijn for packing and the TLB, which [P12](p12-fast-gemm.md) takes further.
 
-[^lrw91]: Monica S. Lam, Edward E. Rothberg and Michael E. Wolf, "The Cache Performance and Optimizations of Blocked Algorithms", *Proceedings of the Fourth International Conference on Architectural Support for Programming Languages and Operating Systems (ASPLOS)*, 1991, section 3. <https://doi.org/10.1145/106972.106981> (free copy: <https://suif.stanford.edu/papers/lam-asplos91.pdf>)
-[^drepper]: Ulrich Drepper, "What Every Programmer Should Know About Memory", version 1.0, 2007, section 6.2.1. <https://www.akkadia.org/drepper/cpumemory.pdf>
-[^goto08]: Kazushige Goto and Robert A. van de Geijn, "Anatomy of High-Performance Matrix Multiplication", *ACM Transactions on Mathematical Software* 34(3), 2008. <https://doi.org/10.1145/1356052.1356053> (free copy: <https://www.cs.utexas.edu/~flame/pubs/GotoTOMS_revision.pdf>)
-[^polly]: The Polly Project, home page: "Polly performs classical loop transformations, especially tiling and loop fusion, to improve data-locality", and its "native support for handling full/partial tile separation" during code generation. <https://polly.llvm.org/>
+[^lrw91]: Monica S. Lam, Edward E. Rothberg and Michael E. Wolf, "The Cache Performance and Optimizations of Blocked Algorithms", *Proceedings of the Fourth International Conference on Architectural Support for Programming Languages and Operating Systems (ASPLOS IV)*, 1991: section 1.1 (the blocked loop and its memory traffic), 1.2 (the square-root rule for local memory), 2.1 (cross- and self-interference), 3 (self-interference, the critical blocking factor, the small fraction of the cache used), 5.1 (set associativity), 6 (copying) and 7 (conclusions). <https://doi.org/10.1145/106972.106981> (free copy: <https://suif.stanford.edu/papers/lam-asplos91.pdf>)
+[^wl91]: Michael E. Wolf and Monica S. Lam, "A Data Locality Optimizing Algorithm", *Proceedings of the ACM SIGPLAN 1991 Conference on Programming Language Design and Implementation (PLDI)*, 1991, sections 1 to 4. <https://doi.org/10.1145/113445.113449> (free copy: <https://suif.stanford.edu/papers/wolf91a.pdf>)
+[^drepper]: Ulrich Drepper, "What Every Programmer Should Know About Memory", version 1.0, 2007, section 6.2.1, Table 6.2 and footnote 28. <https://www.akkadia.org/drepper/cpumemory.pdf>
+[^drepper-sets]: Ulrich Drepper, "What Every Programmer Should Know About Memory", version 1.0, 2007, section 6.2.1, Figure 6.5 and the text after it. <https://www.akkadia.org/drepper/cpumemory.pdf>
+[^boehm]: Simon Boehm, "Fast Multidimensional Matrix Multiplication on CPU from Scratch", 2022: the results table and the sections on compiler flags and tiling. <https://siboehm.com/articles/22/Fast-MMM-on-CPU>
+[^goto08]: Kazushige Goto and Robert A. van de Geijn, "Anatomy of High-Performance Matrix Multiplication", *ACM Transactions on Mathematical Software* 34(3), 2008: sections 4.2.2 and 4.2.3 (the TLB and packing) and 6.3 (choosing kc). <https://doi.org/10.1145/1356052.1356053> (free copy: <https://www.cs.utexas.edu/~flame/pubs/GotoTOMS_revision.pdf>)
+[^polly]: The Polly Project, home page, read on 2026-09-24. <https://polly.llvm.org/>
+[^mlir-tiling]: LLVM Project, `LoopTiling.cpp`, release/18.x branch: `LoopTiling::getTileSizes` and `adjustToDivisorsOfTripCounts`. <https://github.com/llvm/llvm-project/blob/release/18.x/mlir/lib/Dialect/Affine/Transforms/LoopTiling.cpp>

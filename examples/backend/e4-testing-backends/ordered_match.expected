@@ -1,0 +1,3 @@
+grep-like   : pass
+CHECK       : pass
+CHECK-LABEL : FAIL

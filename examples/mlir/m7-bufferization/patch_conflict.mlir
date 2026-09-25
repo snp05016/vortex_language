@@ -1,7 +1,7 @@
-// Two results share one tensor: patched is the value after writing a 4-wide
-// slice into t, and t is the original, unpatched value. Both are read after
-// the write, so no memref can serve both: One-Shot Bufferize must copy t's
-// data before patching one copy, instead of overwriting t's own buffer.
+// Write a 4-element patch into the front of t, then return both the patched
+// tensor and t itself. t is still needed after the write, so the write may
+// not reuse t's buffer: One-Shot Bufferize copies t into a new buffer and
+// patches the copy, leaving the caller's buffer unchanged.
 
 func.func @patch_then_reread(%t: tensor<8xf32>, %patch: tensor<4xf32>)
     -> (tensor<8xf32>, tensor<8xf32>) {

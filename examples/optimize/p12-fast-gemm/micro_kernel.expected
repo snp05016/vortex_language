@@ -1,2 +1,3 @@
-match: yes
-loads per multiply-add: (mr+nr)/(mr*nr) = 8/16
+K = 8 split into panels of kc = 4
+C-initialized accumulators: 16 of 16 elements equal to naive
+zero-initialized per panel: 13 of 16 elements equal to naive

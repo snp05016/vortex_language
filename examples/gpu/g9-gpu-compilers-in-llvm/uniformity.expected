@@ -1,6 +1,13 @@
-tid    entry  divergent
-base   entry  uniform
-cond   entry  divergent
-a_then then   divergent
-a_else else   divergent
-r      merge  divergent
+tid entry   divergent (seed)
+n   entry   uniform
+c1  entry   divergent (operand)
+a   then1   uniform
+b   else1   uniform
+r   merge1  divergent (join)
+c2  merge1  uniform
+t   then2   uniform
+s   merge2  uniform
+i   loop    uniform
+i1  loop    uniform
+c3  loop    divergent (operand)
+e   exit    divergent (loop exit)

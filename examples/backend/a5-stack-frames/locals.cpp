@@ -1,8 +1,11 @@
 // average3 keeps its three inputs in a local array instead of three scalar
 // locals, so that -O0 code, which keeps every local in memory rather than a
 // register, has to reserve a real array's worth of frame space for it. The
-// listing pasted in the chapter comes from compiling this file alone with
-// `clang -O0 -S -target arm64-apple-macos`.
+// listing in the chapter comes from compiling this file alone with
+// `clang++ -std=c++26 -O0 -S -fno-stack-protector -target arm64-apple-macos`.
+//
+// Follows: AAPCS64, section "Universal stack constraints" (sp stays a
+// multiple of 16 whenever memory is accessed through it).
 
 #include <print>
 

@@ -1,0 +1,2 @@
+mix(i32, f32, i64, f64, i32): w0 s0 x1 d1 w2
+nine i64, then f32: x0 x1 x2 x3 x4 x5 x6 x7 stack+0 s0

@@ -1,0 +1,8 @@
+# Hand-written AArch64 inside a C++ harness: built and run on arm64 only.
+platforms = ["macos-arm64", "linux-arm64"]
+follows = [
+  "https://developer.arm.com/documentation/ddi0602/2026-06/SIMD-FP-Instructions/FMADD--Floating-point-fused-multiply-add--scalar--",
+  "https://developer.arm.com/documentation/ddi0602/2026-06/SIMD-FP-Instructions/FMSUB--Floating-point-fused-multiply-subtract--scalar--",
+  "https://developer.arm.com/documentation/ddi0602/2026-06/SIMD-FP-Instructions/FNMADD--Floating-point-negated-fused-multiply-add--scalar--",
+  "https://developer.arm.com/documentation/ddi0602/2026-06/SIMD-FP-Instructions/FNMSUB--Floating-point-negated-fused-multiply-subtract--scalar--",
+]

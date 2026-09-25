@@ -38,6 +38,6 @@
 | [P11. Floating point under optimization](p11-floating-point.md) | Which transformations change floating-point results, and how Vortex keeps them bitwise identical. | Published |
 | [P12. Anatomy of a fast GEMM](p12-fast-gemm.md) | Packing, register micro-kernels and the Goto and BLIS structure of fast matrix multiplication. | Published |
 | [P13. Multithreading](p13-multithreading.md) | Splitting a kernel across cores, and what that does to results and speed. | Published |
-| [P14. Algorithms and schedules](p14-algorithms-and-schedules.md) | Separating what to compute from how to compute it: Halide, TVM and Exo. | Being written |
+| [P14. Algorithms and schedules](p14-algorithms-and-schedules.md) | Separating what to compute from how to compute it: Halide, TVM and Exo. | Published |
 | [P15. Choosing parameters: models or search](p15-choosing-parameters.md) | Analytical cost models against empirical autotuning for tile sizes and unroll factors. | Published |
 | [P16. Capstone: the ladder, measured](p16-capstone.md) | Every rung of the CPU matmul ladder, measured against Accelerate, OpenBLAS and BLIS. | Published |

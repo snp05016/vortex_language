@@ -1,27 +1,38 @@
-// How pipeline fill and drain overhead amortizes across back-to-back tiles
-// on a K x K output-stationary systolic array.
+// Fill and drain of a K x K output-stationary systolic array, paid once for
+// T tiles fed back to back.
 //
-// systolic_sim.cpp derives that one K x K times K x K product costs
-// 3K - 2 cycles on a K x K array: K - 1 cycles for the first operands to
-// reach the far corner, K cycles of every cell doing useful work, and
-// K - 1 more to drain the last partial sums out. Feeding T products through
-// the same array back-to-back overlaps their fill and drain: the array
-// only needs to fill once, then does K cycles of work per tile, then
-// drains once. This model (fill once, K cycles per tile, drain once) gives
-// total cycles T * K + 2 * (K - 1); a single tile is the T = 1 case, which
-// matches 3K - 2 exactly.
+// With the skewed feed of systolic_sim.cpp, cell (i, j) works on term k of
+// tile q at cycle i + j + q*K + k. The next tile's operands follow the last
+// term of the previous one with no gap, so each cell must hand its finished
+// sum out and restart from zero between tiles (Kung's 1982 designs mark the
+// first term of a new result with a tag bit for this). The program counts
+// busy cells cycle by cycle, checks the cycle count against the closed form
+// T*K + 2*(K - 1), and reports the fraction of cell-cycles that did work.
 
-#include <cstddef>
+#include <cassert>
 #include <print>
 
 constexpr int K = 8;
 
 int main() {
-  std::println("{:>4} {:>10} {:>10} {:>10}", "T", "cycles", "ideal", "util %");
-  for (int t : {1, 2, 4, 8, 16, 64}) {
-    const long long cycles = static_cast<long long>(t) * K + 2 * (K - 1);
-    const long long ideal = static_cast<long long>(t) * K; // no fill or drain at all
-    const double util = 100.0 * double(ideal) / double(cycles);
-    std::println("{:>4} {:>10} {:>10} {:>9.1f}%", t, cycles, ideal, util);
+  std::println("{:>4} {:>8} {:>12} {:>8}", "T", "cycles", "busy cells", "util %");
+  for (const int tiles : {1, 2, 4, 8, 16, 64}) {
+    long long busy = 0;
+    int last_busy_cycle = -1;
+    for (int t = 0; t < tiles * K + 2 * K; ++t) {
+      int active = 0;
+      for (int i = 0; i < K; ++i)
+        for (int j = 0; j < K; ++j) {
+          const int step = t - i - j; // = q*K + k while the cell has work
+          if (step >= 0 && step < tiles * K) ++active;
+        }
+      if (active > 0) last_busy_cycle = t;
+      busy += active;
+    }
+    const int cycles = last_busy_cycle + 1;
+    assert(cycles == tiles * K + 2 * (K - 1));
+    assert(busy == static_cast<long long>(tiles) * K * K * K);
+    const double util = 100.0 * double(busy) / (double(K) * K * cycles);
+    std::println("{:>4} {:>8} {:>12} {:>7.1f}%", tiles, cycles, busy, util);
   }
 }

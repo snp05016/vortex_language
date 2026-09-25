@@ -1,4 +1,5 @@
 follows = [
   "https://mlir.llvm.org/docs/Dialects/Linalg/",
   "https://mlir.llvm.org/docs/Dialects/TensorOps/",
+  "https://mlir.llvm.org/docs/Bufferization/",
 ]

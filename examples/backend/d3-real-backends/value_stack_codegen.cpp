@@ -1,156 +1,133 @@
-// One-pass code generation with a value stack, in the style TCC's developer
-// guide describes: no AST is built. A recursive-descent parser emits
-// instructions as it goes, and a small stack of "where is this value"
-// descriptors (a constant, or a named temporary) tracks results well enough
-// to fold constant subexpressions on the fly.
+// One-pass code generation with a value stack, in the style of TCC's
+// developer guide: there is no tree and no IR. The parser pushes a
+// descriptor for each operand saying where the value is right now (a
+// constant, a named variable in memory, a register, or a spilled temporary),
+// and code is generated only when an operator needs its operands in
+// registers. With three registers, a fourth live result forces a spill.
 //
-// Different problem from the Vortex exercise: a four-function integer
-// calculator, not a compiler back end for a fixed-shape array language.
+// Different problem from the Vortex exercise: an integer calculator with
+// + - * over single-letter variables, printing pseudo-assembly.
 #include <cctype>
 #include <iostream>
-#include <sstream>
 #include <string>
-#include <variant>
 #include <vector>
 
 namespace {
 
-// A value is either a compile-time constant or the name of a temporary that
-// holds a run-time result. This is the "value stack": at every point in
-// parsing, it says where each live value already lives.
-struct Value {
-  bool is_const;
-  long value;       // meaningful when is_const
-  std::string name; // meaningful when !is_const
+enum class Kind { Const, Var, Reg, Spilled };
+struct Value { Kind kind; long n; char var; };  // n: constant, register or slot
+
+class Gen {
+ public:
+  explicit Gen(std::string s) : s_(std::move(s)) {}
+  void run() {
+    sum();
+    if (vstack_.back().kind == Kind::Const)
+      std::cout << "  (folded to " << vstack_.back().n << ")\n";
+    else
+      std::cout << "  result in r" << gv(vstack_.size() - 1) << "\n";
+  }
+
+ private:
+  static constexpr int kRegs = 3;
+
+  bool reg_in_use(long r) const {
+    for (const Value &e : vstack_)
+      if (e.kind == Kind::Reg && e.n == r) return true;
+    return false;
+  }
+
+  // Frees a register by spilling the deepest register-held entry: in an
+  // expression, the deepest entry is the one the parser will need last.
+  // The top two entries are the operands being combined, so they stay.
+  long get_reg() {
+    for (long r = 0; r < kRegs; ++r)
+      if (!reg_in_use(r)) return r;
+    for (std::size_t i = 0; i + 2 < vstack_.size(); ++i) {
+      if (vstack_[i].kind != Kind::Reg) continue;
+      long r = vstack_[i].n;
+      std::cout << "  str r" << r << ", [t" << slots_ << "]\n";
+      vstack_[i] = {Kind::Spilled, slots_++, 0};
+      return r;
+    }
+    return -1;  // unreachable with three registers and two operands
+  }
+
+  // Makes stack entry i live in a register, emitting a load if needed.
+  long gv(std::size_t i) {
+    if (vstack_[i].kind == Kind::Reg) return vstack_[i].n;
+    long r = get_reg();
+    const Value e = vstack_[i];
+    if (e.kind == Kind::Const) std::cout << "  mov r" << r << ", #" << e.n << "\n";
+    if (e.kind == Kind::Var) std::cout << "  ldr r" << r << ", [" << e.var << "]\n";
+    if (e.kind == Kind::Spilled) std::cout << "  ldr r" << r << ", [t" << e.n << "]\n";
+    vstack_[i] = {Kind::Reg, r, 0};
+    return r;
+  }
+
+  // Combines the top two entries. Constants fold without emitting code, a
+  // multiply by 8 becomes a shift, and a constant right operand becomes an
+  // immediate instead of occupying a register.
+  void gen_op(char op) {
+    Value b = vstack_.back();
+    std::size_t ia = vstack_.size() - 2;
+    Value a = vstack_[ia];
+    if (a.kind == Kind::Const && b.kind == Kind::Const) {
+      long r = op == '+' ? a.n + b.n : op == '-' ? a.n - b.n : a.n * b.n;
+      vstack_.pop_back();
+      vstack_.back() = {Kind::Const, r, 0};
+      return;
+    }
+    long ra = gv(ia);
+    std::string rhs;
+    std::string name = op == '+' ? "add" : op == '-' ? "sub" : "mul";
+    if (op == '*' && b.kind == Kind::Const && b.n == 8) {
+      name = "lsl";
+      rhs = "#3";
+    } else if (b.kind == Kind::Const) {
+      rhs = "#" + std::to_string(b.n);
+    } else {
+      rhs = "r" + std::to_string(gv(vstack_.size() - 1));
+    }
+    std::cout << "  " << name << " r" << ra << ", r" << ra << ", " << rhs << "\n";
+    vstack_.pop_back();  // the right operand's register is free again
+  }
+
+  void atom() {
+    char c = s_[pos_++];
+    if (c == '(') { sum(); pos_++; return; }  // skip ')'
+    if (std::isdigit(static_cast<unsigned char>(c))) vstack_.push_back({Kind::Const, c - '0', 0});
+    else vstack_.push_back({Kind::Var, 0, c});
+  }
+  void product() {
+    atom();
+    while (pos_ < s_.size() && s_[pos_] == '*') { pos_++; atom(); gen_op('*'); }
+  }
+  void sum() {
+    product();
+    while (pos_ < s_.size() && (s_[pos_] == '+' || s_[pos_] == '-')) {
+      char op = s_[pos_++];
+      product();
+      gen_op(op);
+    }
+  }
+
+  std::string s_;
+  std::size_t pos_ = 0;
+  std::vector<Value> vstack_;
+  long slots_ = 0;
 };
 
-class Generator {
-public:
-  explicit Generator(std::string text) : text_(std::move(text)) {}
-
-  // Parses and emits in one pass; returns the final value descriptor.
-  Value run() {
-    Value v = parse_sum();
-    if (pos_ != text_.size()) throw std::runtime_error("trailing input");
-    return v;
-  }
-
-  const std::vector<std::string> &code() const { return code_; }
-
-private:
-  Value parse_sum() {
-    Value left = parse_product();
-    while (true) {
-      skip_space();
-      if (peek() == '+' || peek() == '-') {
-        char op = text_[pos_++];
-        Value right = parse_product();
-        left = emit_binary(op, left, right);
-      } else {
-        break;
-      }
-    }
-    return left;
-  }
-
-  Value parse_product() {
-    Value left = parse_atom();
-    while (true) {
-      skip_space();
-      if (peek() == '*' || peek() == '/') {
-        char op = text_[pos_++];
-        Value right = parse_atom();
-        left = emit_binary(op, left, right);
-      } else {
-        break;
-      }
-    }
-    return left;
-  }
-
-  Value parse_atom() {
-    skip_space();
-    if (peek() == '(') {
-      pos_++;
-      Value v = parse_sum();
-      skip_space();
-      if (peek() != ')') throw std::runtime_error("expected )");
-      pos_++;
-      return v;
-    }
-    if (std::isdigit(static_cast<unsigned char>(peek()))) {
-      size_t start = pos_;
-      while (pos_ < text_.size() &&
-             std::isdigit(static_cast<unsigned char>(text_[pos_])))
-        pos_++;
-      return Value{true, std::stol(text_.substr(start, pos_ - start)), ""};
-    }
-    if (std::isalpha(static_cast<unsigned char>(peek()))) {
-      // A single-letter name stands for a run-time input: its value is not
-      // known while generating code, so it can never be folded away.
-      std::string name(1, text_[pos_++]);
-      return Value{false, 0, name};
-    }
-    throw std::runtime_error("expected a digit, a letter, or (");
-  }
-
-  // Emits an instruction for one binary operator, or none at all when both
-  // operands are constants: the value stack folds the constant instead of
-  // generating code for it, exactly as TCC's single-pass generator does.
-  Value emit_binary(char op, const Value &a, const Value &b) {
-    if (a.is_const && b.is_const) {
-      long r = fold(op, a.value, b.value);
-      return Value{true, r, ""};
-    }
-    std::string dst = "t" + std::to_string(next_temp_++);
-    code_.push_back(dst + " = " + operand(a) + " " + std::string(1, op) +
-                     " " + operand(b));
-    return Value{false, 0, dst};
-  }
-
-  static long fold(char op, long a, long b) {
-    switch (op) {
-      case '+': return a + b;
-      case '-': return a - b;
-      case '*': return a * b;
-      case '/': return a / b;
-    }
-    throw std::runtime_error("bad operator");
-  }
-
-  static std::string operand(const Value &v) {
-    return v.is_const ? std::to_string(v.value) : v.name;
-  }
-
-  char peek() const { return pos_ < text_.size() ? text_[pos_] : '\0'; }
-  void skip_space() {
-    while (pos_ < text_.size() && text_[pos_] == ' ') pos_++;
-  }
-
-  std::string text_;
-  size_t pos_ = 0;
-  int next_temp_ = 0;
-  std::vector<std::string> code_;
-};
-
-void run_example(const std::string &expr) {
-  Generator gen(expr);
-  Value result = gen.run();
-  std::cout << "expr: " << expr << "\n";
-  for (const auto &line : gen.code()) std::cout << "  " << line << "\n";
-  std::cout << "  result: " << (result.is_const ? std::to_string(result.value)
-                                                 : result.name)
-             << "\n";
+void compile(const std::string &expr) {
+  std::cout << expr << "\n";
+  Gen(expr).run();
 }
 
-} // namespace
+}  // namespace
 
 int main() {
-  // Wholly constant: folded away, no instructions at all.
-  run_example("2 + 3 * 4");
-  // Mixed: "4 - 1" folds to 3 on the spot; "x * 3" cannot, so it is the
-  // only instruction emitted, and the final "+" combines it with the
-  // already-folded constant.
-  run_example("x * 3 + (4 - 1)");
+  compile("2+3*4");            // all constant: no instructions at all
+  compile("x*8+(4-1)");        // shift, then an immediate operand
+  compile("a*b+(c*d+(e*f+g*h))");  // four products alive at once: spills
   return 0;
 }

@@ -1,9 +1,10 @@
-abbrev 1  compile_unit
-abbrev 2  fn average3
-abbrev 3    param a
-abbrev 4    local sum
-abbrev 2  fn clamp
-abbrev 3    param value
-abbrev 4    local result
-abbrev 5    local unused_tmp
-8 DIEs, 5 distinct abbreviations
+[1] new  compile_unit clamp.c
+[2] new  subprogram clamp
+[3] new  formal_parameter v
+[3]      formal_parameter lo
+[3]      formal_parameter hi
+[4] new  variable r
+[5] new  base_type int
+[6] new  variable t (optimized out)
+[7] new  subprogram zero (no children)
+9 DIEs, 7 abbreviations

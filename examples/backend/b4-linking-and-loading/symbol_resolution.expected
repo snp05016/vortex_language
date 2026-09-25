@@ -1,7 +1,13 @@
-pass 1: pulling mathlib.o (defines multiply)
-pass 1: pulling iolib.o (defines print)
-undefined after pass 1: flush
-pass 2: pulling extra.o (defines flush)
-undefined after pass 2: (none)
-undefined after pass 3: (none)
-link successful
+link: main.o libtext.a libparse.a
+  libtext.a pass 1: pull show.o
+  libtext.a pass 2: pull pad.o
+  libparse.a pass 1: pull parse.o
+  undefined at the end: trim
+  link fails
+link: main.o libparse.a libtext.a
+  libparse.a pass 1: pull parse.o
+  libtext.a pass 1: pull show.o
+  libtext.a pass 1: pull trim.o
+  libtext.a pass 2: pull pad.o
+  undefined at the end: (none)
+  link succeeds

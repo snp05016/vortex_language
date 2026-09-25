@@ -1,0 +1,5 @@
+10 x 10 outputs, 4 x 4 tiles: 9 programs
+output slots computed 144, real 100, masked off 44
+K steps per sum: 10 real, 12 with padding
+masked tiles vs triple loop: 100 of 100 bit-identical
+split-K vs triple loop:      60 of 100 bit-identical

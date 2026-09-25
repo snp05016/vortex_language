@@ -1,1 +1,4 @@
-follows = ["https://inria.hal.science/inria-00558509"]
+follows = [
+  "https://inria.hal.science/inria-00558509",
+  "https://pfalcon.github.io/ssabook/latest/",
+]

@@ -1,0 +1,22 @@
+; ModuleID = 'poison_select.ll'
+source_filename = "poison_select.ll"
+
+define i1 @and_false(i32 %x) {
+  ret i1 false
+}
+
+define i1 @shift_select(i32 %n, i32 %mask) {
+  %small = icmp ult i32 %n, 32
+  %bit = shl nuw i32 1, %n
+  %set = icmp ne i32 %bit, %mask
+  %r = select i1 %small, i1 %set, i1 false
+  ret i1 %r
+}
+
+define i1 @shift_and(i32 %n, i32 %mask) {
+  %small = icmp ult i32 %n, 32
+  %bit = shl nuw i32 1, %n
+  %set = icmp ne i32 %bit, %mask
+  %r = and i1 %small, %set
+  ret i1 %r
+}

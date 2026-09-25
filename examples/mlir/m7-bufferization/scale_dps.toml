@@ -1,5 +1,8 @@
-flags = ["--one-shot-bufferize=bufferize-function-boundaries"]
+flags = [
+  "--one-shot-bufferize=bufferize-function-boundaries function-boundary-type-conversion=identity-layout-map",
+  "--drop-equivalent-buffer-results",
+]
 follows = [
   "https://mlir.llvm.org/docs/Bufferization/",
-  "https://mlir.llvm.org/docs/Dialects/Linalg/",
+  "https://mlir.llvm.org/docs/Passes/",
 ]

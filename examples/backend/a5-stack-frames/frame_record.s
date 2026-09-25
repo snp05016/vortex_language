@@ -1,29 +1,27 @@
 // sum_three_and_call(a, b, c) -> helper(a) + b + c + a*b
 //
 // helper() is a leaf: it calls nothing, so it needs no frame at all.
-// sum_three_and_call() does call, so it needs somewhere to keep b and c
-// while helper() runs, and it must not lose its own return address when
-// its own bl overwrites x30. Its frame, 48 bytes, sp upward:
+// sum_three_and_call() does call, so it must keep its own return address
+// (bl overwrites x30), and it must keep b, c and a*b alive while helper()
+// runs. Its frame is 48 bytes, listed from sp upward:
 //
-//   [sp, #32]   product = a * b: a genuine local, computed before the call
-//               and read again after it (only 4 of these 16 bytes are used;
-//               the rest is padding that keeps the frame a multiple of 16)
-//   [sp, #24]   d8:  the caller's value, saved because this function is
-//               about to put c into d8 across the call
-//   [sp, #16]   x19: the caller's value, saved because this function is
-//               about to put b into x19 across the call
-//   [sp, #8]    x30: the return address helper()'s own bl would overwrite
-//   [sp, #0]    x29: the caller's frame pointer
+//   [sp, #0]    saved x29: the caller's frame pointer   } the frame record,
+//   [sp, #8]    saved x30: this function's return address } x29 points here
+//   [sp, #16]   the caller's x19, saved because b is about to live in x19
+//   [sp, #24]   the caller's d8, saved because c is about to live in d8
+//   [sp, #32]   a*b, spilled: 4 bytes used, 12 bytes of padding that keep
+//               the frame a multiple of 16
 //
-// b survives the call in x19, a callee-saved general register. c survives
-// it as a double in d8, a callee-saved FP/SIMD register of which AAPCS64
-// guarantees only the low 64 bits. product survives it the third way, spilled
-// to the stack, the technique every value uses once the callee-saved
-// registers run out.
+// Three ways to survive a call: b in a callee-saved general register (x19),
+// c in a callee-saved FP register (d8; AAPCS64 promises only its low 64
+// bits, which is all a double needs), and a*b in memory this function owns.
 //
-// Follows: AAPCS64 sections "Callee-saved" (r19-r29, v8-v15) and
-// "The Frame Pointer"; Apple, "Writing ARM64 code for Apple platforms",
-// section "The Frame Pointer".
+// This layout puts the frame record at the bottom of the frame. AAPCS64
+// leaves the record's position open; Apple clang puts it at the top of the
+// saved-register area instead. Both are valid.
+//
+// Follows: AAPCS64, sections "General-purpose Registers", "SIMD and
+// Floating-Point Registers" and "The Frame Pointer".
 
         .text
         .globl  helper
@@ -39,24 +37,22 @@ _helper:
         .p2align 2
 sum_three_and_call:
 _sum_three_and_call:
-        stp     x29, x30, [sp, #-48]!  // push the frame record, and reserve
-        mov     x29, sp                // the rest of the frame in the same step
-        str     x19, [sp, #16]         // save what this function is about to
-        str     d8,  [sp, #24]         // clobber: a callee-saved GPR and FP reg
+        stp     x29, x30, [sp, #-48]!   // claim 48 bytes and store the frame
+        mov     x29, sp                 // record at the bottom; point x29 at it
+        str     x19, [sp, #16]          // two register files, so two stores,
+        str     d8,  [sp, #24]          // not one stp
         mul     w9, w0, w1              // product = a * b, computed before the
         str     w9, [sp, #32]           // call, spilled so it survives helper()
         mov     w19, w1                 // keep b live across the call, in x19
         scvtf   d8, w2                  // keep c live across the call, in d8
-        bl      helper                  // may clobber x0-x17; x29 and x30 are
-                                         // safe, because they are in the frame
-                                         // record, not in a register the callee
-                                         // is free to use
+        bl      helper                  // overwrites x30; helper may clobber
+                                        // x0-x18, but must return x19 and d8
         add     w0, w0, w19             // helper(a) + b
         fcvtzs  w9, d8
         add     w0, w0, w9              // + c
         ldr     w9, [sp, #32]
         add     w0, w0, w9              // + product
-        ldr     x19, [sp, #16]          // restore what we saved, in reverse
-        ldr     d8,  [sp, #24]
-        ldp     x29, x30, [sp], #48     // pop the frame record, deallocate
+        ldr     x19, [sp, #16]          // restore from the same slots, while
+        ldr     d8,  [sp, #24]          // the frame still belongs to us
+        ldp     x29, x30, [sp], #48     // reload the record, release 48 bytes
         ret

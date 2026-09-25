@@ -1,11 +1,21 @@
-index used once:
+shift feeds one load:
   v0 = input
   v1 = input
   v4 = load [v0 + v1 << 2]
-index used twice:
+  ret v4
+  not emitted: v2 v3
+second consumer also folds it:
+  v0 = input
+  v1 = input
+  v4 = load [v0 + v1 << 2]
+  v5 = add v4, v1, lsl #2
+  ret v5
+  not emitted: v2 v3
+second consumer needs a register:
   v0 = input
   v1 = input
   v2 = v1 << 2
-  v3 = v0 + v2
-  v4 = load [v3]
-  v5 = load [v2]
+  v4 = load [v0 + v1 << 2]
+  v5 = mul v4, v2
+  ret v5
+  not emitted: v3

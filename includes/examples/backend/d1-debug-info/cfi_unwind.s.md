@@ -4,4 +4,4 @@
 --8<-- "examples/backend/d1-debug-info/cfi_unwind.s"
 ```
 
-<p class="vx-example-links">Follows: <a href="https://www.airs.com/blog/archives/460">airs.com/blog/archives/460</a>, <a href="https://github.com/llvm/llvm-project/blob/main/libunwind/include/mach-o/compact_unwind_encoding.h">github.com/llvm/llvm-project/blob/main/libunwind/include/mach-o/compact_unwind_encoding.h</a>.</p>
+<p class="vx-example-links">Follows: <a href="https://dwarfstd.org/doc/DWARF5.pdf">dwarfstd.org/doc/DWARF5.pdf</a>, <a href="https://github.com/llvm/llvm-project/blob/main/libunwind/include/mach-o/compact_unwind_encoding.h">github.com/llvm/llvm-project/blob/main/libunwind/include/mach-o/compact_unwind_encoding.h</a>, <a href="https://www.airs.com/blog/archives/460">airs.com/blog/archives/460</a>.</p>

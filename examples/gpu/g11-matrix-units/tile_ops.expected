@@ -1,3 +1,5 @@
-n=64   t=8   tile_ops=512      scalar_macs=262144     naive_scalar_instructions=262144     macs_match=true
-n=64   t=16  tile_ops=64       scalar_macs=262144     naive_scalar_instructions=262144     macs_match=true
-n=256  t=16  tile_ops=4096     scalar_macs=16777216   naive_scalar_instructions=16777216   macs_match=true
+one instruction: D = [[3, 7], [3, 4]]
+4x4x4 from 2x2x2 tiles: 8 instructions of 8 multiply-adds, matches loop: true
+64x64x64 on 16x16x16: 64 instructions x 4096 = 262144 multiply-adds
+64x64x64 on 16x8x16: 128 instructions x 2048 = 262144 multiply-adds
+64x64x64 on 8x8x8: 512 instructions x 512 = 262144 multiply-adds

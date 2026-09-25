@@ -1,0 +1,33 @@
+module {
+  func.func @honest(%arg0: memref<3x4xf32>, %arg1: memref<3xf32>) {
+    %c0 = arith.constant 0 : index
+    %c3 = arith.constant 3 : index
+    %c1 = arith.constant 1 : index
+    %c4 = arith.constant 4 : index
+    scf.parallel (%arg2) = (%c0) to (%c3) step (%c1) {
+      scf.for %arg3 = %c0 to %c4 step %c1 {
+        %0 = memref.load %arg0[%arg2, %arg3] : memref<3x4xf32>
+        %1 = memref.load %arg1[%arg2] : memref<3xf32>
+        %2 = arith.addf %1, %0 : f32
+        memref.store %2, %arg1[%arg2] : memref<3xf32>
+      }
+      scf.reduce 
+    }
+    return
+  }
+  func.func @false_claim(%arg0: memref<3x4xf32>, %arg1: memref<3xf32>) {
+    %c0 = arith.constant 0 : index
+    %c3 = arith.constant 3 : index
+    %c1 = arith.constant 1 : index
+    %c4 = arith.constant 4 : index
+    scf.parallel (%arg2, %arg3) = (%c0, %c0) to (%c3, %c4) step (%c1, %c1) {
+      %0 = memref.load %arg0[%arg2, %arg3] : memref<3x4xf32>
+      %1 = memref.load %arg1[%arg2] : memref<3xf32>
+      %2 = arith.addf %1, %0 : f32
+      memref.store %2, %arg1[%arg2] : memref<3xf32>
+      scf.reduce 
+    }
+    return
+  }
+}
+

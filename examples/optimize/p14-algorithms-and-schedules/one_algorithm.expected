@@ -1,0 +1,5 @@
+rows     hash ff3a0646  elements differing from rows: 0
+k_outer  hash ff3a0646  elements differing from rows: 0
+tiled    hash ff3a0646  elements differing from rows: 0
+threads  hash ff3a0646  elements differing from rows: 0
+split_k  hash 5b7bfaa4  elements differing from rows: 1607

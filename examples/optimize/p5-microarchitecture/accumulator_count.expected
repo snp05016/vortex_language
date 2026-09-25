@@ -1,4 +1,0 @@
-instruction                            chains needed
-single-port, latency 3, 1 per port     3
-two-port, latency 3, 1 per port each   6
-two-port, latency 6, 1 per port each   12

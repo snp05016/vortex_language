@@ -1,9 +1,12 @@
-; A two-way branch on a per-lane condition, the shape a divergent "if" in a
-; GPU kernel compiles down to: some lanes take %then, some take %else, and
-; both sides rejoin at %merge. -passes=structurizecfg rewrites this into the
-; single-entry, single-exit nesting that a target with structured control
-; flow (SPIR-V) requires, turning the branch into a boolean predicate that
-; flows through a new %Flow block instead.
+; Follows: LLVM, StructurizeCFG.cpp (the pass's own description of the shape
+; it produces).
+;
+; A two-way branch on a per-lane value, the shape a divergent "if" compiles
+; to: some lanes want %then, some want %else, and both rejoin at %merge.
+; StructurizeCFG rewrites it into the nested form AMDGPU's back end needs
+; before it can run both arms one after the other under an execution mask:
+; the choice between the arms becomes a boolean that flows through a new
+; %Flow block.
 define i32 @lane_select(i32 %lane) {
 entry:
   %take_then = icmp sgt i32 %lane, 0

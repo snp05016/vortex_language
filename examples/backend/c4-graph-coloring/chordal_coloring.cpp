@@ -1,28 +1,24 @@
-// Coloring a chordal interference graph in the order maximum cardinality
-// search (MCS) finds, versus coloring the same graph in an arbitrary order.
-// An SSA-form program's interference graph is always chordal (Hack): every
-// cycle of length 4 or more has a chord, an edge joining two
-// non-consecutive nodes on the cycle. MCS visits each node next by picking
-// whichever unvisited node has the most already-visited neighbors; coloring
-// greedily in the reverse of that order never uses more colors than the
-// graph's largest clique needs, with no backtracking. Coloring the same
-// chordal graph in a bad order can waste a color.
+// Coloring a chordal graph in the order maximum cardinality search (MCS)
+// visits it, against coloring the same graph in an arbitrary order.
 //
-// The five nodes below model live ranges from an SSA-form loop after
-// renaming: "e" is live across the whole loop (it interferes with
-// everything), and "a", "b", "c", "d" is a path where each overlaps only
-// its neighbors on the path, so a and c never interfere (nor b and d),
-// which is what a chord-free-cycle graph would lack and what SSA guarantees
-// here.
+// MCS repeatedly visits the unvisited node with the most visited
+// neighbors. On a chordal graph the visit order is a simplicial
+// elimination ordering: when a node is visited, its already-visited
+// neighbors are all adjacent to one another. Greedy coloring in that same
+// order therefore never needs more colors than the largest clique.
+//
+// The graph: "e" is adjacent to everything, and a-b-c-d is a path. Every
+// cycle of four or more nodes passes through e, and e is joined to every
+// other node on it, so every such cycle has a chord: the graph is chordal.
+// Its largest cliques are triangles such as {e, a, b}.
 //
 // Follows: Pereira, Palsberg, "Register Allocation via Coloring of Chordal
-// Graphs", APLAS 2005, section 3 (maximum cardinality search and the
-// greedy coloring theorem).
+// Graphs", APLAS 2005, section 3 (greedy coloring and MCS).
 
-#include <algorithm>
 #include <print>
 #include <set>
 #include <string>
+#include <utility>
 #include <vector>
 
 const std::vector<std::string> nodes = {"a", "b", "c", "d", "e"};
@@ -39,6 +35,7 @@ std::set<std::string> neighbors(const std::string& n) {
   return out;
 }
 
+// Ties go to the node listed first, so the output is deterministic.
 std::vector<std::string> maximum_cardinality_search() {
   std::vector<std::string> order;
   std::set<std::string> visited;
@@ -58,11 +55,11 @@ std::vector<std::string> maximum_cardinality_search() {
   return order;
 }
 
-// Colors `order` greedily, each node taking the lowest color its
-// already-colored neighbors do not use. Returns the number of colors used.
-int greedy_color(const std::vector<std::string>& order, bool report) {
+// Each node takes the lowest color its already-colored neighbors do not
+// use. Returns the number of colors used.
+int greedy_color(const std::vector<std::string>& order) {
   std::vector<std::pair<std::string, int>> color;
-  int max_color = -1;
+  int colors = 0;
   for (auto& n : order) {
     std::set<int> used;
     for (auto& m : neighbors(n))
@@ -71,10 +68,11 @@ int greedy_color(const std::vector<std::string>& order, bool report) {
     int picked = 0;
     while (used.count(picked)) ++picked;
     color.push_back({n, picked});
-    max_color = std::max(max_color, picked);
-    if (report) std::println("  {}: color {}", n, picked);
+    if (picked + 1 > colors) colors = picked + 1;
+    std::print(" {}={}", n, picked);
   }
-  return max_color + 1;
+  std::println("");
+  return colors;
 }
 
 int main() {
@@ -83,13 +81,9 @@ int main() {
   for (auto& n : mcs) std::print(" {}", n);
   std::println("");
 
-  std::println("Reverse-MCS coloring:");
-  std::vector<std::string> reverse_mcs(mcs.rbegin(), mcs.rend());
-  int used_reverse = greedy_color(reverse_mcs, true);
-  std::println("  colors used: {}", used_reverse);
+  std::print("greedy in MCS order:");
+  std::println("  colors used: {}", greedy_color(mcs));
 
-  std::println("Arbitrary-order coloring (a, e, b, d, c):");
-  std::vector<std::string> arbitrary = {"a", "e", "b", "d", "c"};
-  int used_arbitrary = greedy_color(arbitrary, true);
-  std::println("  colors used: {}", used_arbitrary);
+  std::print("greedy in order a, d, b, c, e:");
+  std::println("  colors used: {}", greedy_color({"a", "d", "b", "c", "e"}));
 }

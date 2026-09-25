@@ -1,0 +1,6 @@
+flags = ["--split-input-file", "--verify-diagnostics"]
+follows = [
+  "https://mlir.llvm.org/docs/Dialects/Linalg/",
+  "https://mlir.llvm.org/docs/Dialects/MemRef/",
+  "https://mlir.llvm.org/getting_started/TestingGuide/",
+]

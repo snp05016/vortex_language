@@ -1,17 +1,27 @@
 module attributes {gpu.container_module} {
   gpu.module @kernels {
     gpu.func @classify(%arg0: memref<32xi32>) kernel {
-      %0 = gpu.thread_id  x
       %c16 = arith.constant 16 : index
-      %1 = arith.cmpi ult, %0, %c16 : index
-      %c0_i32 = arith.constant 0 : i32
-      %c1_i32 = arith.constant 1 : i32
-      %2 = scf.if %1 -> (i32) {
-        scf.yield %c0_i32 : i32
-      } else {
-        scf.yield %c1_i32 : i32
-      }
+      %0 = gpu.thread_id  x
+      %1 = arith.cmpi uge, %0, %c16 : index
+      %2 = arith.extui %1 : i1 to i32
       memref.store %2, %arg0[%0] : memref<32xi32>
+      gpu.return
+    }
+    gpu.func @increment(%arg0: memref<100xf32>) kernel {
+      %cst = arith.constant 1.000000e+00 : f32
+      %c100 = arith.constant 100 : index
+      %0 = gpu.block_id  x
+      %1 = gpu.block_dim  x
+      %2 = gpu.thread_id  x
+      %3 = arith.muli %0, %1 : index
+      %4 = arith.addi %3, %2 : index
+      %5 = arith.cmpi ult, %4, %c100 : index
+      scf.if %5 {
+        %6 = memref.load %arg0[%4] : memref<100xf32>
+        %7 = arith.addf %6, %cst : f32
+        memref.store %7, %arg0[%4] : memref<100xf32>
+      }
       gpu.return
     }
   }

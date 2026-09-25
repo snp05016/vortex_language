@@ -1,1 +1,3 @@
-n=10 best=96 mean=150.9 median=102.0 ci95=[98.0, 231.0]
+n=15 min=96 median=101 mean=120.6 max=275
+ranks 3..13: median in [98, 105]
+bootstrap, 2000 resamples: median in [98, 103]

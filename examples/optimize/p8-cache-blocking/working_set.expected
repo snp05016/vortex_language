@@ -1,10 +1,4 @@
-L1d budget 131072 B: largest tile 104 (129792 B, 99.0% of budget)
-L2  budget 16777216 B: largest tile 1182 (16765488 B, 99.9% of budget)
-
- tile      bytes  in L1  in L2
-    8        768    yes    yes
-   16       3072    yes    yes
-   32      12288    yes    yes
-   64      49152    yes    yes
-  128     196608     no    yes
-  256     786432     no    yes
+budget          bytes |      B     reused |      B    3 tiles
+toy cache        4096 |     31       3968 |     18       3888
+M4 Pro L1d     131072 |    180     130320 |    104     129792
+M4 Pro L2    16777216 |   2047   16769024 |   1182   16765488
