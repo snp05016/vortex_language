@@ -1,6 +1,6 @@
 #include "frontend/debugVisitor.h"
 #include "frontend/lexer.h"
-#include "frontend/parser.h"
+#include "frontend/parser/parser.h"
 #include <fstream>
 #include <iostream>
 #include <iterator>
